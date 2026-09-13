@@ -138,7 +138,7 @@ class CompanyWorkspaceFooter extends StatelessWidget {
                 Icon(Icons.shield_outlined, size: 15, color: Color(0xFF0FA75D)),
                 SizedBox(width: 6),
                 Text(
-                  'FinPro Accounting Engine Active',
+                  'Dhandas Accounting Engine Active',
                   style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
                 ),
               ],

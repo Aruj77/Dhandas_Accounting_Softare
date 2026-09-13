@@ -79,7 +79,7 @@ class _SideBarState extends State<SideBar> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'FinPro™',
+                      'Dhandas™',
                       style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF101C38), letterSpacing: -0.4),
                     ),
                     SizedBox(height: 1),
@@ -207,7 +207,7 @@ class _SideBarState extends State<SideBar> {
               children: [
                 Text('Version 1.0.0', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF90A1BA))),
                 SizedBox(height: 2),
-                Text('© 2026 FinPro. All rights reserved.', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w500, color: Color(0xFFA1B0C5))),
+                Text('© 2026 Dhandas. All rights reserved.', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w500, color: Color(0xFFA1B0C5))),
               ],
             ),
           ),

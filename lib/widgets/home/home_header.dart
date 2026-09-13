@@ -23,7 +23,7 @@ class HomeHeader extends StatelessWidget {
                   children: [
                     TextSpan(text: 'Welcome to '),
                     TextSpan(
-                      text: 'FinPro',
+                      text: 'Dhandas',
                       style: TextStyle(
                         color: Color(0xFF0F62FE),
                       ),

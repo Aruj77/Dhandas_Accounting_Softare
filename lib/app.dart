@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'pages/home_screen.dart';
 import 'widgets/global_loading_overlay.dart';
 
-class FinProApp extends StatelessWidget {
-  const FinProApp({super.key});
+class DhandasApp extends StatelessWidget {
+  const DhandasApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'FinPro',
+      title: 'Dhandas',
       theme: ThemeData(
         useMaterial3: true,
         scaffoldBackgroundColor: const Color(0xFFF4F7FC),

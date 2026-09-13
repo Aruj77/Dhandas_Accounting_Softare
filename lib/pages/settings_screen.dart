@@ -43,7 +43,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
                 SizedBox(width: 10),
                 Text(
-                  'FinPro is up to date! (v1.0.0 is the latest build)',
+                  'Dhandas is up to date! (v1.0.0 is the latest build)',
                   style: TextStyle(fontWeight: FontWeight.w600),
                 ),
               ],
@@ -128,7 +128,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             Row(
                               children: [
                                 Text(
-                                  'FinPro Desktop v$_currentVersion',
+                                  'Dhandas Desktop v$_currentVersion',
                                   style: const TextStyle(
                                     fontSize: 14.5,
                                     fontWeight: FontWeight.w800,
@@ -358,10 +358,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             icon: Icons.info_outline_rounded,
             badgeColor: const Color(0xFF7034E6),
             title: 'Application Information',
-            subtitle: 'FinPro build details, licensing, and dependencies',
+            subtitle: 'Dhandas build details, licensing, and dependencies',
             child: Column(
               children: [
-                _buildInfoRow('Product Name', 'FinPro Desktop Accounting'),
+                _buildInfoRow('Product Name', 'Dhandas Desktop Accounting'),
                 const Divider(color: Color(0xFFEBF0F7), height: 16),
                 _buildInfoRow('Current Version', '$_currentVersion (Release)'),
                 const Divider(color: Color(0xFFEBF0F7), height: 16),

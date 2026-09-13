@@ -1,6 +1,6 @@
 name: desktop
 
-description: "FinPro - Modern Accounting and Business Management Software"
+description: "Dhandas - Modern Accounting and Business Management Software"
 
 publish_to: "none"
 
@@ -29,7 +29,7 @@ flutter:
   uses-material-design: true
 
   # -------------------------------------------------------
-  # FinPro UI Images
+  # Dhandas UI Images
   # -------------------------------------------------------
   assets:
     - assets/images/

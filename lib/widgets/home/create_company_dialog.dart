@@ -115,7 +115,7 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
       _selectedCountry = 'India';
 
       if (_companyNameController.text.isEmpty) {
-        _companyNameController.text = 'FinPro Global Solutions Pvt Ltd';
+        _companyNameController.text = 'Dhandas Global Solutions Pvt Ltd';
       }
       if (_cityController.text.isEmpty) {
         _cityController.text = (stateCode == '09')

@@ -30,7 +30,7 @@ class _SetDirectoryDialogState extends State<SetDirectoryDialog> {
 
   Future<void> _pickDirectory() async {
     final result = await FilePicker.platform.getDirectoryPath(
-      dialogTitle: 'Select FinPro Data Storage Directory',
+      dialogTitle: 'Select Dhandas Data Storage Directory',
       initialDirectory: _pathController.text.isNotEmpty ? _pathController.text : null,
     );
 
@@ -180,7 +180,7 @@ class _SetDirectoryDialogState extends State<SetDirectoryDialog> {
                                 color: Color(0xFF101C38),
                               ),
                               decoration: InputDecoration(
-                                hintText: 'C:\\FinPro\\Data',
+                                hintText: 'C:\\Dhandas\\Data',
                                 hintStyle: const TextStyle(
                                   fontSize: 13,
                                   color: Color(0xFF90A1B9),
@@ -264,7 +264,7 @@ class _SetDirectoryDialogState extends State<SetDirectoryDialog> {
                             SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                'FinPro will automatically save this path and remember it on all future app startups. Companies created will be written as secure JSON databases in this folder.',
+                                'Dhandas will automatically save this path and remember it on all future app startups. Companies created will be written as secure JSON databases in this folder.',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Color(0xFF7A5813),

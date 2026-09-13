@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class StorageService {
-  static const String _prefDirectoryKey = 'finpro_data_directory_path';
+  static const String _prefDirectoryKey = 'dhandas_data_directory_path';
 
   static Future<String?> getSavedDirectory() async {
     final prefs = await SharedPreferences.getInstance();
@@ -29,7 +29,7 @@ class StorageService {
       await baseDir.create(recursive: true);
     }
 
-    final folderRegex = RegExp(r'^FIN-(\d{4,})$', caseSensitive: false);
+    final folderRegex = RegExp(r'^DHAN-(\d{4,})$', caseSensitive: false);
     int highestIndex = 0;
 
     await for (final entity in baseDir.list()) {
@@ -49,7 +49,7 @@ class StorageService {
 
     final nextIndex = highestIndex + 1;
     final paddedNumber = nextIndex.toString().padLeft(4, '0');
-    return 'FIN-$paddedNumber';
+    return 'DHAN-$paddedNumber';
   }
 
   static Future<String> saveCompanyLocally({
