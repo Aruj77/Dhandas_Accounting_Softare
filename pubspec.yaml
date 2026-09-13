@@ -1,0 +1,35 @@
+name: desktop
+
+description: "FinPro - Modern Accounting and Business Management Software"
+
+publish_to: "none"
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.13.3
+
+dependencies:
+  flutter:
+    sdk: flutter
+  shared_preferences: ^2.3.2
+  file_picker: ^8.1.2
+  http: ^1.2.2
+
+  # iOS-style icons. Safe to keep for cross-platform compatibility.
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  # -------------------------------------------------------
+  # FinPro UI Images
+  # -------------------------------------------------------
+  assets:
+    - assets/images/
