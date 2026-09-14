@@ -4,25 +4,25 @@ class VoucherItemRow {
   final TextEditingController item = TextEditingController();
   final FocusNode itemFocus = FocusNode();
 
-  final TextEditingController qty = TextEditingController(text: '1.00');
+  final TextEditingController qty = TextEditingController(text: '');
   final FocusNode qtyFocus = FocusNode();
 
   final TextEditingController unit = TextEditingController(text: 'PCS');
   final FocusNode unitFocus = FocusNode();
 
-  final TextEditingController price = TextEditingController(text: '0.00');
+  final TextEditingController price = TextEditingController(text: '');
   final FocusNode priceFocus = FocusNode();
 
-  final TextEditingController taxable = TextEditingController(text: '0.00');
+  final TextEditingController taxable = TextEditingController(text: '');
   final FocusNode taxableFocus = FocusNode();
 
-  final TextEditingController cgst = TextEditingController(text: '0.00');
+  final TextEditingController cgst = TextEditingController(text: '');
   final FocusNode cgstFocus = FocusNode();
 
-  final TextEditingController sgst = TextEditingController(text: '0.00');
+  final TextEditingController sgst = TextEditingController(text: '');
   final FocusNode sgstFocus = FocusNode();
 
-  final TextEditingController igst = TextEditingController(text: '0.00');
+  final TextEditingController igst = TextEditingController(text: '');
   final FocusNode igstFocus = FocusNode();
 
   double amount = 0.0;

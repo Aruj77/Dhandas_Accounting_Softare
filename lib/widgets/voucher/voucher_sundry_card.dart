@@ -8,9 +8,7 @@ class VoucherSundryCard extends StatelessWidget {
   final double roundOff;
   final VoidCallback onAddSundry;
   final VoidCallback onToggleRoundOff;
-  final void Function(int index) onToggleNegative;
   final void Function(int index, String field) onRowEnter;
-  final void Function(String masterType) onQuickAdd;
   final VoidCallback onTabToSave;
 
   const VoucherSundryCard({
@@ -20,11 +18,17 @@ class VoucherSundryCard extends StatelessWidget {
     required this.roundOff,
     required this.onAddSundry,
     required this.onToggleRoundOff,
-    required this.onToggleNegative,
     required this.onRowEnter,
-    required this.onQuickAdd,
     required this.onTabToSave,
   });
+
+  static const List<String> fixedSundryOptions = [
+    'Round off+',
+    'Round Off-',
+    'Freight up forward',
+    'Discount',
+    'Others',
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -37,13 +41,13 @@ class VoucherSundryCard extends StatelessWidget {
         return KeyEventResult.ignored;
       },
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: const Color(0xFFE2EAF5), width: 1.2),
           boxShadow: const [
-            BoxShadow(color: Color(0x04092B60), blurRadius: 10, offset: Offset(0, 3)),
+            BoxShadow(color: Color(0x04092B60), blurRadius: 8, offset: Offset(0, 2)),
           ],
         ),
         child: Column(
@@ -54,99 +58,134 @@ class VoucherSundryCard extends StatelessWidget {
               children: [
                 const Row(
                   children: [
-                    Icon(Icons.tune_rounded, size: 18, color: Color(0xFF0F62FE)),
-                    SizedBox(width: 8),
+                    Icon(Icons.tune_rounded, size: 15, color: Color(0xFF0F62FE)),
+                    SizedBox(width: 6),
                     Text(
                       'Bill Sundry & Expenses',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF101B3A)),
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF101B3A)),
                     ),
                   ],
                 ),
                 TextButton.icon(
                   onPressed: onAddSundry,
-                  icon: const Icon(Icons.add, size: 15),
-                  label: const Text('Add Sundry', style: TextStyle(fontSize: 11)),
+                  icon: const Icon(Icons.add, size: 13),
+                  label: const Text('Add', style: TextStyle(fontSize: 11)),
                 ),
               ],
             ),
-            const SizedBox(height: 10),
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: sundries.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (context, idx) {
-                final s = sundries[idx];
-                return Row(
-                  children: [
-                    Expanded(
-                      flex: 6,
-                      child: _buildGridInputWithFocus(
-                        controller: s.name,
-                        focusNode: s.nameFocus,
-                        hint: 'Sundry name (Freight/Dis.)',
-                        masterType: 'Bill Sundry',
-                        onSubmitted: () => onRowEnter(idx, 'name'),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    InkWell(
-                      onTap: () => onToggleNegative(idx),
-                      borderRadius: BorderRadius.circular(6),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: s.isNegative ? const Color(0xFFFFECEC) : const Color(0xFFE5F8EE),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          s.isNegative ? '(-) Sub' : '(+) Add',
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w800,
-                            color: s.isNegative ? const Color(0xFFEE4343) : const Color(0xFF10A35B),
+            const SizedBox(height: 6),
+            SizedBox(
+              height: 95,
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: sundries.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 4),
+                itemBuilder: (context, idx) {
+                  final s = sundries[idx];
+                  return Row(
+                    children: [
+                      Expanded(
+                        flex: 7,
+                        child: SizedBox(
+                          height: 30,
+                          child: Autocomplete<String>(
+                            initialValue: TextEditingValue(text: s.name.text),
+                            optionsBuilder: (TextEditingValue textEditingValue) {
+                              if (textEditingValue.text == '') return fixedSundryOptions;
+                              return fixedSundryOptions.where((opt) => opt.toLowerCase().contains(textEditingValue.text.toLowerCase()));
+                            },
+                            onSelected: (selection) {
+                              s.name.text = selection;
+                              if (selection == 'Round Off-' || selection == 'Discount') {
+                                s.isNegative = true;
+                              } else {
+                                s.isNegative = false;
+                              }
+                              onRowEnter(idx, 'name');
+                            },
+                            fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                              controller.addListener(() => s.name.text = controller.text);
+                              return TextField(
+                                controller: controller,
+                                focusNode: focusNode,
+                                textInputAction: TextInputAction.next,
+                                onSubmitted: (_) {
+                                  onFieldSubmitted();
+                                  onRowEnter(idx, 'name');
+                                },
+                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF101B3A)),
+                                decoration: InputDecoration(
+                                  hintText: 'Select sundry...',
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                                  filled: true,
+                                  fillColor: const Color(0xFFFAFBFD),
+                                  suffixIcon: const Icon(Icons.keyboard_arrow_down_rounded, size: 15, color: Color(0xFF64748B)),
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFFE5EDF7))),
+                                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFFE5EDF7))),
+                                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.4)),
+                                ),
+                              );
+                            },
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      flex: 3,
-                      child: _buildSimpleGridInput(
-                        controller: s.amount,
-                        focusNode: s.amountFocus,
-                        textAlign: TextAlign.right,
-                        onSubmitted: () => onRowEnter(idx, 'amount'),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 4,
+                        child: SizedBox(
+                          height: 30,
+                          child: TextField(
+                            controller: s.amount,
+                            focusNode: s.amountFocus,
+                            textAlign: TextAlign.right,
+                            textInputAction: TextInputAction.next,
+                            onSubmitted: (_) => onRowEnter(idx, 'amount'),
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF101B3A)),
+                            decoration: InputDecoration(
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                              filled: true,
+                              fillColor: const Color(0xFFFAFBFD),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFFE5EDF7))),
+                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFFE5EDF7))),
+                              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.4)),
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
-                );
-              },
+                    ],
+                  );
+                },
+              ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 6),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: const Color(0xFFF8FAFD),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(6),
                 border: Border.all(color: const Color(0xFFE4EDF7)),
               ),
               child: Row(
                 children: [
-                  Checkbox(
-                    value: autoRoundOff,
-                    activeColor: const Color(0xFF0F62FE),
-                    onChanged: (_) => onToggleRoundOff(),
+                  SizedBox(
+                    height: 18,
+                    width: 18,
+                    child: Checkbox(
+                      value: autoRoundOff,
+                      activeColor: const Color(0xFF0F62FE),
+                      onChanged: (_) => onToggleRoundOff(),
+                    ),
                   ),
+                  const SizedBox(width: 6),
                   const Text(
-                    'Auto Round-off Grand Total',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+                    'Auto Round-off',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
                   ),
                   const Spacer(),
                   Text(
                     '${roundOff >= 0 ? '+' : ''}${roundOff.toStringAsFixed(2)}',
                     style: TextStyle(
-                      fontSize: 12.5,
+                      fontSize: 11,
                       fontWeight: FontWeight.w800,
                       color: roundOff == 0 ? const Color(0xFF64748B) : const Color(0xFF0F62FE),
                     ),
@@ -155,88 +194,6 @@ class VoucherSundryCard extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGridInputWithFocus({
-    required TextEditingController controller,
-    required FocusNode focusNode,
-    required String hint,
-    required String masterType,
-    VoidCallback? onSubmitted,
-  }) {
-    return ListenableBuilder(
-      listenable: focusNode,
-      builder: (context, _) {
-        final isFocused = focusNode.hasFocus;
-        return SizedBox(
-          height: 38,
-          child: Stack(
-            alignment: Alignment.centerRight,
-            children: [
-              TextField(
-                controller: controller,
-                focusNode: focusNode,
-                textInputAction: TextInputAction.next,
-                onSubmitted: (_) => onSubmitted?.call(),
-                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFF101B3A)),
-                decoration: InputDecoration(
-                  hintText: hint,
-                  hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF90A1BA), fontWeight: FontWeight.w400),
-                  contentPadding: EdgeInsets.only(left: 10, right: isFocused ? 28 : 10, top: 8, bottom: 8),
-                  filled: true,
-                  fillColor: const Color(0xFFFAFBFD),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE5EDF7))),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE5EDF7))),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.2)),
-                ),
-              ),
-              if (isFocused)
-                Positioned(
-                  right: 5,
-                  bottom: 5,
-                  child: InkWell(
-                    onTap: () => onQuickAdd(masterType),
-                    borderRadius: BorderRadius.circular(4),
-                    child: Container(
-                      width: 16,
-                      height: 16,
-                      decoration: BoxDecoration(color: const Color(0xFF0F62FE), borderRadius: BorderRadius.circular(4)),
-                      child: const Icon(Icons.add, size: 12, color: Colors.white),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildSimpleGridInput({
-    required TextEditingController controller,
-    required FocusNode focusNode,
-    TextAlign textAlign = TextAlign.left,
-    VoidCallback? onSubmitted,
-  }) {
-    return SizedBox(
-      height: 38,
-      child: TextField(
-        controller: controller,
-        focusNode: focusNode,
-        textAlign: textAlign,
-        textInputAction: TextInputAction.next,
-        onSubmitted: (_) => onSubmitted?.call(),
-        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFF101B3A)),
-        decoration: InputDecoration(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          filled: true,
-          fillColor: const Color(0xFFFAFBFD),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE5EDF7))),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE5EDF7))),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.2)),
         ),
       ),
     );

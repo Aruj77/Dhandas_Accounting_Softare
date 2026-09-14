@@ -12,8 +12,6 @@ class VoucherHeaderCard extends StatelessWidget {
   final FocusNode saleTypeFocus;
   final TextEditingController partyController;
   final FocusNode partyFocus;
-  final TextEditingController partyGstinController;
-  final FocusNode partyGstinFocus;
   final TextEditingController matCenterController;
   final FocusNode matCenterFocus;
   final TextEditingController narrationController;
@@ -35,8 +33,6 @@ class VoucherHeaderCard extends StatelessWidget {
     required this.saleTypeFocus,
     required this.partyController,
     required this.partyFocus,
-    required this.partyGstinController,
-    required this.partyGstinFocus,
     required this.matCenterController,
     required this.matCenterFocus,
     required this.narrationController,
@@ -49,17 +45,13 @@ class VoucherHeaderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE2EAF5), width: 1.2),
         boxShadow: const [
-          BoxShadow(
-            color: Color(0x04092B60),
-            blurRadius: 10,
-            offset: Offset(0, 3),
-          ),
+          BoxShadow(color: Color(0x04092B60), blurRadius: 8, offset: Offset(0, 2)),
         ],
       ),
       child: Column(
@@ -71,33 +63,33 @@ class VoucherHeaderCard extends StatelessWidget {
                 label: 'Series',
                 controller: seriesController,
                 focusNode: seriesFocus,
-                width: 130,
+                width: 110,
                 icon: Icons.tag_rounded,
                 masterType: 'Series',
                 onSubmitted: () => dateFocus.requestFocus(),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 10),
               _buildDateInput(
                 label: 'Voucher Date',
                 controller: dateController,
                 focusNode: dateFocus,
                 errorText: dateError,
-                width: 170,
+                width: 145,
                 onSubmitted: () {
                   onValidateDate();
                   vchNoFocus.requestFocus();
                 },
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 10),
               _buildPlainField(
                 label: 'Voucher Number',
                 controller: vchNoController,
                 focusNode: vchNoFocus,
-                width: 170,
+                width: 145,
                 icon: Icons.confirmation_number_outlined,
                 onSubmitted: () => saleTypeFocus.requestFocus(),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 10),
               Expanded(
                 child: _buildFieldWithFocus(
                   label: 'Taxation / Sale Type',
@@ -110,34 +102,23 @@ class VoucherHeaderCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 8),
           Row(
             children: [
               Expanded(
-                flex: 3,
+                flex: 5,
                 child: _buildFieldWithFocus(
-                  label: 'Party / Account Ledger',
+                  label: 'Party / Account Ledger (or GSTIN)',
                   controller: partyController,
                   focusNode: partyFocus,
                   icon: Icons.person_outline_rounded,
                   masterType: 'Account Ledger',
-                  onSubmitted: () => partyGstinFocus.requestFocus(),
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                flex: 2,
-                child: _buildPlainField(
-                  label: 'Party GSTIN',
-                  controller: partyGstinController,
-                  focusNode: partyGstinFocus,
-                  icon: Icons.badge_outlined,
                   onSubmitted: () => matCenterFocus.requestFocus(),
                 ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 10),
               Expanded(
-                flex: 2,
+                flex: 3,
                 child: _buildFieldWithFocus(
                   label: 'Material Centre',
                   controller: matCenterController,
@@ -147,15 +128,18 @@ class VoucherHeaderCard extends StatelessWidget {
                   onSubmitted: () => narrationFocus.requestFocus(),
                 ),
               ),
+              const SizedBox(width: 10),
+              Expanded(
+                flex: 4,
+                child: _buildPlainField(
+                  label: 'Narration / Remarks',
+                  controller: narrationController,
+                  focusNode: narrationFocus,
+                  icon: Icons.notes_rounded,
+                  onSubmitted: onNarrationSubmitted,
+                ),
+              ),
             ],
-          ),
-          const SizedBox(height: 14),
-          _buildPlainField(
-            label: 'Narration / Remarks',
-            controller: narrationController,
-            focusNode: narrationFocus,
-            icon: Icons.notes_rounded,
-            onSubmitted: onNarrationSubmitted,
           ),
         ],
       ),
@@ -171,26 +155,26 @@ class VoucherHeaderCard extends StatelessWidget {
     double? width,
   }) {
     final field = SizedBox(
-      height: 42,
+      height: 36,
       child: TextField(
         controller: controller,
         focusNode: focusNode,
         textInputAction: TextInputAction.next,
         onSubmitted: (_) => onSubmitted(),
-        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF101B3A)),
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF101B3A)),
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6B7B9B)),
-          prefixIcon: const Icon(Icons.calendar_today_rounded, size: 16, color: Color(0xFF0F62FE)),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+          labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6B7B9B)),
+          prefixIcon: const Icon(Icons.calendar_today_rounded, size: 14, color: Color(0xFF0F62FE)),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
           filled: true,
           fillColor: const Color(0xFFF8FAFD),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(8),
             borderSide: BorderSide(color: errorText != null ? const Color(0xFFEE4343) : const Color(0xFFE2EAF5)),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(8),
             borderSide: BorderSide(color: errorText != null ? const Color(0xFFEE4343) : const Color(0xFF0F62FE), width: 1.3),
           ),
         ),
@@ -203,13 +187,13 @@ class VoucherHeaderCard extends StatelessWidget {
         if (width != null) SizedBox(width: width, child: field) else field,
         if (errorText != null)
           Padding(
-            padding: const EdgeInsets.only(top: 4, left: 2),
+            padding: const EdgeInsets.only(top: 2, left: 2),
             child: SizedBox(
-              width: width ?? 200,
+              width: width ?? 145,
               child: Text(
                 errorText,
-                style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: Color(0xFFEE4343)),
-                maxLines: 2,
+                style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: Color(0xFFEE4343)),
+                maxLines: 1,
               ),
             ),
           ),
@@ -226,22 +210,22 @@ class VoucherHeaderCard extends StatelessWidget {
     double? width,
   }) {
     final field = SizedBox(
-      height: 42,
+      height: 36,
       child: TextField(
         controller: controller,
         focusNode: focusNode,
         textInputAction: TextInputAction.next,
         onSubmitted: (_) => onSubmitted?.call(),
-        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF101B3A)),
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF101B3A)),
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6B7B9B)),
-          prefixIcon: Icon(icon, size: 16, color: const Color(0xFF0F62FE)),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+          labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6B7B9B)),
+          prefixIcon: Icon(icon, size: 14, color: const Color(0xFF0F62FE)),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
           filled: true,
           fillColor: const Color(0xFFF8FAFD),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2EAF5))),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.3)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2EAF5))),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.3)),
         ),
       ),
     );
@@ -264,7 +248,7 @@ class VoucherHeaderCard extends StatelessWidget {
         builder: (context, _) {
           final isFocused = focusNode.hasFocus;
           return SizedBox(
-            height: 42,
+            height: 36,
             child: Stack(
               alignment: Alignment.centerRight,
               children: [
@@ -273,30 +257,30 @@ class VoucherHeaderCard extends StatelessWidget {
                   focusNode: focusNode,
                   textInputAction: TextInputAction.next,
                   onSubmitted: (_) => onSubmitted?.call(),
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF101B3A)),
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF101B3A)),
                   decoration: InputDecoration(
                     labelText: label,
-                    labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6B7B9B)),
-                    prefixIcon: Icon(icon, size: 16, color: const Color(0xFF0F62FE)),
-                    contentPadding: EdgeInsets.only(left: 12, right: isFocused ? 32 : 12, top: 0, bottom: 0),
+                    labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6B7B9B)),
+                    prefixIcon: Icon(icon, size: 14, color: const Color(0xFF0F62FE)),
+                    contentPadding: EdgeInsets.only(left: 8, right: isFocused ? 26 : 8, top: 0, bottom: 0),
                     filled: true,
                     fillColor: const Color(0xFFF8FAFD),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2EAF5))),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.3)),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2EAF5))),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.3)),
                   ),
                 ),
                 if (isFocused)
                   Positioned(
-                    right: 6,
-                    bottom: 6,
+                    right: 5,
+                    bottom: 5,
                     child: InkWell(
                       onTap: () => onQuickAdd(masterType),
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius: BorderRadius.circular(3),
                       child: Container(
-                        width: 18,
-                        height: 18,
-                        decoration: BoxDecoration(color: const Color(0xFF0F62FE), borderRadius: BorderRadius.circular(4)),
-                        child: const Icon(Icons.add, size: 13, color: Colors.white),
+                        width: 15,
+                        height: 15,
+                        decoration: BoxDecoration(color: const Color(0xFF0F62FE), borderRadius: BorderRadius.circular(3)),
+                        child: const Icon(Icons.add, size: 10, color: Colors.white),
                       ),
                     ),
                   ),

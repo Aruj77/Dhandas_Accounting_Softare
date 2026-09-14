@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 class VoucherSundryRow {
-  final TextEditingController name = TextEditingController();
+  final TextEditingController name = TextEditingController(text: '');
   final FocusNode nameFocus = FocusNode();
-  final TextEditingController amount = TextEditingController(text: '0.00');
+  final TextEditingController amount = TextEditingController(text: '');
   final FocusNode amountFocus = FocusNode();
   bool isNegative = false;
 

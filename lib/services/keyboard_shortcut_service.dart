@@ -144,7 +144,7 @@ class KeyboardShortcutService {
     KeyboardShortcutOption(id: keyNumpad2, label: 'Numpad 2'),
     KeyboardShortcutOption(id: keyEnter, label: 'Enter'),
     KeyboardShortcutOption(id: keyNumpadEnter, label: 'Numpad Enter'),
-    KeyboardShortcutOption(id: keyEscape, label: 'Escape'),
+    KeyboardShortcutOption(id: keyEscape, label: 'Esc'),
     KeyboardShortcutOption(id: keySpace, label: 'Space'),
     KeyboardShortcutOption(id: keyF2, label: 'F2'),
     KeyboardShortcutOption(id: keyF3, label: 'F3'),
