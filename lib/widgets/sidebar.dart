@@ -166,7 +166,7 @@ class SideBarState extends State<SideBar> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'FinPro™',
+                      'Dhandas™',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w900,
@@ -409,7 +409,7 @@ class SideBarState extends State<SideBar> {
                 ),
                 SizedBox(height: 2),
                 Text(
-                  '© 2026 FinPro. All rights reserved.',
+                  '© 2026 Dhandas. All rights reserved.',
                   style: TextStyle(
                       fontSize: 10.5,
                       fontWeight: FontWeight.w500,
