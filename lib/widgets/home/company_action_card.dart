@@ -1,16 +1,44 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../action_button.dart';
 import 'glass_card.dart';
 
-class CompanyActionCard extends StatelessWidget {
+class CompanyActionCard extends StatefulWidget {
   final VoidCallback onOpenCompany;
   final VoidCallback onCreateCompany;
+  final VoidCallback? onMoveToSidebar;
+  final VoidCallback? onMoveRight;
+  final VoidCallback? onMoveDown;
+  final FocusNode? openCompanyFocusNode;
+  final FocusNode? createCompanyFocusNode;
 
   const CompanyActionCard({
     super.key,
     required this.onOpenCompany,
     required this.onCreateCompany,
+    this.onMoveToSidebar,
+    this.onMoveRight,
+    this.onMoveDown,
+    this.openCompanyFocusNode,
+    this.createCompanyFocusNode,
   });
+
+  @override
+  State<CompanyActionCard> createState() => _CompanyActionCardState();
+}
+
+class _CompanyActionCardState extends State<CompanyActionCard> {
+  late FocusNode _openNode;
+  late FocusNode _createNode;
+  bool _isOpenFocused = false;
+  bool _isCreateFocused = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _openNode = widget.openCompanyFocusNode ?? FocusNode();
+    _createNode = widget.createCompanyFocusNode ?? FocusNode();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,24 +67,110 @@ class CompanyActionCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: ActionButton(
-                  icon: Icons.folder_open_rounded,
-                  title: 'Open Company',
-                  subtitle: 'Open an existing workspace',
-                  iconColor: const Color(0xFF0F62FE),
-                  iconBackground: const Color(0xFFE5EFFF),
-                  onTap: onOpenCompany,
+                child: Focus(
+                  focusNode: _openNode,
+                  onFocusChange: (val) => setState(() => _isOpenFocused = val),
+                  onKeyEvent: (node, event) {
+                    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return KeyEventResult.ignored;
+
+                    final key = event.logicalKey;
+                    if (key == LogicalKeyboardKey.arrowRight || key == LogicalKeyboardKey.numpad6) {
+                      _createNode.requestFocus();
+                      return KeyEventResult.handled;
+                    } else if (key == LogicalKeyboardKey.arrowLeft || key == LogicalKeyboardKey.numpad4) {
+                      widget.onMoveToSidebar?.call();
+                      return KeyEventResult.handled;
+                    } else if (key == LogicalKeyboardKey.arrowDown || key == LogicalKeyboardKey.numpad2) {
+                      widget.onMoveDown?.call();
+                      return KeyEventResult.handled;
+                    } else if (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.numpadEnter) {
+                      widget.onOpenCompany();
+                      return KeyEventResult.handled;
+                    }
+                    return KeyEventResult.ignored;
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 140),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: _isOpenFocused ? const Color(0xFF0F62FE) : Colors.transparent,
+                        width: 2.5,
+                      ),
+                      boxShadow: _isOpenFocused
+                          ? const [
+                              BoxShadow(
+                                color: Color(0x330F62FE),
+                                blurRadius: 10,
+                                spreadRadius: 1,
+                                offset: Offset(0, 2),
+                              )
+                            ]
+                          : null,
+                    ),
+                    child: ActionButton(
+                      icon: Icons.folder_open_rounded,
+                      title: 'Open Company',
+                      subtitle: 'Open an existing workspace',
+                      iconColor: const Color(0xFF0F62FE),
+                      iconBackground: const Color(0xFFE5EFFF),
+                      onTap: widget.onOpenCompany,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: ActionButton(
-                  icon: Icons.add_circle_outline_rounded,
-                  title: 'Create Company',
-                  subtitle: 'Set up a new organization',
-                  iconColor: const Color(0xFF0FA75D),
-                  iconBackground: const Color(0xFFE2F8ED),
-                  onTap: onCreateCompany,
+                child: Focus(
+                  focusNode: _createNode,
+                  onFocusChange: (val) => setState(() => _isCreateFocused = val),
+                  onKeyEvent: (node, event) {
+                    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return KeyEventResult.ignored;
+
+                    final key = event.logicalKey;
+                    if (key == LogicalKeyboardKey.arrowLeft || key == LogicalKeyboardKey.numpad4) {
+                      _openNode.requestFocus();
+                      return KeyEventResult.handled;
+                    } else if (key == LogicalKeyboardKey.arrowRight || key == LogicalKeyboardKey.numpad6) {
+                      widget.onMoveRight?.call();
+                      return KeyEventResult.handled;
+                    } else if (key == LogicalKeyboardKey.arrowDown || key == LogicalKeyboardKey.numpad2) {
+                      widget.onMoveDown?.call();
+                      return KeyEventResult.handled;
+                    } else if (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.numpadEnter) {
+                      widget.onCreateCompany();
+                      return KeyEventResult.handled;
+                    }
+                    return KeyEventResult.ignored;
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 140),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: _isCreateFocused ? const Color(0xFF0FA75D) : Colors.transparent,
+                        width: 2.5,
+                      ),
+                      boxShadow: _isCreateFocused
+                          ? const [
+                              BoxShadow(
+                                color: Color(0x330FA75D),
+                                blurRadius: 10,
+                                spreadRadius: 1,
+                                offset: Offset(0, 2),
+                              )
+                            ]
+                          : null,
+                    ),
+                    child: ActionButton(
+                      icon: Icons.add_circle_outline_rounded,
+                      title: 'Create Company',
+                      subtitle: 'Set up a new organization',
+                      iconColor: const Color(0xFF0FA75D),
+                      iconBackground: const Color(0xFFE2F8ED),
+                      onTap: widget.onCreateCompany,
+                    ),
+                  ),
                 ),
               ),
             ],

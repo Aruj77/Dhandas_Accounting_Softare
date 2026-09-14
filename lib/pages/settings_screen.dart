@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
+import '../services/keyboard_shortcut_service.dart';
 import '../services/loading_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   final String? currentDirectory;
   final VoidCallback? onChangeDirectory;
+  final KeyboardShortcutSettings keyboardSettings;
+  final Future<void> Function(KeyboardShortcutSettings settings)?
+  onKeyboardSettingsChanged;
 
   const SettingsScreen({
     super.key,
     this.currentDirectory,
     this.onChangeDirectory,
+    required this.keyboardSettings,
+    this.onKeyboardSettingsChanged,
   });
 
   @override
@@ -16,10 +22,24 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  String _currentVersion = '1.0.0';
+  final String _currentVersion = '1.0.0';
   String? _lastCheckedTime = 'Never';
-  bool _isUpToDate = true;
   String _selectedChannel = 'Stable';
+  late KeyboardShortcutSettings _keyboardSettings;
+
+  @override
+  void initState() {
+    super.initState();
+    _keyboardSettings = widget.keyboardSettings;
+  }
+
+  @override
+  void didUpdateWidget(covariant SettingsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.keyboardSettings != widget.keyboardSettings) {
+      _keyboardSettings = widget.keyboardSettings;
+    }
+  }
 
   Future<void> _checkForUpdates() async {
     await LoadingService.wrap(() async {
@@ -33,7 +53,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
         setState(() {
           _lastCheckedTime = 'Today at $formattedTime';
-          _isUpToDate = true;
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -55,6 +74,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
         );
       }
     }, message: 'Checking for updates...');
+  }
+
+  Future<void> _applyKeyboardSettings(
+    KeyboardShortcutSettings settings,
+  ) async {
+    setState(() => _keyboardSettings = settings);
+    await widget.onKeyboardSettingsChanged?.call(settings);
+  }
+
+  Future<void> _updateKeyboardMode(bool value) async {
+    await _applyKeyboardSettings(
+      _keyboardSettings.copyWith(keyboardIntensiveMode: value),
+    );
+  }
+
+  Future<void> _updateNumpadMode(bool value) async {
+    await _applyKeyboardSettings(
+      _keyboardSettings.copyWith(useNumpadNavigation: value),
+    );
+  }
+
+  Future<void> _updateShortcut(String actionId, String keyId) async {
+    final updatedShortcuts = Map<String, String>.from(_keyboardSettings.shortcuts)
+      ..[actionId] = keyId;
+    await _applyKeyboardSettings(
+      _keyboardSettings.copyWith(shortcuts: updatedShortcuts),
+    );
+  }
+
+  Future<void> _resetShortcuts() async {
+    await _applyKeyboardSettings(KeyboardShortcutSettings.defaults());
   }
 
   @override
@@ -80,7 +130,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 6),
           const Text(
-            'Manage storage locations, application updates, and runtime configurations.',
+            'Manage storage locations, application updates, runtime configurations, and keyboard-first controls.',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w500,
@@ -353,6 +403,116 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 20),
 
+          _buildSettingsCard(
+            icon: Icons.keyboard_alt_rounded,
+            badgeColor: const Color(0xFF0F62FE),
+            title: 'Keyboard & Shortcuts',
+            subtitle:
+                'Navigate faster with arrow keys, numpad keys, Enter, Esc, and accounting-style shortcut actions.',
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildKeyboardToggleTile(
+                        title: 'Keyboard Intensive Mode',
+                        description:
+                            'Keeps navigation optimized for keyboard-heavy workflow across the app.',
+                        value: _keyboardSettings.keyboardIntensiveMode,
+                        onChanged: _updateKeyboardMode,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: _buildKeyboardToggleTile(
+                        title: 'Use Numeric Keypad Navigation',
+                        description:
+                            'Treat NumPad 8 / 2 and NumPad Enter like arrow navigation and select.',
+                        value: _keyboardSettings.useNumpadNavigation,
+                        onChanged: _updateNumpadMode,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFD),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFE2EAF4)),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Shortcut Mapping',
+                                  style: TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF101C38),
+                                  ),
+                                ),
+                                SizedBox(height: 2),
+                                Text(
+                                  'Choose the primary key for each action. Changes apply immediately.',
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    color: Color(0xFF6B7B9B),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: _resetShortcuts,
+                            icon: const Icon(Icons.restart_alt_rounded, size: 16),
+                            label: const Text(
+                              'Reset',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF475569),
+                              side: const BorderSide(color: Color(0xFFCBD5E1)),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      ...KeyboardShortcutService.definitions.map(
+                        (definition) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _buildShortcutSelectorRow(definition),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: const [
+                      _KeyboardHintChip(label: 'Enter', description: 'Next Field'),
+                      _KeyboardHintChip(label: 'Tab', description: 'Forward'),
+                      _KeyboardHintChip(label: 'Shift+Tab', description: 'Back'),
+                      _KeyboardHintChip(label: 'Esc', description: 'Go Back'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
           // APPLICATION INFORMATION
           _buildSettingsCard(
             icon: Icons.info_outline_rounded,
@@ -470,6 +630,198 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildKeyboardToggleTile({
+    required String title,
+    required String description,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFD),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2EAF4)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF101C38),
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  description,
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF6B7B9B),
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Switch.adaptive(
+            value: value,
+            activeThumbColor: const Color(0xFF0F62FE),
+            onChanged: onChanged,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildShortcutSelectorRow(KeyboardShortcutDefinition definition) {
+    final selectedKey = KeyboardShortcutService.shortcutFor(
+      _keyboardSettings,
+      definition.actionId,
+    );
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5EDF7)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  definition.title,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF101B3A),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  definition.description,
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF6B7B9B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          SizedBox(
+            width: 180,
+            child: DropdownButtonFormField<String>(
+              initialValue: selectedKey,
+              isExpanded: true,
+              icon: const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 18,
+                color: Color(0xFF677793),
+              ),
+              decoration: InputDecoration(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                filled: true,
+                fillColor: const Color(0xFFF8FAFD),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFFD6E3F2)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF0F62FE),
+                    width: 1.3,
+                  ),
+                ),
+              ),
+              items: definition.options
+                  .map(
+                    (option) => DropdownMenuItem<String>(
+                      value: option.id,
+                      child: Text(
+                        option.label,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF101C38),
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  _updateShortcut(definition.actionId, value);
+                }
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _KeyboardHintChip extends StatelessWidget {
+  final String label;
+  final String description;
+
+  const _KeyboardHintChip({
+    required this.label,
+    required this.description,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFD),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFE2EAF4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF0F62FE),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            description,
+            style: const TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF64748B),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

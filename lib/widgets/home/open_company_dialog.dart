@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../services/storage_service.dart';
 
 class OpenCompanyDialog extends StatefulWidget {
@@ -15,6 +16,7 @@ class OpenCompanyDialog extends StatefulWidget {
 
 class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _dialogFocusNode = FocusNode();
   List<Map<String, dynamic>> _companies = [];
   List<Map<String, dynamic>> _filteredCompanies = [];
   bool _isLoading = true;
@@ -40,6 +42,7 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
           _selectedIndex = null;
         }
       });
+      _dialogFocusNode.requestFocus();
     }
   }
 
@@ -76,6 +79,32 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
         _selectedIndex! >= 0 &&
         _selectedIndex! < _filteredCompanies.length) {
       Navigator.of(context).pop(_filteredCompanies[_selectedIndex!]);
+    }
+  }
+
+  void _handleKey(KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return;
+
+    final key = event.logicalKey;
+
+    if (key == LogicalKeyboardKey.arrowDown || key == LogicalKeyboardKey.numpad2) {
+      if (_filteredCompanies.isNotEmpty) {
+        setState(() {
+          final current = _selectedIndex ?? -1;
+          _selectedIndex = (current + 1).clamp(0, _filteredCompanies.length - 1);
+        });
+      }
+    } else if (key == LogicalKeyboardKey.arrowUp || key == LogicalKeyboardKey.numpad8) {
+      if (_filteredCompanies.isNotEmpty) {
+        setState(() {
+          final current = _selectedIndex ?? 1;
+          _selectedIndex = (current - 1).clamp(0, _filteredCompanies.length - 1);
+        });
+      }
+    } else if (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.numpadEnter) {
+      _confirmSelection();
+    } else if (key == LogicalKeyboardKey.escape) {
+      Navigator.of(context).pop();
     }
   }
 
@@ -351,199 +380,183 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
   @override
   void dispose() {
     _searchController.dispose();
+    _dialogFocusNode.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-      child: Center(
-        child: Container(
-          width: 880,
-          constraints: const BoxConstraints(maxHeight: 740),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: const Color(0xFFD6E3F2), width: 1.2),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x240A1838),
-                blurRadius: 40,
-                offset: Offset(0, 16),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(24),
-            child: Column(
-              children: [
-                // HEADER
-                Container(
-                  padding: const EdgeInsets.fromLTRB(32, 22, 24, 22),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFFAFBFD),
-                    border: Border(
-                      bottom: BorderSide(color: Color(0xFFE5EDF7), width: 1.2),
+    return Focus(
+      focusNode: _dialogFocusNode,
+      autofocus: true,
+      onKeyEvent: (node, event) {
+        _handleKey(event);
+        if (event is KeyDownEvent &&
+            (event.logicalKey == LogicalKeyboardKey.arrowDown ||
+                event.logicalKey == LogicalKeyboardKey.arrowUp ||
+                event.logicalKey == LogicalKeyboardKey.numpad2 ||
+                event.logicalKey == LogicalKeyboardKey.numpad8 ||
+                event.logicalKey == LogicalKeyboardKey.enter ||
+                event.logicalKey == LogicalKeyboardKey.numpadEnter ||
+                event.logicalKey == LogicalKeyboardKey.escape)) {
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        child: Center(
+          child: Container(
+            width: 880,
+            constraints: const BoxConstraints(maxHeight: 740),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: const Color(0xFFD6E3F2), width: 1.2),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x240A1838),
+                  blurRadius: 40,
+                  offset: Offset(0, 16),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: Column(
+                children: [
+                  // HEADER
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(32, 22, 24, 22),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFFAFBFD),
+                      border: Border(
+                        bottom: BorderSide(color: Color(0xFFE5EDF7), width: 1.2),
+                      ),
                     ),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF2C7BF6), Color(0xFF0F62FE)],
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF2C7BF6), Color(0xFF0F62FE)],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x350F62FE),
+                                blurRadius: 10,
+                                offset: Offset(0, 3),
+                              ),
+                            ],
                           ),
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x350F62FE),
-                              blurRadius: 10,
-                              offset: Offset(0, 3),
+                          child: const Icon(
+                            Icons.folder_open_rounded,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Open Company',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF101C38),
+                                letterSpacing: -0.3,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Use [Arrow Keys / NumPad 2 & 8] + [Enter] to open, or double click',
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF657593),
+                              ),
                             ),
                           ],
                         ),
-                        child: const Icon(
-                          Icons.folder_open_rounded,
-                          color: Colors.white,
-                          size: 24,
+                        const Spacer(),
+                        IconButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          icon: const Icon(Icons.close_rounded),
+                          color: const Color(0xFF677797),
+                          splashRadius: 20,
                         ),
-                      ),
-                      const SizedBox(width: 16),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Open Company',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w900,
-                              color: Color(0xFF101C38),
-                              letterSpacing: -0.3,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Select an organization stored in ${widget.directoryPath}',
-                            style: const TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w500,
-                              color: Color(0xFF657593),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        icon: const Icon(Icons.close_rounded),
-                        color: const Color(0xFF677797),
-                        splashRadius: 20,
-                      ),
-                    ],
-                  ),
-                ),
-
-                // SEARCH BAR
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(32, 20, 32, 12),
-                  child: TextField(
-                    controller: _searchController,
-                    style: const TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF101C38),
+                      ],
                     ),
-                    decoration: InputDecoration(
-                      hintText:
-                          'Search by Company Name, GSTIN, or Folder Name...',
-                      hintStyle: const TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF90A1B9),
-                        fontWeight: FontWeight.w400,
+                  ),
+
+                  // SEARCH BAR
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(32, 20, 32, 12),
+                    child: TextField(
+                      controller: _searchController,
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF101C38),
                       ),
-                      prefixIcon: const Icon(
-                        Icons.search_rounded,
-                        color: Color(0xFF0F62FE),
-                        size: 20,
-                      ),
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear_rounded, size: 18),
-                              onPressed: () => _searchController.clear(),
-                            )
-                          : null,
-                      filled: true,
-                      fillColor: const Color(0xFFF9FBFE),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 14),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(
-                            color: Color(0xFFD6E3F2), width: 1.2),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(
-                            color: Color(0xFF0F62FE), width: 1.5),
+                      decoration: InputDecoration(
+                        hintText:
+                            'Search by Company Name, GSTIN, or Folder Name...',
+                        hintStyle: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF90A1B9),
+                          fontWeight: FontWeight.w400,
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.search_rounded,
+                          color: Color(0xFF0F62FE),
+                          size: 20,
+                        ),
+                        suffixIcon: _searchController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear_rounded, size: 18),
+                                onPressed: () => _searchController.clear(),
+                              )
+                            : null,
+                        filled: true,
+                        fillColor: const Color(0xFFF9FBFE),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 14),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(
+                              color: Color(0xFFD6E3F2), width: 1.2),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(
+                              color: Color(0xFF0F62FE), width: 1.5),
+                        ),
                       ),
                     ),
                   ),
-                ),
 
-                // TABLE HEADER
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 32),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5FB),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Row(
-                    children: [
-                      Expanded(
-                        flex: 5,
-                        child: Text(
-                          'Company Name',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF475569),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        flex: 4,
-                        child: Text(
-                          'GSTIN',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF475569),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        flex: 3,
-                        child: Text(
-                          'Folder ID',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF475569),
-                          ),
-                        ),
-                      ),
-                      SizedBox(
-                        width: 100,
-                        child: Center(
+                  // TABLE HEADER
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 32),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5FB),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Row(
+                      children: [
+                        Expanded(
+                          flex: 5,
                           child: Text(
-                            'Actions',
+                            'Company Name',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w800,
@@ -551,293 +564,337 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                             ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // COMPANY LIST
-                Expanded(
-                  child: _isLoading
-                      ? const Center(
-                          child: CircularProgressIndicator(
-                            color: Color(0xFF0F62FE),
+                        Expanded(
+                          flex: 4,
+                          child: Text(
+                            'GSTIN',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF475569),
+                            ),
                           ),
-                        )
-                      : _filteredCompanies.isEmpty
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: const [
-                                  Icon(
-                                    Icons.business_center_outlined,
-                                    size: 48,
-                                    color: Color(0xFF94A3B8),
-                                  ),
-                                  SizedBox(height: 12),
-                                  Text(
-                                    'No matching companies found',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: Color(0xFF64748B),
-                                    ),
-                                  ),
-                                ],
+                        ),
+                        Expanded(
+                          flex: 3,
+                          child: Text(
+                            'Folder ID',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF475569),
+                            ),
+                          ),
+                        ),
+                        SizedBox(
+                          width: 100,
+                          child: Center(
+                            child: Text(
+                              'Actions',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF475569),
                               ),
-                            )
-                          : ListView.separated(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 32, vertical: 10),
-                              itemCount: _filteredCompanies.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 6),
-                              itemBuilder: (context, index) {
-                                final company = _filteredCompanies[index];
-                                final isSelected = _selectedIndex == index;
-                                final folderLabel = (company['companyId'] ??
-                                        company['folderName'] ??
-                                        'Default')
-                                    .toString();
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
 
-                                return InkWell(
-                                  borderRadius: BorderRadius.circular(12),
-                                  onTap: () =>
-                                      setState(() => _selectedIndex = index),
-                                  onDoubleTap: () {
-                                    setState(() => _selectedIndex = index);
-                                    _confirmSelection();
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 18, vertical: 12),
-                                    decoration: BoxDecoration(
-                                      color: isSelected
-                                          ? const Color(0xFFEFF6FF)
-                                          : Colors.white,
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(
-                                        color: isSelected
-                                            ? const Color(0xFF3B82F6)
-                                            : const Color(0xFFE2E8F0),
-                                        width: isSelected ? 1.5 : 1.0,
+                  // COMPANY LIST
+                  Expanded(
+                    child: _isLoading
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                              color: Color(0xFF0F62FE),
+                            ),
+                          )
+                        : _filteredCompanies.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: const [
+                                    Icon(
+                                      Icons.business_center_outlined,
+                                      size: 48,
+                                      color: Color(0xFF94A3B8),
+                                    ),
+                                    SizedBox(height: 12),
+                                    Text(
+                                      'No matching companies found',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF64748B),
                                       ),
                                     ),
-                                    child: Row(
-                                      children: [
-                                        // Company Name
-                                        Expanded(
-                                          flex: 5,
-                                          child: Row(
-                                            children: [
-                                              Container(
-                                                width: 32,
-                                                height: 32,
-                                                decoration: BoxDecoration(
-                                                  color: isSelected
-                                                      ? const Color(0xFF2563EB)
-                                                      : const Color(0xFFF1F5F9),
-                                                  borderRadius:
-                                                      BorderRadius.circular(8),
-                                                ),
-                                                child: Icon(
-                                                  Icons.apartment_rounded,
-                                                  size: 18,
-                                                  color: isSelected
-                                                      ? Colors.white
-                                                      : const Color(0xFF475569),
-                                                ),
-                                              ),
-                                              const SizedBox(width: 12),
-                                              Expanded(
-                                                child: Text(
-                                                  company['companyName'] ??
-                                                      'Untitled',
-                                                  style: TextStyle(
-                                                    fontSize: 13,
-                                                    fontWeight: FontWeight.w700,
-                                                    color: isSelected
-                                                        ? const Color(0xFF1D4ED8)
-                                                        : const Color(
-                                                            0xFF0F172A),
-                                                  ),
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
+                                  ],
+                                ),
+                              )
+                            : ListView.separated(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 32, vertical: 10),
+                                itemCount: _filteredCompanies.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(height: 6),
+                                itemBuilder: (context, index) {
+                                  final company = _filteredCompanies[index];
+                                  final isSelected = _selectedIndex == index;
+                                  final folderLabel = (company['companyId'] ??
+                                          company['folderName'] ??
+                                          'Default')
+                                      .toString();
 
-                                        // GSTIN
-                                        Expanded(
-                                          flex: 4,
-                                          child: Text(
-                                            (company['gstin'] != null &&
-                                                    company['gstin']
-                                                        .toString()
-                                                        .isNotEmpty)
-                                                ? company['gstin'].toString()
-                                                : 'Unregistered',
-                                            style: TextStyle(
-                                              fontSize: 12.5,
-                                              fontWeight: FontWeight.w600,
-                                              letterSpacing: 0.5,
-                                              color: (company['gstin'] !=
-                                                          null &&
+                                  return InkWell(
+                                    borderRadius: BorderRadius.circular(12),
+                                    onTap: () =>
+                                        setState(() => _selectedIndex = index),
+                                    onDoubleTap: () {
+                                      setState(() => _selectedIndex = index);
+                                      _confirmSelection();
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 18, vertical: 12),
+                                      decoration: BoxDecoration(
+                                        color: isSelected
+                                            ? const Color(0xFFEFF6FF)
+                                            : Colors.white,
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: isSelected
+                                              ? const Color(0xFF0F62FE)
+                                              : const Color(0xFFE2E8F0),
+                                          width: isSelected ? 2.2 : 1.0,
+                                        ),
+                                        boxShadow: isSelected
+                                            ? const [
+                                                BoxShadow(
+                                                  color: Color(0x220F62FE),
+                                                  blurRadius: 8,
+                                                  offset: Offset(0, 2),
+                                                ),
+                                              ]
+                                            : null,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          // Company Name
+                                          Expanded(
+                                            flex: 5,
+                                            child: Row(
+                                              children: [
+                                                Container(
+                                                  width: 32,
+                                                  height: 32,
+                                                  decoration: BoxDecoration(
+                                                    color: isSelected
+                                                        ? const Color(0xFF0F62FE)
+                                                        : const Color(0xFFF1F5F9),
+                                                    borderRadius:
+                                                        BorderRadius.circular(8),
+                                                  ),
+                                                  child: Icon(
+                                                    Icons.apartment_rounded,
+                                                    size: 18,
+                                                    color: isSelected
+                                                        ? Colors.white
+                                                        : const Color(0xFF475569),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 12),
+                                                Expanded(
+                                                  child: Text(
+                                                    company['companyName'] ??
+                                                        'Untitled',
+                                                    style: TextStyle(
+                                                      fontSize: 13,
+                                                      fontWeight: FontWeight.w700,
+                                                      color: isSelected
+                                                          ? const Color(0xFF0F62FE)
+                                                          : const Color(
+                                                              0xFF0F172A),
+                                                    ),
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+
+                                          // GSTIN
+                                          Expanded(
+                                            flex: 4,
+                                            child: Text(
+                                              (company['gstin'] != null &&
                                                       company['gstin']
                                                           .toString()
                                                           .isNotEmpty)
-                                                  ? const Color(0xFF334155)
-                                                  : const Color(0xFF94A3B8),
+                                                  ? company['gstin'].toString()
+                                                  : 'Unregistered',
+                                              style: TextStyle(
+                                                fontSize: 12.5,
+                                                fontWeight: FontWeight.w600,
+                                                letterSpacing: 0.5,
+                                                color: (company['gstin'] !=
+                                                            null &&
+                                                        company['gstin']
+                                                            .toString()
+                                                            .isNotEmpty)
+                                                    ? const Color(0xFF334155)
+                                                    : const Color(0xFF94A3B8),
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
                                             ),
-                                            overflow: TextOverflow.ellipsis,
                                           ),
-                                        ),
 
-                                        // Folder Name / ID
-                                        Expanded(
-                                          flex: 3,
-                                          child: Row(
-                                            children: [
-                                              const Icon(
-                                                Icons.folder_outlined,
-                                                size: 16,
-                                                color: Color(0xFF64748B),
-                                              ),
-                                              const SizedBox(width: 6),
-                                              Expanded(
-                                                child: Text(
-                                                  folderLabel,
-                                                  style: const TextStyle(
-                                                    fontSize: 12.5,
-                                                    fontFamily: 'monospace',
-                                                    fontWeight: FontWeight.w600,
-                                                    color: Color(0xFF64748B),
+                                          // Folder Name / ID
+                                          Expanded(
+                                            flex: 3,
+                                            child: Row(
+                                              children: [
+                                                const Icon(
+                                                  Icons.folder_outlined,
+                                                  size: 16,
+                                                  color: Color(0xFF64748B),
+                                                ),
+                                                const SizedBox(width: 6),
+                                                Expanded(
+                                                  child: Text(
+                                                    folderLabel,
+                                                    style: const TextStyle(
+                                                      fontSize: 12.5,
+                                                      fontFamily: 'monospace',
+                                                      fontWeight: FontWeight.w600,
+                                                      color: Color(0xFF64748B),
+                                                    ),
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
                                                   ),
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
                                                 ),
-                                              ),
-                                            ],
+                                              ],
+                                            ),
                                           ),
-                                        ),
 
-                                        // ACTION BUTTONS (EDIT & DELETE)
-                                        SizedBox(
-                                          width: 100,
-                                          child: Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              IconButton(
-                                                tooltip: 'Edit Company',
-                                                icon: const Icon(
-                                                  Icons.edit_outlined,
-                                                  size: 18,
-                                                  color: Color(0xFF0F62FE),
+                                          // ACTION BUTTONS (EDIT & DELETE)
+                                          SizedBox(
+                                            width: 100,
+                                            child: Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                IconButton(
+                                                  tooltip: 'Edit Company',
+                                                  icon: const Icon(
+                                                    Icons.edit_outlined,
+                                                    size: 18,
+                                                    color: Color(0xFF0F62FE),
+                                                  ),
+                                                  onPressed: () =>
+                                                      _openEditModal(company),
+                                                  style: IconButton.styleFrom(
+                                                    hoverColor:
+                                                        const Color(0xFFE8F1FE),
+                                                    padding:
+                                                        const EdgeInsets.all(8),
+                                                  ),
                                                 ),
-                                                onPressed: () =>
-                                                    _openEditModal(company),
-                                                style: IconButton.styleFrom(
-                                                  hoverColor:
-                                                      const Color(0xFFE8F1FE),
-                                                  padding:
-                                                      const EdgeInsets.all(8),
+                                                IconButton(
+                                                  tooltip: 'Delete Company',
+                                                  icon: const Icon(
+                                                    Icons.delete_outline_rounded,
+                                                    size: 18,
+                                                    color: Color(0xFFEE4343),
+                                                  ),
+                                                  onPressed: () =>
+                                                      _confirmDelete(company),
+                                                  style: IconButton.styleFrom(
+                                                    hoverColor:
+                                                        const Color(0xFFFFECEC),
+                                                    padding:
+                                                        const EdgeInsets.all(8),
+                                                  ),
                                                 ),
-                                              ),
-                                              IconButton(
-                                                tooltip: 'Delete Company',
-                                                icon: const Icon(
-                                                  Icons.delete_outline_rounded,
-                                                  size: 18,
-                                                  color: Color(0xFFEE4343),
-                                                ),
-                                                onPressed: () =>
-                                                    _confirmDelete(company),
-                                                style: IconButton.styleFrom(
-                                                  hoverColor:
-                                                      const Color(0xFFFFECEC),
-                                                  padding:
-                                                      const EdgeInsets.all(8),
-                                                ),
-                                              ),
-                                            ],
+                                              ],
+                                            ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                );
-                              },
-                            ),
-                ),
+                                  );
+                                },
+                              ),
+                  ),
 
-                // FOOTER
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFFAFBFD),
-                    border: Border(
-                      top: BorderSide(color: Color(0xFFE5EDF7), width: 1.2),
+                  // FOOTER
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFFAFBFD),
+                      border: Border(
+                        top: BorderSide(color: Color(0xFFE5EDF7), width: 1.2),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Text(
+                          '${_filteredCompanies.length} organizations detected • Press Enter to Open',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF64748B),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const Spacer(),
+                        OutlinedButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF475569),
+                            side: const BorderSide(color: Color(0xFFCBD5E1)),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 14),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: const Text('Cancel (Esc)',
+                              style: TextStyle(fontWeight: FontWeight.w600)),
+                        ),
+                        const SizedBox(width: 12),
+                        ElevatedButton(
+                          onPressed:
+                              _selectedIndex == null ? null : _confirmSelection,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0F62FE),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 14),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(Icons.check_rounded,
+                                  size: 18, color: Colors.white),
+                              SizedBox(width: 6),
+                              Text(
+                                'Open (Enter)',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  child: Row(
-                    children: [
-                      Text(
-                        '${_filteredCompanies.length} organizations detected',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF64748B),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const Spacer(),
-                      OutlinedButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF475569),
-                          side: const BorderSide(color: Color(0xFFCBD5E1)),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 14),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: const Text('Cancel',
-                            style: TextStyle(fontWeight: FontWeight.w600)),
-                      ),
-                      const SizedBox(width: 12),
-                      ElevatedButton(
-                        onPressed:
-                            _selectedIndex == null ? null : _confirmSelection,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF0F62FE),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 24, vertical: 14),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: const Row(
-                          children: [
-                            Icon(Icons.check_rounded,
-                                size: 18, color: Colors.white),
-                            SizedBox(width: 6),
-                            Text(
-                              'Open Selected',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

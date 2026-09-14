@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../services/keyboard_shortcut_service.dart';
 import '../services/storage_service.dart';
 import '../services/loading_service.dart';
 import '../widgets/sidebar.dart';
@@ -16,8 +18,8 @@ import '../widgets/home/open_company_dialog.dart';
 import 'settings_screen.dart';
 import 'company/transactions_dashboard.dart';
 import 'company/administration_screen.dart';
-import 'company/voucher_entry_screen.dart';
-import 'company/voucher_list_screen.dart';
+import 'company/voucher/voucher_entry_screen.dart';
+import 'company/voucher/voucher_list_screen.dart';
 
 class _ListParams {
   final String voucherType;
@@ -43,15 +45,60 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _currentDataDirectory;
   List<Map<String, dynamic>> _recentCompanies = [];
   bool _isLoadingDirectory = true;
+  KeyboardShortcutSettings _keyboardSettings =
+      KeyboardShortcutSettings.defaults();
 
   Map<String, dynamic>? _activeCompany;
   String? _activeVoucherType;
   _ListParams? _activeListQuery;
 
+  final GlobalKey<SideBarState> _sidebarKey = GlobalKey<SideBarState>();
+  final GlobalKey<TransactionsDashboardState> _dashboardKey =
+      GlobalKey<TransactionsDashboardState>();
+
+  // Home Screen Right-Pane Focus Nodes
+  final FocusNode _openCompanyBtnFocus = FocusNode();
+  final FocusNode _createCompanyBtnFocus = FocusNode();
+  final FocusNode _backupDataFocus = FocusNode();
+  final FocusNode _restoreDataFocus = FocusNode();
+  final FocusNode _dataDirBannerFocus = FocusNode();
+
   @override
   void initState() {
     super.initState();
     _loadStoredDirectoryAndData();
+    _loadKeyboardSettings();
+
+    // Default focus: Highlights Home on initial startup
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _sidebarKey.currentState?.focusActiveItem();
+    });
+  }
+
+  @override
+  void dispose() {
+    _openCompanyBtnFocus.dispose();
+    _createCompanyBtnFocus.dispose();
+    _backupDataFocus.dispose();
+    _restoreDataFocus.dispose();
+    _dataDirBannerFocus.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadKeyboardSettings() async {
+    final settings = await KeyboardShortcutService.loadSettings();
+    if (mounted) {
+      setState(() => _keyboardSettings = settings);
+    }
+  }
+
+  Future<void> _handleKeyboardSettingsChanged(
+    KeyboardShortcutSettings settings,
+  ) async {
+    await KeyboardShortcutService.saveSettings(settings);
+    if (mounted) {
+      setState(() => _keyboardSettings = settings);
+    }
   }
 
   Future<void> _loadStoredDirectoryAndData() async {
@@ -139,6 +186,11 @@ class _HomeScreenState extends State<HomeScreen> {
           _activeListQuery = null;
         });
 
+        // Default focus: Highlights Transactions in the sidebar upon opening workspace
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _sidebarKey.currentState?.focusActiveItem();
+        });
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -183,7 +235,8 @@ class _HomeScreenState extends State<HomeScreen> {
             setState(() => _recentCompanies = companies);
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Company database created and saved successfully!'),
+                content:
+                    Text('Company database created and saved successfully!'),
                 backgroundColor: Color(0xFF11A25B),
               ),
             );
@@ -207,6 +260,140 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  bool _isEditableFocusActive() {
+    final focusContext = FocusManager.instance.primaryFocus?.context;
+    if (focusContext == null) return false;
+    return focusContext.widget is EditableText ||
+        focusContext.findAncestorWidgetOfExactType<EditableText>() != null;
+  }
+
+  void _switchWorkspace() {
+    if (_activeCompany == null) return;
+    setState(() {
+      _activeCompany = null;
+      _selectedIndex = 0;
+      _activeVoucherType = null;
+      _activeListQuery = null;
+    });
+
+    // Reset default focus to Home in sidebar
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _sidebarKey.currentState?.focusActiveItem();
+    });
+  }
+
+  void _goBack() {
+    if (_activeVoucherType != null) {
+      setState(() => _activeVoucherType = null);
+      return;
+    }
+
+    if (_activeListQuery != null) {
+      setState(() => _activeListQuery = null);
+      return;
+    }
+
+    if (_activeCompany != null) {
+      _switchWorkspace();
+      return;
+    }
+
+    if (_selectedIndex != 0) {
+      setState(() => _selectedIndex = 0);
+    }
+  }
+
+  void _jumpToRightPane() {
+    if (_activeCompany != null && _selectedIndex == 0) {
+      _dashboardKey.currentState?.focusFirstTile();
+    } else if (_activeCompany == null && _selectedIndex == 0) {
+      _openCompanyBtnFocus.requestFocus();
+    }
+  }
+
+  void _jumpToSidebar() {
+    _sidebarKey.currentState?.focusActiveItem();
+  }
+
+  KeyEventResult _handleKeyboardEvent(FocusNode node, KeyEvent event) {
+    if (!_keyboardSettings.keyboardIntensiveMode) {
+      return KeyEventResult.ignored;
+    }
+
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+
+    if (_isEditableFocusActive()) {
+      return KeyEventResult.ignored;
+    }
+
+    if (KeyboardShortcutService.matchesAction(
+      _keyboardSettings,
+      KeyboardShortcutService.goBackAction,
+      event,
+    )) {
+      _goBack();
+      return KeyEventResult.handled;
+    }
+
+    if (_activeVoucherType != null || _activeListQuery != null) {
+      return KeyEventResult.ignored;
+    }
+
+    if (KeyboardShortcutService.matchesAction(
+      _keyboardSettings,
+      KeyboardShortcutService.openCompanyAction,
+      event,
+    )) {
+      _showOpenCompanyModal();
+      return KeyEventResult.handled;
+    }
+
+    if (KeyboardShortcutService.matchesAction(
+      _keyboardSettings,
+      KeyboardShortcutService.createCompanyAction,
+      event,
+    )) {
+      _showCreateCompanyModal();
+      return KeyEventResult.handled;
+    }
+
+    if (KeyboardShortcutService.matchesAction(
+      _keyboardSettings,
+      KeyboardShortcutService.changeDirectoryAction,
+      event,
+    )) {
+      _showSetDirectoryModal();
+      return KeyEventResult.handled;
+    }
+
+    if (KeyboardShortcutService.matchesAction(
+      _keyboardSettings,
+      KeyboardShortcutService.openSettingsAction,
+      event,
+    )) {
+      setState(() {
+        _activeCompany = null;
+        _activeVoucherType = null;
+        _activeListQuery = null;
+        _selectedIndex = 3;
+      });
+      return KeyEventResult.handled;
+    }
+
+    if (KeyboardShortcutService.matchesAction(
+      _keyboardSettings,
+      KeyboardShortcutService.switchWorkspaceAction,
+      event,
+    )) {
+      _switchWorkspace();
+      return KeyEventResult.handled;
+    }
+
+    return KeyEventResult.ignored;
+  }
+
   @override
   Widget build(BuildContext context) {
     Widget content;
@@ -216,6 +403,7 @@ class _HomeScreenState extends State<HomeScreen> {
         company: _activeCompany!,
         voucherType: _activeVoucherType!,
         onClose: () => setState(() => _activeVoucherType = null),
+        keyboardSettings: _keyboardSettings,
       );
     } else if (_activeListQuery != null) {
       content = VoucherListScreen(
@@ -227,18 +415,14 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     } else {
       content = Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SideBar(
+            key: _sidebarKey,
             selectedIndex: _selectedIndex,
             activeCompany: _activeCompany,
-            onSwitchCompany: () {
-              setState(() {
-                _activeCompany = null;
-                _selectedIndex = 0;
-                _activeVoucherType = null;
-                _activeListQuery = null;
-              });
-            },
+            onSwitchCompany: _switchWorkspace,
+            onMoveToRightPane: _jumpToRightPane,
             onItemSelected: (index) {
               setState(() => _selectedIndex = index);
             },
@@ -259,21 +443,25 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF1F5FB),
-      body: Column(
-        children: [
-          Expanded(child: content),
-          if (_activeCompany != null)
-            CompanyWorkspaceFooter(
-              company: _activeCompany!,
-              onChangeFy: () => setState(() {
-                _activeVoucherType = null;
-                _activeListQuery = null;
-                _selectedIndex = 4;
-              }),
-            ),
-        ],
+    return Focus(
+      autofocus: true,
+      onKeyEvent: _handleKeyboardEvent,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF1F5FB),
+        body: Column(
+          children: [
+            Expanded(child: content),
+            if (_activeCompany != null)
+              CompanyWorkspaceFooter(
+                company: _activeCompany!,
+                onChangeFy: () => setState(() {
+                  _activeVoucherType = null;
+                  _activeListQuery = null;
+                  _selectedIndex = 4;
+                }),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -284,7 +472,9 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         // 0: TRANSACTIONS
         TransactionsDashboard(
+          key: _dashboardKey,
           company: _activeCompany!,
+          onMoveToSidebar: _jumpToSidebar,
           onAddTransaction: (vchType) {
             setState(() {
               _activeVoucherType = vchType;
@@ -321,7 +511,8 @@ class _HomeScreenState extends State<HomeScreen> {
         _buildPlaceholderView(
           icon: Icons.bar_chart_rounded,
           title: 'Financial Reports & GST',
-          subtitle: 'Balance Sheet, Profit & Loss, Trial Balance, and GSTR summaries.',
+          subtitle:
+              'Balance Sheet, Profit & Loss, Trial Balance, and GSTR summaries.',
         ),
 
         // 4: ADMINISTRATION
@@ -353,6 +544,8 @@ class _HomeScreenState extends State<HomeScreen> {
         SettingsScreen(
           currentDirectory: _currentDataDirectory,
           onChangeDirectory: _showSetDirectoryModal,
+          keyboardSettings: _keyboardSettings,
+          onKeyboardSettingsChanged: _handleKeyboardSettingsChanged,
         ),
       ],
     );
@@ -373,25 +566,60 @@ class _HomeScreenState extends State<HomeScreen> {
               Expanded(
                 flex: 50,
                 child: CompanyActionCard(
+                  openCompanyFocusNode: _openCompanyBtnFocus,
+                  createCompanyFocusNode: _createCompanyBtnFocus,
                   onOpenCompany: _showOpenCompanyModal,
                   onCreateCompany: _showCreateCompanyModal,
+                  onMoveToSidebar: _jumpToSidebar,
+                  onMoveRight: () => _backupDataFocus.requestFocus(),
+                  onMoveDown: () => _dataDirBannerFocus.requestFocus(),
                 ),
               ),
               const SizedBox(width: 20),
-              const Expanded(flex: 50, child: DataActionCard()),
+              Expanded(
+                flex: 50,
+                child: DataActionCard(
+                  backupFocusNode: _backupDataFocus,
+                  restoreFocusNode: _restoreDataFocus,
+                  onMoveLeft: () => _createCompanyBtnFocus.requestFocus(),
+                  onMoveRight: () => _dataDirBannerFocus.requestFocus(),
+                  onMoveDown: () => _dataDirBannerFocus.requestFocus(),
+                  onBackup: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Starting automated database backup...'),
+                        backgroundColor: Color(0xFF7034E6),
+                      ),
+                    );
+                  },
+                  onRestore: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Open restore snapshot chooser...'),
+                        backgroundColor: Color(0xFFB439D1),
+                      ),
+                    );
+                  },
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 20),
           DataDirectoryBanner(
+            focusNode: _dataDirBannerFocus,
             currentDirectory: _currentDataDirectory,
             isLoading: _isLoadingDirectory,
             onTap: _showSetDirectoryModal,
+            onMoveUp: () => _openCompanyBtnFocus.requestFocus(),
+            onMoveLeft: _jumpToSidebar,
           ),
           const SizedBox(height: 20),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: RecentCompaniesPanel(companies: _recentCompanies)),
+              Expanded(
+                child: RecentCompaniesPanel(companies: _recentCompanies),
+              ),
               const SizedBox(width: 20),
               const Expanded(child: QuickTipsPanel()),
             ],
@@ -421,9 +649,19 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Icon(icon, color: const Color(0xFF0F62FE), size: 30),
           ),
           const SizedBox(height: 16),
-          Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF101B38))),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF101B38),
+            ),
+          ),
           const SizedBox(height: 4),
-          Text(subtitle, style: const TextStyle(fontSize: 13, color: Color(0xFF637392))),
+          Text(
+            subtitle,
+            style: const TextStyle(fontSize: 13, color: Color(0xFF637392)),
+          ),
         ],
       ),
     );
