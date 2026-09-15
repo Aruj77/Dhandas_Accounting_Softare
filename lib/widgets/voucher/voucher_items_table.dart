@@ -2,8 +2,31 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'voucher_item_row.dart';
 
+class ItemMasterModel {
+  final String name;
+  final String hsn;
+  final String unit;
+  final String taxCategory;
+  final double taxRate;
+  final double salesPrice;
+  final double purchasePrice;
+  final double mrp;
+
+  const ItemMasterModel({
+    required this.name,
+    required this.hsn,
+    required this.unit,
+    required this.taxCategory,
+    required this.taxRate,
+    required this.salesPrice,
+    required this.purchasePrice,
+    required this.mrp,
+  });
+}
+
 class VoucherItemsTable extends StatelessWidget {
   final List<VoucherItemRow> items;
+  final List<ItemMasterModel> availableItems;
   final bool isInterState;
   final double totalQty;
   final double totalTaxable;
@@ -13,12 +36,14 @@ class VoucherItemsTable extends StatelessWidget {
   final double totalAmount;
   final VoidCallback onAddRow;
   final void Function(int index, String field) onRowEnter;
-  final void Function(String masterType) onQuickAdd;
+  final void Function(int index) onAddItem;
+  final void Function(int index, ItemMasterModel selectedItem) onItemSelected;
   final VoidCallback onTabToSundry;
 
   const VoucherItemsTable({
     super.key,
     required this.items,
+    required this.availableItems,
     required this.isInterState,
     required this.totalQty,
     required this.totalTaxable,
@@ -28,15 +53,16 @@ class VoucherItemsTable extends StatelessWidget {
     required this.totalAmount,
     required this.onAddRow,
     required this.onRowEnter,
-    required this.onQuickAdd,
+    required this.onAddItem,
+    required this.onItemSelected,
     required this.onTabToSundry,
   });
 
   String _getUnitString(dynamic unitValue) {
     if (unitValue is TextEditingController) {
-      return unitValue.text.isNotEmpty ? unitValue.text : 'PCS';
+      return unitValue.text.isNotEmpty ? unitValue.text : 'Pcs';
     }
-    return unitValue?.toString() ?? 'PCS';
+    return unitValue?.toString() ?? 'Pcs';
   }
 
   @override
@@ -62,7 +88,7 @@ class VoucherItemsTable extends StatelessWidget {
           children: [
             // TABLE HEADER
             Container(
-              height: 38,
+              height: 34,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: const BoxDecoration(
                 color: Color(0xFFF8FAFD),
@@ -71,32 +97,32 @@ class VoucherItemsTable extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  const SizedBox(width: 32, child: Text('S.N.', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF6B7B9B)))),
-                  const Expanded(flex: 5, child: Text('Item Name & Description', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF6B7B9B)))),
-                  const SizedBox(width: 8),
-                  const SizedBox(width: 65, child: Text('Qty', textAlign: TextAlign.right, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF6B7B9B)))),
-                  const SizedBox(width: 8),
-                  const SizedBox(width: 50, child: Text('Unit', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF6B7B9B)))),
-                  const SizedBox(width: 8),
-                  const SizedBox(width: 75, child: Text('Price (₹)', textAlign: TextAlign.right, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF6B7B9B)))),
-                  const SizedBox(width: 8),
-                  const SizedBox(width: 85, child: Text('Taxable (₹)', textAlign: TextAlign.right, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF6B7B9B)))),
+                  const SizedBox(width: 28, child: Text('S.N.', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF6B7B9B)))),
+                  const Expanded(flex: 5, child: Text('Item Name & Description', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF6B7B9B)))),
+                  const SizedBox(width: 6),
+                  const SizedBox(width: 60, child: Text('Qty', textAlign: TextAlign.right, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF6B7B9B)))),
+                  const SizedBox(width: 6),
+                  const SizedBox(width: 45, child: Text('Unit', textAlign: TextAlign.center, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF6B7B9B)))),
+                  const SizedBox(width: 6),
+                  const SizedBox(width: 70, child: Text('Price (₹)', textAlign: TextAlign.right, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF6B7B9B)))),
+                  const SizedBox(width: 6),
+                  const SizedBox(width: 80, child: Text('Taxable (₹)', textAlign: TextAlign.right, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF6B7B9B)))),
                   if (!isInterState) ...[
-                    const SizedBox(width: 8),
-                    const SizedBox(width: 70, child: Text('CGST (₹)', textAlign: TextAlign.right, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF6B7B9B)))),
-                    const SizedBox(width: 8),
-                    const SizedBox(width: 70, child: Text('SGST (₹)', textAlign: TextAlign.right, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF6B7B9B)))),
+                    const SizedBox(width: 6),
+                    const SizedBox(width: 65, child: Text('CGST (₹)', textAlign: TextAlign.right, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF6B7B9B)))),
+                    const SizedBox(width: 6),
+                    const SizedBox(width: 65, child: Text('SGST (₹)', textAlign: TextAlign.right, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF6B7B9B)))),
                   ] else ...[
-                    const SizedBox(width: 8),
-                    const SizedBox(width: 90, child: Text('IGST (₹)', textAlign: TextAlign.right, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF7E22CE)))),
+                    const SizedBox(width: 6),
+                    const SizedBox(width: 85, child: Text('IGST (₹)', textAlign: TextAlign.right, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF7E22CE)))),
                   ],
-                  const SizedBox(width: 8),
-                  const SizedBox(width: 90, child: Text('Amount (₹)', textAlign: TextAlign.right, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF6B7B9B)))),
+                  const SizedBox(width: 6),
+                  const SizedBox(width: 85, child: Text('Amount (₹)', textAlign: TextAlign.right, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF6B7B9B)))),
                 ],
               ),
             ),
 
-            // SCROLLABLE TABLE ROWS (20 items max height)
+            // TABLE ROWS
             Expanded(
               child: ListView.separated(
                 itemCount: items.length,
@@ -104,26 +130,24 @@ class VoucherItemsTable extends StatelessWidget {
                 itemBuilder: (context, index) {
                   final row = items[index];
                   return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5), // <-- updated from 2
                     child: Row(
                       children: [
                         SizedBox(
-                          width: 32,
-                          child: Text('${index + 1}', style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF90A1BA))),
+                          width: 28,
+                          child: Text('${index + 1}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF90A1BA))),
                         ),
                         Expanded(
                           flex: 5,
-                          child: _buildGridInputWithFocus(
-                            controller: row.item,
-                            focusNode: row.itemFocus,
-                            hint: 'Type or select item...',
-                            masterType: 'Item',
+                          child: _buildItemAutocomplete(
+                            row: row,
+                            index: index,
                             onSubmitted: () => onRowEnter(index, 'item'),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
                         SizedBox(
-                          width: 65,
+                          width: 60,
                           child: _buildSimpleGridInput(
                             controller: row.qty,
                             focusNode: row.qtyFocus,
@@ -131,9 +155,9 @@ class VoucherItemsTable extends StatelessWidget {
                             onSubmitted: () => onRowEnter(index, 'qty'),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
                         Container(
-                          width: 50,
+                          width: 45,
                           height: 36,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
@@ -146,9 +170,9 @@ class VoucherItemsTable extends StatelessWidget {
                             style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF475569)),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
                         SizedBox(
-                          width: 75,
+                          width: 70,
                           child: _buildSimpleGridInput(
                             controller: row.price,
                             focusNode: row.priceFocus,
@@ -156,9 +180,9 @@ class VoucherItemsTable extends StatelessWidget {
                             onSubmitted: () => onRowEnter(index, 'price'),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
                         SizedBox(
-                          width: 85,
+                          width: 80,
                           child: _buildSimpleGridInput(
                             controller: row.taxable,
                             focusNode: row.taxableFocus,
@@ -167,9 +191,9 @@ class VoucherItemsTable extends StatelessWidget {
                           ),
                         ),
                         if (!isInterState) ...[
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 6),
                           SizedBox(
-                            width: 70,
+                            width: 65,
                             child: _buildSimpleGridInput(
                               controller: row.cgst,
                               focusNode: row.cgstFocus,
@@ -177,9 +201,9 @@ class VoucherItemsTable extends StatelessWidget {
                               onSubmitted: () => onRowEnter(index, 'cgst'),
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 6),
                           SizedBox(
-                            width: 70,
+                            width: 65,
                             child: _buildSimpleGridInput(
                               controller: row.sgst,
                               focusNode: row.sgstFocus,
@@ -188,9 +212,9 @@ class VoucherItemsTable extends StatelessWidget {
                             ),
                           ),
                         ] else ...[
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 6),
                           SizedBox(
-                            width: 90,
+                            width: 85,
                             child: _buildSimpleGridInput(
                               controller: row.igst,
                               focusNode: row.igstFocus,
@@ -199,13 +223,14 @@ class VoucherItemsTable extends StatelessWidget {
                             ),
                           ),
                         ],
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
                         SizedBox(
-                          width: 90,
-                          child: Text(
-                            row.amount.toStringAsFixed(2),
+                          width: 85,
+                          child: _buildSimpleGridInput(
+                            controller: row.amount,
+                            focusNode: row.amountFocus,
                             textAlign: TextAlign.right,
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF101B3A)),
+                            onSubmitted: () => onRowEnter(index, 'amount'),
                           ),
                         ),
                       ],
@@ -215,53 +240,53 @@ class VoucherItemsTable extends StatelessWidget {
               ),
             ),
 
-            // FIXED TABLE TOTALS BAR AT THE BOTTOM
+            // FOOTER TOTALS
             Container(
-              height: 38,
+              height: 34,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: const BoxDecoration(
                 color: Color(0xFFFAFBFD),
                 borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
-                border: Border(top: BorderSide(color: Color(0xFFE2EAF5), width: 1.2)),
+                border: Border(top: BorderSide(color: Color(0xFFF1F5FB))),
               ),
               child: Row(
                 children: [
                   TextButton.icon(
                     onPressed: onAddRow,
-                    icon: const Icon(Icons.add_rounded, size: 14, color: Color(0xFF0F62FE)),
+                    icon: const Icon(Icons.add_rounded, size: 13, color: Color(0xFF0F62FE)),
                     label: const Text('Add Row', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF0F62FE))),
                   ),
                   const Spacer(),
                   SizedBox(
-                    width: 65,
-                    child: Text(totalQty.toStringAsFixed(2), textAlign: TextAlign.right, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w900, color: Color(0xFF101B3A))),
+                    width: 60,
+                    child: Text(totalQty.toStringAsFixed(2), textAlign: TextAlign.right, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Color(0xFF101B3A))),
                   ),
-                  const SizedBox(width: 133),
+                  const SizedBox(width: 127),
                   SizedBox(
-                    width: 85,
-                    child: Text(totalTaxable.toStringAsFixed(2), textAlign: TextAlign.right, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w900, color: Color(0xFF101B3A))),
+                    width: 80,
+                    child: Text(totalTaxable.toStringAsFixed(2), textAlign: TextAlign.right, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Color(0xFF101B3A))),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   if (!isInterState) ...[
                     SizedBox(
-                      width: 70,
-                      child: Text(totalCgst.toStringAsFixed(2), textAlign: TextAlign.right, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w900, color: Color(0xFF101B3A))),
+                      width: 65,
+                      child: Text(totalCgst.toStringAsFixed(2), textAlign: TextAlign.right, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Color(0xFF101B3A))),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                     SizedBox(
-                      width: 70,
-                      child: Text(totalSgst.toStringAsFixed(2), textAlign: TextAlign.right, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w900, color: Color(0xFF101B3A))),
+                      width: 65,
+                      child: Text(totalSgst.toStringAsFixed(2), textAlign: TextAlign.right, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Color(0xFF101B3A))),
                     ),
                   ] else ...[
                     SizedBox(
-                      width: 90,
-                      child: Text(totalIgst.toStringAsFixed(2), textAlign: TextAlign.right, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w900, color: Color(0xFF7E22CE))),
+                      width: 85,
+                      child: Text(totalIgst.toStringAsFixed(2), textAlign: TextAlign.right, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Color(0xFF7E22CE))),
                     ),
                   ],
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   SizedBox(
-                    width: 90,
-                    child: Text(totalAmount.toStringAsFixed(2), textAlign: TextAlign.right, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Color(0xFF0F62FE))),
+                    width: 85,
+                    child: Text(totalAmount.toStringAsFixed(2), textAlign: TextAlign.right, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w900, color: Color(0xFF0F62FE))),
                   ),
                 ],
               ),
@@ -272,58 +297,144 @@ class VoucherItemsTable extends StatelessWidget {
     );
   }
 
-  Widget _buildGridInputWithFocus({
-    required TextEditingController controller,
-    required FocusNode focusNode,
-    required String hint,
-    required String masterType,
-    VoidCallback? onSubmitted,
+  Widget _buildItemAutocomplete({
+    required VoucherItemRow row,
+    required int index,
+    required VoidCallback onSubmitted,
   }) {
-    return ListenableBuilder(
-      listenable: focusNode,
-      builder: (context, _) {
-        final isFocused = focusNode.hasFocus;
-        return SizedBox(
-          height: 34,
-          child: Stack(
-            alignment: Alignment.centerRight,
-            children: [
-              TextField(
+    return SizedBox(
+      height: 36,
+      child: RawAutocomplete<ItemMasterModel>(
+        focusNode: row.itemFocus,
+        textEditingController: row.item,
+        displayStringForOption: (item) => item.name,
+        optionsBuilder: (TextEditingValue textEditingValue) {
+          final query = textEditingValue.text.trim().toLowerCase();
+          if (query.isEmpty) return availableItems;
+          return availableItems.where((item) {
+            return item.name.toLowerCase().contains(query) ||
+                item.hsn.toLowerCase().contains(query) ||
+                item.taxCategory.toLowerCase().contains(query);
+          });
+        },
+        onSelected: (ItemMasterModel selection) {
+          row.item.text = selection.name;
+          onItemSelected(index, selection);
+          onSubmitted();
+        },
+        optionsViewBuilder: (context, onSelected, options) {
+          return Align(
+            alignment: Alignment.topLeft,
+            child: Material(
+              elevation: 8,
+              borderRadius: BorderRadius.circular(10),
+              color: Colors.white,
+              child: Container(
+                width: 380,
+                constraints: const BoxConstraints(maxHeight: 220),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFD6E4F5), width: 1.2),
+                ),
+                child: ListView.separated(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  shrinkWrap: true,
+                  itemCount: options.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5FB)),
+                  itemBuilder: (context, idx) {
+                    final ItemMasterModel item = options.elementAt(idx);
+                    return InkWell(
+                      onTap: () => onSelected(item),
+                      hoverColor: const Color(0xFFF4F8FE),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 26,
+                              height: 26,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEFF6FE),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Icon(Icons.inventory_2_outlined, size: 14, color: Color(0xFF0F62FE)),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item.name,
+                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF101B3A)),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Row(
+                                    children: [
+                                      Text('HSN: ${item.hsn}', style: const TextStyle(fontSize: 10, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                                      const SizedBox(width: 8),
+                                      Text(item.taxCategory, style: const TextStyle(fontSize: 10, color: Color(0xFF15803D), fontWeight: FontWeight.w700)),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          );
+        },
+        fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+          return ListenableBuilder(
+            listenable: focusNode,
+            builder: (context, _) {
+              return TextField(
                 controller: controller,
                 focusNode: focusNode,
                 textInputAction: TextInputAction.next,
-                onSubmitted: (_) => onSubmitted?.call(),
+                onSubmitted: (_) {
+                  onFieldSubmitted();
+                  onSubmitted();
+                },
                 style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF101B3A)),
                 decoration: InputDecoration(
-                  hintText: hint,
-                  hintStyle: const TextStyle(fontSize: 10.5, color: Color(0xFF90A1BA), fontWeight: FontWeight.w400),
-                  contentPadding: EdgeInsets.only(left: 8, right: isFocused ? 26 : 8, top: 5, bottom: 5),
+                  hintText: 'Type or select item...',
+                  hintStyle: const TextStyle(fontSize: 10, color: Color(0xFF90A1BA), fontWeight: FontWeight.w400),
+                  suffixIcon: focusNode.hasFocus
+                      ? Focus(
+                          canRequestFocus: false,
+                          descendantsAreFocusable: false,
+                          child: Container(
+                            margin: const EdgeInsets.only(right: 4),
+                            child: IconButton(
+                              icon: const Icon(Icons.add_circle, size: 15, color: Color(0xFF0F62FE)),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(maxWidth: 18, maxHeight: 18),
+                              onPressed: () => onAddItem(index),
+                            ),
+                          ),
+                        )
+                      : null,
+                  suffixIconConstraints: const BoxConstraints(minWidth: 24, minHeight: 20),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                   filled: true,
                   fillColor: const Color(0xFFFAFBFD),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFFE5EDF7))),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFFE5EDF7))),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.6)),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(5), borderSide: const BorderSide(color: Color(0xFFE5EDF7))),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(5), borderSide: const BorderSide(color: Color(0xFFE5EDF7))),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(5), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.5)),
                 ),
-              ),
-              if (isFocused)
-                Positioned(
-                  right: 4,
-                  bottom: 4,
-                  child: InkWell(
-                    onTap: () => onQuickAdd(masterType),
-                    borderRadius: BorderRadius.circular(3),
-                    child: Container(
-                      width: 14,
-                      height: 14,
-                      decoration: BoxDecoration(color: const Color(0xFF0F62FE), borderRadius: BorderRadius.circular(3)),
-                      child: const Icon(Icons.add, size: 10, color: Colors.white),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        );
-      },
+              );
+            },
+          );
+        },
+      ),
     );
   }
 
@@ -338,25 +449,29 @@ class VoucherItemsTable extends StatelessWidget {
       builder: (context, _) {
         final isFocused = focusNode.hasFocus;
         return SizedBox(
-          height: 34,
+          height: 36,
           child: TextField(
             controller: controller,
             focusNode: focusNode,
             textAlign: textAlign,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+            ],
             textInputAction: TextInputAction.next,
             onSubmitted: (_) => onSubmitted?.call(),
             style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF101B3A)),
             decoration: InputDecoration(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
               filled: true,
               fillColor: const Color(0xFFFAFBFD),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFFE5EDF7))),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFFE5EDF7))),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(5), borderSide: const BorderSide(color: Color(0xFFE5EDF7))),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(5), borderSide: const BorderSide(color: Color(0xFFE5EDF7))),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(5),
                 borderSide: BorderSide(
                   color: isFocused ? const Color(0xFF0F62FE) : const Color(0xFFE5EDF7),
-                  width: isFocused ? 1.6 : 1.0,
+                  width: isFocused ? 1.5 : 1.0,
                 ),
               ),
             ),

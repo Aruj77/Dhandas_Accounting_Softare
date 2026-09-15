@@ -138,6 +138,10 @@ class VoucherSundryCard extends StatelessWidget {
                             controller: s.amount,
                             focusNode: s.amountFocus,
                             textAlign: TextAlign.right,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+                            ],
                             textInputAction: TextInputAction.next,
                             onSubmitted: (_) => onRowEnter(idx, 'amount'),
                             style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF101B3A)),

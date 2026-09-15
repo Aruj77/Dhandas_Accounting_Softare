@@ -97,6 +97,45 @@ class StorageService {
       const JsonEncoder.withIndent('  ').convert(updatedData),
     );
 
+    // Initialize default masters.json for this new company
+    await saveCompanyMasters(
+      folderPath: companyDir.path,
+      mastersData: {
+        'debtors': [
+          {'name': 'Cash in Hand', 'gstin': '', 'group': 'Cash-in-Hand'},
+          {'name': 'Apex Retail Traders', 'gstin': '07AABCA1234F1Z1', 'group': 'Sundry Debtors'},
+          {'name': 'Modern Lifestyle Co', 'gstin': '09AABCA9999F1Z9', 'group': 'Sundry Debtors'},
+        ],
+        'creditors': [
+          {'name': 'Cash in Hand', 'gstin': '', 'group': 'Cash-in-Hand'},
+          {'name': 'National Supplies Ltd', 'gstin': '27AAACN1234P1Z3', 'group': 'Sundry Creditors'},
+          {'name': 'Bharat Wholesale Corp', 'gstin': '09AAACB5678Q1Z2', 'group': 'Sundry Creditors'},
+        ],
+        'items': [
+          {
+            'name': '3304 18% Pcs',
+            'hsn': '3304',
+            'unit': 'Pcs',
+            'taxCategory': 'GST 18%',
+            'taxRate': 18.0,
+            'salesPrice': 250.0,
+            'purchasePrice': 200.0,
+            'mrp': 300.0,
+          },
+          {
+            'name': '8471 18% Nos',
+            'hsn': '8471',
+            'unit': 'Nos',
+            'taxCategory': 'GST 18%',
+            'taxRate': 18.0,
+            'salesPrice': 45000.0,
+            'purchasePrice': 40000.0,
+            'mrp': 52000.0,
+          },
+        ],
+      },
+    );
+
     return folderId;
   }
 
@@ -105,7 +144,6 @@ class StorageService {
   }) async {
     final folderPath = companyData['folderPath']?.toString();
     if (folderPath != null && await Directory(folderPath).exists()) {
-      // Ensure folder for any newly added FY exists
       final fys = companyData['financialYears'];
       if (fys is List) {
         for (final fy in fys) {
@@ -154,6 +192,71 @@ class StorageService {
       }
     }
   }
+
+  // --- COMPANY-SPECIFIC MASTERS STORAGE ---
+
+  static Future<Map<String, dynamic>> loadCompanyMasters({
+    required String folderPath,
+  }) async {
+    final file = File('$folderPath${Platform.pathSeparator}masters.json');
+    if (await file.exists()) {
+      try {
+        final content = await file.readAsString();
+        final data = jsonDecode(content);
+        if (data is Map<String, dynamic>) {
+          return data;
+        }
+      } catch (_) {}
+    }
+
+    // Default fallback structure
+    return {
+      'debtors': [
+        {'name': 'Cash in Hand', 'gstin': '', 'group': 'Cash-in-Hand'},
+        {'name': 'Apex Retail Traders', 'gstin': '07AABCA1234F1Z1', 'group': 'Sundry Debtors'},
+        {'name': 'Modern Lifestyle Co', 'gstin': '09AABCA9999F1Z9', 'group': 'Sundry Debtors'},
+      ],
+      'creditors': [
+        {'name': 'Cash in Hand', 'gstin': '', 'group': 'Cash-in-Hand'},
+        {'name': 'National Supplies Ltd', 'gstin': '27AAACN1234P1Z3', 'group': 'Sundry Creditors'},
+        {'name': 'Bharat Wholesale Corp', 'gstin': '09AAACB5678Q1Z2', 'group': 'Sundry Creditors'},
+      ],
+      'items': [
+        {
+          'name': '3304 18% Pcs',
+          'hsn': '3304',
+          'unit': 'Pcs',
+          'taxCategory': 'GST 18%',
+          'taxRate': 18.0,
+          'salesPrice': 250.0,
+          'purchasePrice': 200.0,
+          'mrp': 300.0,
+        },
+        {
+          'name': '8471 18% Nos',
+          'hsn': '8471',
+          'unit': 'Nos',
+          'taxCategory': 'GST 18%',
+          'taxRate': 18.0,
+          'salesPrice': 45000.0,
+          'purchasePrice': 40000.0,
+          'mrp': 52000.0,
+        },
+      ],
+    };
+  }
+
+  static Future<void> saveCompanyMasters({
+    required String folderPath,
+    required Map<String, dynamic> mastersData,
+  }) async {
+    final file = File('$folderPath${Platform.pathSeparator}masters.json');
+    await file.writeAsString(
+      const JsonEncoder.withIndent('  ').convert(mastersData),
+    );
+  }
+
+  // --- VOUCHERS STORAGE ---
 
   static Future<void> saveVoucher({
     required String folderPath,

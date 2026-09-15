@@ -7,7 +7,7 @@ class VoucherItemRow {
   final TextEditingController qty = TextEditingController(text: '');
   final FocusNode qtyFocus = FocusNode();
 
-  final TextEditingController unit = TextEditingController(text: 'PCS');
+  final TextEditingController unit = TextEditingController(text: '');
   final FocusNode unitFocus = FocusNode();
 
   final TextEditingController price = TextEditingController(text: '');
@@ -25,7 +25,11 @@ class VoucherItemRow {
   final TextEditingController igst = TextEditingController(text: '');
   final FocusNode igstFocus = FocusNode();
 
-  double amount = 0.0;
+  final TextEditingController amount = TextEditingController(text: '');
+  final FocusNode amountFocus = FocusNode();
+
+  // Dynamic tax rate assigned from the selected Item Master
+  double gstRate = 18.0;
 
   void dispose() {
     item.dispose();
@@ -44,5 +48,7 @@ class VoucherItemRow {
     sgstFocus.dispose();
     igst.dispose();
     igstFocus.dispose();
+    amount.dispose();
+    amountFocus.dispose();
   }
 }
