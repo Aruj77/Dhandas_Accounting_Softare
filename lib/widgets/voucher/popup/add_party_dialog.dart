@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../services/gstin_service.dart';
+import '../../../services/gstin_service.dart';
 
 class AddPartyDialog extends StatefulWidget {
   final String voucherType;
