@@ -931,6 +931,17 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     return const Color(0xFF0D9488);
   }
 
+  Color _getVoucherBackgroundColor() {
+    final vch = widget.voucherType.toLowerCase();
+    if (vch.contains('sale')) return const Color.fromARGB(255, 255, 241, 223);     // Cool Blue-Grey tint
+    if (vch.contains('purchase')) return const Color.fromARGB(255, 230, 220, 255); // Soft Violet tint
+    if (vch.contains('payment')) return const Color.fromRGBO(227, 252, 222, 1);  // Soft Warm Red tint
+    if (vch.contains('receipt')) return const Color.fromARGB(255, 240, 253, 254);  // Soft Mint tint
+    if (vch.contains('journal')) return const Color.fromARGB(255, 255, 251, 23);  // Soft Amber tint
+    if (vch.contains('contra')) return const Color.fromARGB(255, 248, 249, 255);   // Soft Sky tint
+    return const Color.fromARGB(255, 255, 245, 185);                              // Default tint
+  }
+  
   @override
   void dispose() {
     _seriesController.dispose();
@@ -969,7 +980,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
         autofocus: true,
         onKeyEvent: _handleVoucherKeyEvent,
         child: Scaffold(
-          backgroundColor: const Color(0xFFF1F5FB),
+          backgroundColor: _getVoucherBackgroundColor(),
           body: Column(
             children: [
               // 1. EXTRACTED TOP NAVIGATION BAR
