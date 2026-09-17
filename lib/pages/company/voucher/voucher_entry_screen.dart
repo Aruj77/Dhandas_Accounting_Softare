@@ -10,6 +10,7 @@ import '../../../widgets/voucher/voucher_item_row.dart';
 import '../../../widgets/voucher/voucher_items_table.dart';
 import '../../../widgets/voucher/voucher_navigation_bar.dart';
 import '../../../widgets/voucher/popup/voucher_save_confirm_dialog.dart';
+import '../../../widgets/voucher/popup/voucher_print_confirm_dialog.dart';
 import '../../../widgets/voucher/voucher_summary_card.dart';
 import '../../../widgets/voucher/voucher_sundry_card.dart';
 import '../../../widgets/voucher/voucher_sundry_row.dart';
@@ -886,9 +887,30 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
             behavior: SnackBarBehavior.floating,
           ),
         );
+       final wantsPrint = await VoucherPrintConfirmDialog.show(
+          context,
+          voucherType: widget.voucherType,
+        );
+
+        if (wantsPrint) {
+          _printVoucher();
+        }
+
         _initializeNewVoucher();
       }
     }
+  }
+
+  void _printVoucher() {
+    // TODO: wire to an actual printing/PDF package once one is added to
+    // pubspec.yaml. Stubbed for now so the Yes/No flow is fully functional.
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${widget.voucherType} [${_vchNoController.text}] sent to printer.'),
+        backgroundColor: const Color(0xFF0F62FE),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Future<bool> _onWillPop() async {
@@ -1353,8 +1375,11 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
       case KeyboardAction.delete:
         return KeyEventResult.ignored;
 
-      case KeyboardAction.duplicate:
       case KeyboardAction.print:
+        _printVoucher();
+        return KeyEventResult.handled;
+
+      case KeyboardAction.duplicate:
       case KeyboardAction.export:
         return KeyEventResult.ignored;
 
