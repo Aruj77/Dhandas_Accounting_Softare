@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class VoucherSaveConfirmDialog extends StatefulWidget {
   final Map<String, dynamic> summaryData;
@@ -16,6 +17,7 @@ class VoucherSaveConfirmDialog extends StatefulWidget {
 
 class _VoucherSaveConfirmDialogState extends State<VoucherSaveConfirmDialog> {
   final FocusNode _saveFocusNode = FocusNode();
+  final FocusNode _saveButtonFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -29,6 +31,7 @@ class _VoucherSaveConfirmDialogState extends State<VoucherSaveConfirmDialog> {
   @override
   void dispose() {
     _saveFocusNode.dispose();
+    _saveButtonFocusNode.dispose();
     super.dispose();
   }
 
@@ -37,7 +40,23 @@ class _VoucherSaveConfirmDialogState extends State<VoucherSaveConfirmDialog> {
     final s = widget.summaryData;
     final isInterState = s['isInterState'] == true;
 
-    return Dialog(
+    return Focus(
+      focusNode: _saveFocusNode,
+      autofocus: true,
+      onKeyEvent: (node, event) {
+        if (event is! KeyDownEvent) return KeyEventResult.ignored;
+        if (event.logicalKey == LogicalKeyboardKey.enter || event.logicalKey == LogicalKeyboardKey.numpadEnter) {
+          Navigator.of(context).pop();
+          widget.onConfirm();
+          return KeyEventResult.handled;
+        }
+        if (event.logicalKey == LogicalKeyboardKey.escape) {
+          Navigator.of(context).pop();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: Dialog(
       backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
@@ -170,7 +189,7 @@ class _VoucherSaveConfirmDialogState extends State<VoucherSaveConfirmDialog> {
                 ),
                 const SizedBox(width: 12),
                 Focus(
-                  focusNode: _saveFocusNode,
+                  focusNode: _saveButtonFocusNode,
                   child: Builder(builder: (context) {
                     final hasFocus = Focus.of(context).hasFocus;
                     return ElevatedButton.icon(
@@ -202,6 +221,7 @@ class _VoucherSaveConfirmDialogState extends State<VoucherSaveConfirmDialog> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

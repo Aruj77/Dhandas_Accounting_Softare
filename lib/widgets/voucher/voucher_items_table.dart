@@ -65,13 +65,67 @@ class VoucherItemsTable extends StatelessWidget {
     return unitValue?.toString() ?? 'Pcs';
   }
 
+  FocusNode? _focusForField(VoucherItemRow row, String field) {
+    switch (field) {
+      case 'item': return row.itemFocus;
+      case 'qty': return row.qtyFocus;
+      case 'price': return row.priceFocus;
+      case 'taxable': return row.taxableFocus;
+      case 'cgst': return isInterState ? null : row.cgstFocus;
+      case 'sgst': return isInterState ? null : row.sgstFocus;
+      case 'igst': return isInterState ? row.igstFocus : null;
+      case 'amount': return row.amountFocus;
+    }
+    return null;
+  }
+
+  String? _fieldForNode(VoucherItemRow row, FocusNode node) {
+    if (node == row.itemFocus) return 'item';
+    if (node == row.qtyFocus) return 'qty';
+    if (node == row.priceFocus) return 'price';
+    if (node == row.taxableFocus) return 'taxable';
+    if (node == row.cgstFocus) return 'cgst';
+    if (node == row.sgstFocus) return 'sgst';
+    if (node == row.igstFocus) return 'igst';
+    if (node == row.amountFocus) return 'amount';
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Focus(
       onKeyEvent: (node, event) {
-        if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.tab) {
-          onTabToSundry();
-          return KeyEventResult.handled;
+        if (event is! KeyDownEvent) return KeyEventResult.ignored;
+        final key = event.logicalKey;
+        final current = FocusManager.instance.primaryFocus;
+        if (current == null) return KeyEventResult.ignored;
+
+        // Up/Down: move to the SAME field in the previous/next item row —
+        // this is what was completely missing before.
+        if (key == LogicalKeyboardKey.arrowUp || key == LogicalKeyboardKey.arrowDown) {
+          for (int i = 0; i < items.length; i++) {
+            final field = _fieldForNode(items[i], current);
+            if (field == null) continue;
+            final targetIndex = key == LogicalKeyboardKey.arrowDown ? i + 1 : i - 1;
+            if (targetIndex < 0 || targetIndex >= items.length) return KeyEventResult.ignored;
+            final targetFocus = _focusForField(items[targetIndex], field);
+            if (targetFocus == null) return KeyEventResult.ignored;
+            targetFocus.requestFocus();
+            return KeyEventResult.handled;
+          }
+          return KeyEventResult.ignored;
+        }
+
+        // Tab: only jump to Bill Sundry from the LAST field of the LAST
+        // row. Previously this fired on Tab from ANY field in the table,
+        // which is why Tab always skipped straight to Sundry.
+        if (key == LogicalKeyboardKey.tab && items.isNotEmpty) {
+          final lastRow = items.last;
+          final lastField = isInterState ? lastRow.igstFocus : lastRow.sgstFocus;
+          if (current == lastRow.amountFocus || current == lastField) {
+            onTabToSundry();
+            return KeyEventResult.handled;
+          }
         }
         return KeyEventResult.ignored;
       },

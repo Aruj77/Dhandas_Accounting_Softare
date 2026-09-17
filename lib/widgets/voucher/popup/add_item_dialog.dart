@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../services/hsn_service.dart';
+
 class AddItemDialog extends StatefulWidget {
   final Function(Map<String, dynamic> itemData) onItemCreated;
 
@@ -53,6 +55,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
   String _selectedTaxCategory = 'GST 18%';
   String? _hsnStatusMessage;
   bool _isHsnValid = false;
+  bool _isHsnLoading = false;
 
   @override
   void initState() {
@@ -78,23 +81,43 @@ class _AddItemDialogState extends State<AddItemDialog> {
     }
   }
 
-  void _validateHsn() {
+  Future<void> _validateHsn() async {
     final hsn = _hsnController.text.trim();
-    if (hsn.isEmpty) {
+
+    if (!HsnService.isValidFormat(hsn)) {
       setState(() {
-        _hsnStatusMessage = 'Please enter an HSN/SAC code.';
         _isHsnValid = false;
+        _isHsnLoading = false;
+        _hsnStatusMessage = hsn.isEmpty
+            ? 'Please enter an HSN/SAC code.'
+            : 'Invalid HSN. Must be 2, 4, 6 or 8 digits numeric.';
       });
       return;
     }
 
-    final isValid = RegExp(r'^[0-9]{2,8}$').hasMatch(hsn);
     setState(() {
-      _isHsnValid = isValid;
-      _hsnStatusMessage = isValid
-          ? 'Valid HSN/SAC code format'
-          : 'Invalid HSN. Must be 2 to 8 digits numeric.';
+      _isHsnLoading = true;
+      _hsnStatusMessage = null;
     });
+
+    try {
+      final data = await HsnService.validateAndFetch(hsn);
+      if (!mounted) return;
+      setState(() {
+        _isHsnValid = true;
+        _isHsnLoading = false;
+        _hsnStatusMessage = 'Valid: ${data.description}';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isHsnValid = false;
+        _isHsnLoading = false;
+        _hsnStatusMessage = e is FormatException
+            ? e.message
+            : 'Not a recognized HSN/SAC code.';
+      });
+    }
   }
 
   void _handleSubmit() {
@@ -194,15 +217,22 @@ class _AddItemDialogState extends State<AddItemDialog> {
                   Padding(
                     padding: const EdgeInsets.only(top: 22),
                     child: ElevatedButton.icon(
-                      onPressed: _validateHsn,
+                      onPressed: _isHsnLoading ? null : _validateHsn,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF0F62FE),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
-                      icon: const Icon(Icons.verified_outlined, size: 16),
-                      label: const Text('Validate', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                      icon: _isHsnLoading
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Icon(Icons.verified_outlined, size: 16),
+                      label: Text(_isHsnLoading ? 'Checking...' : 'Validate',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                     ),
                   ),
                 ],
@@ -211,6 +241,8 @@ class _AddItemDialogState extends State<AddItemDialog> {
                 const SizedBox(height: 4),
                 Text(
                   _hsnStatusMessage!,
+                  softWrap: true,
+                  overflow: TextOverflow.visible,
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,

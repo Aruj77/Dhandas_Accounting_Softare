@@ -20,3 +20,11 @@ def validate_gstin_format_and_checksum(gstin: str) -> bool:
     if not _GSTIN_REGEX.match(gstin):
         return False
     return _checksum_is_valid(gstin)
+
+
+_HSN_REGEX = re.compile(r"^[0-9]{2}([0-9]{2}([0-9]{2}([0-9]{2})?)?)?$")
+
+
+def validate_hsn_format(code: str) -> bool:
+    """HSN/SAC codes are numeric and 2, 4, 6 or 8 digits long."""
+    return bool(_HSN_REGEX.match(code))

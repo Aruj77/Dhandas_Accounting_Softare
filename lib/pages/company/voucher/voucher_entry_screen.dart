@@ -98,6 +98,13 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   void initState() {
     super.initState();
     _loadCompanyMastersAndInitialize();
+    // Focus the very first header field the instant the voucher opens, so
+    // Tab/Enter/arrows work immediately without a mouse click. (Item rows
+    // can't be focused here yet — they're only created after the async
+    // company-data load below finishes.)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _seriesFocus.requestFocus();
+    });
   }
 
   Future<void> _loadCompanyMastersAndInitialize() async {
