@@ -60,6 +60,15 @@ class VoucherHeaderCard extends StatelessWidget {
     required this.onNarrationSubmitted,
   });
 
+  static const List<String> taxationSaleTypes = [
+    'Local Itemwise',
+    'InterState Itemwise',
+    'Local Multirate',
+    'InterState Multirate',
+    'Local Exempt',
+    'InterState Exempt',
+  ];
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -109,14 +118,7 @@ class VoucherHeaderCard extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: _buildFieldWithAction(
-                  label: 'Taxation / Sale Type',
-                  controller: saleTypeController,
-                  focusNode: saleTypeFocus,
-                  icon: Icons.account_tree_outlined,
-                  onAdd: () => onQuickAdd('Sale Type'),
-                  onSubmitted: () => partyFocus.requestFocus(),
-                ),
+                child: _buildSaleTypeField(),
               ),
             ],
           ),
@@ -153,6 +155,125 @@ class VoucherHeaderCard extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSaleTypeField() {
+    return SizedBox(
+      height: 36,
+      child: RawAutocomplete<String>(
+        focusNode: saleTypeFocus,
+        textEditingController: saleTypeController,
+        optionsBuilder: (TextEditingValue textEditingValue) {
+          final query = textEditingValue.text.trim().toLowerCase();
+          if (query.isEmpty) return taxationSaleTypes;
+          return taxationSaleTypes.where((type) => type.toLowerCase().contains(query));
+        },
+        onSelected: (String selection) {
+          saleTypeController.text = selection;
+          partyFocus.requestFocus();
+        },
+        optionsViewBuilder: (context, onSelected, options) {
+          return Align(
+            alignment: Alignment.topLeft,
+            child: Material(
+              elevation: 8,
+              borderRadius: BorderRadius.circular(10),
+              color: Colors.white,
+              child: Container(
+                width: 280,
+                constraints: const BoxConstraints(maxHeight: 250),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFD6E4F5), width: 1.2),
+                ),
+                child: ListView.separated(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  shrinkWrap: true,
+                  itemCount: options.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5FB)),
+                  itemBuilder: (BuildContext context, int index) {
+                    final String option = options.elementAt(index);
+                    final isInterState = option.contains('InterState');
+                    return InkWell(
+                      onTap: () => onSelected(option),
+                      hoverColor: const Color(0xFFF4F8FE),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        child: Row(
+                          children: [
+                            Icon(
+                              isInterState ? Icons.alt_route_rounded : Icons.sync_alt_rounded,
+                              size: 15,
+                              color: isInterState ? const Color(0xFF7E22CE) : const Color(0xFF0F62FE),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              option,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: isInterState ? const Color(0xFF7E22CE) : const Color(0xFF101C38),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          );
+        },
+        fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+          return ListenableBuilder(
+            listenable: focusNode,
+            builder: (context, _) {
+              return TextField(
+                controller: controller,
+                focusNode: focusNode,
+                textInputAction: TextInputAction.next,
+                onSubmitted: (_) {
+                  onFieldSubmitted();
+                  partyFocus.requestFocus();
+                },
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF101B3A),
+                ),
+                decoration: InputDecoration(
+                  labelText: 'Taxation / Sale Type',
+                  labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6B7B9B)),
+                  prefixIcon: const Icon(Icons.account_tree_outlined, size: 14, color: Color(0xFF0F62FE)),
+                  suffixIcon: focusNode.hasFocus
+                      ? Focus(
+                          canRequestFocus: false,
+                          descendantsAreFocusable: false,
+                          child: Container(
+                            margin: const EdgeInsets.only(right: 6),
+                            child: IconButton(
+                              icon: const Icon(Icons.add_circle, size: 18, color: Color(0xFF0F62FE)),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(maxWidth: 24, maxHeight: 24),
+                              onPressed: () => onQuickAdd('Sale Type'),
+                            ),
+                          ),
+                        )
+                      : const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF64748B)),
+                  suffixIconConstraints: const BoxConstraints(minWidth: 32, minHeight: 24),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  filled: true,
+                  fillColor: const Color(0xFFF8FAFD),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2EAF5))),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.3)),
+                ),
+              );
+            },
+          );
+        },
       ),
     );
   }
@@ -277,7 +398,7 @@ class VoucherHeaderCard extends StatelessWidget {
                   prefixIcon: const Icon(Icons.person_outline_rounded, size: 14, color: Color(0xFF0F62FE)),
                   suffixIcon: focusNode.hasFocus
                       ? Focus(
-                          canRequestFocus: false, // Ensures Tab skips this button and moves to next input
+                          canRequestFocus: false,
                           descendantsAreFocusable: false,
                           child: Container(
                             margin: const EdgeInsets.only(right: 6),
@@ -331,7 +452,7 @@ class VoucherHeaderCard extends StatelessWidget {
               prefixIcon: Icon(icon, size: 14, color: const Color(0xFF0F62FE)),
               suffixIcon: focusNode.hasFocus
                   ? Focus(
-                      canRequestFocus: false, // Ensures Tab key does not catch on the + button
+                      canRequestFocus: false,
                       descendantsAreFocusable: false,
                       child: Container(
                         margin: const EdgeInsets.only(right: 6),

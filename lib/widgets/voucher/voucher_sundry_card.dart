@@ -23,11 +23,23 @@ class VoucherSundryCard extends StatelessWidget {
   });
 
   static const List<String> fixedSundryOptions = [
-    'Round off+',
-    'Round Off-',
-    'Freight up forward',
+    'Add. Cess on GST',
+    'Add. Cess on GST (ITC-None)',
+    'Cess on GST',
+    'Cess on GST (ITC-None)',
+    'CGST',
+    'CGST (ITC-None)',
     'Discount',
-    'Others',
+    'Freight & Forwarding Charges',
+    'IGST',
+    'IGST (Export / SEZ Unit)',
+    'IGST (ITC-None)',
+    'Round Off-',
+    'Round Off+',
+    'SGST',
+    'SGST (ITC-None)',
+    'TCS (Tax Collected at Source)',
+    'TDS on Pymt./Purc. of Goods',
   ];
 
   @override
@@ -75,7 +87,7 @@ class VoucherSundryCard extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             SizedBox(
-              height: 95,
+              height: 100,
               child: ListView.separated(
                 shrinkWrap: true,
                 itemCount: sundries.length,
@@ -84,8 +96,9 @@ class VoucherSundryCard extends StatelessWidget {
                   final s = sundries[idx];
                   return Row(
                     children: [
+                      // Sundry Name Field
                       Expanded(
-                        flex: 7,
+                        flex: 6,
                         child: SizedBox(
                           height: 30,
                           child: Autocomplete<String>(
@@ -116,6 +129,7 @@ class VoucherSundryCard extends StatelessWidget {
                                 style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF101B3A)),
                                 decoration: InputDecoration(
                                   hintText: 'Select sundry...',
+                                  hintStyle: const TextStyle(fontSize: 10, color: Color(0xFF90A1BA)),
                                   contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
                                   filled: true,
                                   fillColor: const Color(0xFFFAFBFD),
@@ -129,7 +143,38 @@ class VoucherSundryCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
+                      // Percentage Field
+                      Expanded(
+                        flex: 2,
+                        child: SizedBox(
+                          height: 30,
+                          child: TextField(
+                            controller: s.percent,
+                            focusNode: s.percentFocus,
+                            textAlign: TextAlign.right,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+                            ],
+                            textInputAction: TextInputAction.next,
+                            onSubmitted: (_) => onRowEnter(idx, 'percent'),
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF101B3A)),
+                            decoration: InputDecoration(
+                              hintText: '%',
+                              hintStyle: const TextStyle(fontSize: 10, color: Color(0xFF90A1BA)),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
+                              filled: true,
+                              fillColor: const Color(0xFFFAFBFD),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFFE5EDF7))),
+                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFFE5EDF7))),
+                              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.4)),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      // Amount Field
                       Expanded(
                         flex: 4,
                         child: SizedBox(
@@ -146,6 +191,8 @@ class VoucherSundryCard extends StatelessWidget {
                             onSubmitted: (_) => onRowEnter(idx, 'amount'),
                             style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF101B3A)),
                             decoration: InputDecoration(
+                              hintText: 'Amount',
+                              hintStyle: const TextStyle(fontSize: 10, color: Color(0xFF90A1BA)),
                               contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
                               filled: true,
                               fillColor: const Color(0xFFFAFBFD),

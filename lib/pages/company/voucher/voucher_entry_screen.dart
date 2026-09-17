@@ -5,11 +5,12 @@ import '../../../services/storage_service.dart';
 import '../../../services/voucher_calculation_service.dart';
 import '../../../widgets/voucher/popup/add_item_dialog.dart';
 import '../../../widgets/voucher/popup/add_party_dialog.dart';
+import '../../../widgets/voucher/popup/item_tax_details_dialog.dart';
+import '../../../widgets/voucher/popup/voucher_save_confirm_dialog.dart';
 import '../../../widgets/voucher/voucher_header_card.dart';
 import '../../../widgets/voucher/voucher_item_row.dart';
 import '../../../widgets/voucher/voucher_items_table.dart';
 import '../../../widgets/voucher/voucher_navigation_bar.dart';
-import '../../../widgets/voucher/popup/voucher_save_confirm_dialog.dart';
 import '../../../widgets/voucher/voucher_summary_card.dart';
 import '../../../widgets/voucher/voucher_sundry_card.dart';
 import '../../../widgets/voucher/voucher_sundry_row.dart';
@@ -33,6 +34,49 @@ class VoucherEntryScreen extends StatefulWidget {
 }
 
 class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
+  static const Map<String, String> _stateNameToGstCode = {
+    'jammu and kashmir': '01',
+    'himachal pradesh': '02',
+    'punjab': '03',
+    'chandigarh': '04',
+    'uttarakhand': '05',
+    'haryana': '06',
+    'delhi': '07',
+    'rajasthan': '08',
+    'uttar pradesh': '09',
+    'bihar': '10',
+    'sikkim': '11',
+    'arunachal pradesh': '12',
+    'nagaland': '13',
+    'manipur': '14',
+    'mizoram': '15',
+    'tripura': '16',
+    'meghalaya': '17',
+    'assam': '18',
+    'west bengal': '19',
+    'jharkhand': '20',
+    'odisha': '21',
+    'orissa': '21',
+    'chhattisgarh': '22',
+    'madhya pradesh': '23',
+    'gujarat': '24',
+    'daman and diu': '26',
+    'dadra and nagar haveli': '26',
+    'maharashtra': '27',
+    'andhra pradesh': '37',
+    'karnataka': '29',
+    'goa': '30',
+    'lakshadweep': '31',
+    'kerala': '32',
+    'tamil nadu': '33',
+    'puducherry': '34',
+    'pondicherry': '34',
+    'andaman and nicobar islands': '35',
+    'telangana': '36',
+    'ladakh': '38',
+    'other territory': '97',
+  };
+
   final TextEditingController _seriesController = TextEditingController(text: 'Main');
   final FocusNode _seriesFocus = FocusNode();
 
@@ -40,11 +84,10 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   final FocusNode _dateFocusNode = FocusNode();
   String? _dateError;
 
-  // Kept empty by default
   final TextEditingController _vchNoController = TextEditingController(text: '');
   final FocusNode _vchNoFocus = FocusNode();
 
-  final TextEditingController _saleTypeController = TextEditingController(text: 'GST 18% (Item Wise)');
+  final TextEditingController _saleTypeController = TextEditingController(text: 'Local Itemwise');
   final FocusNode _saleTypeFocus = FocusNode();
 
   final TextEditingController _partyController = TextEditingController();
@@ -78,6 +121,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
 
   bool _isInterState = false;
   bool _autoRoundOff = true;
+  bool _isAutoAdjustingSaleType = false;
 
   DateTime _fyStartDate = DateTime(2026, 4, 1);
   DateTime _fyEndDate = DateTime(2027, 3, 31, 23, 59, 59);
@@ -88,7 +132,27 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   @override
   void initState() {
     super.initState();
+    _attachControllerListeners();
     _loadCompanyMastersAndInitialize();
+  }
+
+  void _attachControllerListeners() {
+    _dateFocusNode.addListener(() {
+      if (!_dateFocusNode.hasFocus) {
+        _parseAndValidateDate();
+      }
+    });
+
+    _partyController.addListener(() {
+      _checkGstMode(autoAdjustSaleType: true);
+      _refreshTaxesOnAllRows();
+    });
+
+    _saleTypeController.addListener(() {
+      if (!_isAutoAdjustingSaleType) {
+        _handleManualSaleTypeChange();
+      }
+    });
   }
 
   Future<void> _loadCompanyMastersAndInitialize() async {
@@ -151,11 +215,14 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
 
   void _initializeNewVoucher() {
     final fy = widget.company['activeFinancialYear'] ?? '2026-27';
-    _vchNoController.text = ''; // Remains completely blank by default
+    _vchNoController.text = '';
     _parseFinancialYearBounds(fy);
 
+    _isAutoAdjustingSaleType = true;
     _partyController.text = '';
-    _checkGstMode();
+    _saleTypeController.text = 'Local Itemwise';
+    _isInterState = false;
+    _isAutoAdjustingSaleType = false;
 
     final now = DateTime.now();
     if (now.isAfter(_fyStartDate) && now.isBefore(_fyEndDate)) {
@@ -164,20 +231,6 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     } else {
       _dateController.text = '01-04-${_fyStartDate.year}';
     }
-
-    _dateFocusNode.addListener(() {
-      if (!_dateFocusNode.hasFocus) {
-        _parseAndValidateDate();
-      }
-    });
-
-    _partyController.addListener(() {
-      _checkGstMode();
-      for (final row in _items) {
-        VoucherCalculationService.recalculateTaxesFromTaxable(row, _isInterState);
-      }
-      _calculateAllTotals();
-    });
 
     _items.clear();
     for (int i = 0; i < 20; i++) {
@@ -192,25 +245,199 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     if (mounted) setState(() {});
   }
 
-  void _checkGstMode() {
-    final companyGst = (widget.company['gstin'] ?? '').toString().trim();
-    final partyText = _partyController.text.trim();
+  String _getCompanyStateCode() {
+    final rawGstin = (widget.company['gstin'] ??
+            widget.company['gstNumber'] ??
+            widget.company['gstNo'] ??
+            widget.company['gst'] ??
+            '')
+        .toString()
+        .trim();
 
-    String partyGstin = '';
-    final match = RegExp(r'\[([A-Z0-9]{15})\]').firstMatch(partyText);
+    if (rawGstin.length >= 2 && int.tryParse(rawGstin.substring(0, 2)) != null) {
+      return rawGstin.substring(0, 2);
+    }
+
+    final rawCode = (widget.company['stateCode'] ?? widget.company['code'] ?? '').toString().trim();
+    if (rawCode.isNotEmpty && int.tryParse(rawCode) != null) {
+      return rawCode.padLeft(2, '0');
+    }
+
+    final rawState = (widget.company['state'] ?? widget.company['stateName'] ?? '')
+        .toString()
+        .trim()
+        .toLowerCase();
+    if (_stateNameToGstCode.containsKey(rawState)) {
+      return _stateNameToGstCode[rawState]!;
+    }
+
+    // Default to '07' (Delhi) if not specified
+    return '07';
+  }
+
+  String _extractPartyStateCode(String partyText) {
+    final clean = partyText.trim();
+    if (clean.isEmpty) return '';
+
+    final match = RegExp(r'\[\s*([^\]]+)\s*\]').firstMatch(clean);
     if (match != null) {
-      partyGstin = match.group(1) ?? '';
-    } else if (partyText.length == 15) {
-      partyGstin = partyText;
+      final inside = match.group(1)!.trim();
+      if (inside.length >= 2 && int.tryParse(inside.substring(0, 2)) != null) {
+        return inside.substring(0, 2);
+      }
     }
 
-    if (companyGst.length >= 2 && partyGstin.length >= 2) {
-      final compState = companyGst.substring(0, 2);
-      final partyState = partyGstin.substring(0, 2);
-      _isInterState = compState != partyState;
-    } else {
-      _isInterState = false;
+    // 2. Direct GSTIN format
+    if (clean.length == 15 && int.tryParse(clean.substring(0, 2)) != null) {
+      return clean.substring(0, 2);
     }
+
+    // 3. Search in current party master
+    final cleanLower = clean.toLowerCase();
+    final matched = _currentAvailableParties.where((p) {
+      final pName = p.name.trim().toLowerCase();
+      final pDisplay = p.displayName.trim().toLowerCase();
+      return pName == cleanLower || pDisplay == cleanLower;
+    }).firstOrNull;
+
+    if (matched != null && matched.gstin.trim().length >= 2) {
+      final gst = matched.gstin.trim();
+      if (int.tryParse(gst.substring(0, 2)) != null) {
+        return gst.substring(0, 2);
+      }
+    }
+
+    return '';
+  }
+
+  void _checkGstMode({bool autoAdjustSaleType = false}) {
+    final compState = _getCompanyStateCode();
+    final partyState = _extractPartyStateCode(_partyController.text);
+
+    bool detectedInterState = false;
+    if (partyState.isNotEmpty) {
+      detectedInterState = compState != partyState;
+    } else {
+      detectedInterState = false;
+    }
+
+    _isInterState = detectedInterState;
+
+    if (autoAdjustSaleType) {
+      final currentType = _saleTypeController.text;
+      String suffix = 'Itemwise';
+      if (currentType.contains('Multirate')) suffix = 'Multirate';
+      if (currentType.contains('Exempt')) suffix = 'Exempt';
+
+      final targetType = detectedInterState ? 'InterState $suffix' : 'Local $suffix';
+
+      if (_saleTypeController.text != targetType) {
+        _isAutoAdjustingSaleType = true;
+        _saleTypeController.text = targetType;
+        _isAutoAdjustingSaleType = false;
+      }
+    }
+  }
+
+  void _handleManualSaleTypeChange() {
+    final currentSaleType = _saleTypeController.text.trim();
+    final isExplicitLocal = currentSaleType.startsWith('Local');
+    final isExplicitInterState = currentSaleType.startsWith('InterState');
+
+    final compState = _getCompanyStateCode();
+    final partyState = _extractPartyStateCode(_partyController.text);
+
+    if (partyState.isNotEmpty) {
+      final partyIsInterstate = compState != partyState;
+
+      // User chose Local, but party is from another state
+      if (partyIsInterstate && isExplicitLocal) {
+        _showTaxMismatchWarning(
+          enteredType: 'local transaction',
+          partyBelongsToText: 'interstate (State code: $partyState)',
+          onAdjustToParty: () {
+            _isAutoAdjustingSaleType = true;
+            _saleTypeController.text = currentSaleType.replaceFirst('Local', 'InterState');
+            _isAutoAdjustingSaleType = false;
+            setState(() {
+              _isInterState = true;
+              _refreshTaxesOnAllRows();
+            });
+          },
+        );
+      }
+      // User chose InterState, but party is in the same state
+      else if (!partyIsInterstate && isExplicitInterState) {
+        _showTaxMismatchWarning(
+          enteredType: 'interstate transaction',
+          partyBelongsToText: 'local / intra-state (State code: $partyState)',
+          onAdjustToParty: () {
+            _isAutoAdjustingSaleType = true;
+            _saleTypeController.text = currentSaleType.replaceFirst('InterState', 'Local');
+            _isAutoAdjustingSaleType = false;
+            setState(() {
+              _isInterState = false;
+              _refreshTaxesOnAllRows();
+            });
+          },
+        );
+      }
+    }
+
+    setState(() {
+      _isInterState = isExplicitInterState;
+      _refreshTaxesOnAllRows();
+    });
+  }
+
+  void _showTaxMismatchWarning({
+    required String enteredType,
+    required String partyBelongsToText,
+    required VoidCallback onAdjustToParty,
+  }) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 24),
+            SizedBox(width: 8),
+            Text('Taxation Warning', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+          ],
+        ),
+        content: Text(
+          'You are entering a $enteredType but party belongs to $partyBelongsToText.\n\nDo you want to continue?',
+          style: const TextStyle(fontSize: 13, color: Color(0xFF334155), height: 1.4),
+        ),
+        actions: [
+          OutlinedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              onAdjustToParty();
+            },
+            child: const Text('Adjust to Party'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD97706)),
+            child: const Text('Yes, Continue', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _refreshTaxesOnAllRows() {
+    for (final row in _items) {
+      if (row.taxable.text.isNotEmpty) {
+        VoucherCalculationService.recalculateTaxesFromTaxable(row, _isInterState);
+      } else if (row.amount.text.isNotEmpty) {
+        VoucherCalculationService.recalculateFromInvoiceAmount(row, _isInterState);
+      }
+    }
+    _calculateAllTotals();
   }
 
   String _getUnitString(dynamic unitValue) {
@@ -311,33 +538,52 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
 
   void _addSundryRow() {
     final row = VoucherSundryRow();
+
     row.name.addListener(() {
       _applySundryAutoValue(row);
       _calculateAllTotals();
     });
-    row.amount.addListener(_calculateAllTotals);
+
+    row.percent.addListener(() {
+      if (row.percentFocus.hasFocus) {
+        VoucherCalculationService.recalculateSundryFromPercent(row, _itemSubTotal);
+        _calculateAllTotals();
+      }
+    });
+
+    row.amount.addListener(() {
+      if (row.amountFocus.hasFocus) {
+        VoucherCalculationService.recalculateSundryFromAmount(row, _itemSubTotal);
+        _calculateAllTotals();
+      }
+    });
+
     _sundries.add(row);
   }
 
   void _applySundryAutoValue(VoucherSundryRow sundry) {
     final type = sundry.name.text;
-    if (type == 'Round off+' || type == 'Rnd off -') {
+    if (type == 'Round off+' || type == 'Round Off+' || type == 'Round Off-' || type == 'Rnd off -') {
       double baseSum = _itemSubTotal + _totalTax;
       for (final s in _sundries) {
         if (s != sundry) {
           final a = double.tryParse(s.amount.text) ?? 0.0;
-          baseSum += (s.name.text == 'Rnd off -' || s.isNegative) ? -a : a;
+          baseSum += (s.name.text == 'Round Off-' || s.name.text == 'Rnd off -' || s.isNegative) ? -a : a;
         }
       }
       final remainder = baseSum % 1.0;
-      if (type == 'Round off+') {
+      if (type == 'Round off+' || type == 'Round Off+') {
         final diff = remainder == 0 ? 0.0 : (1.0 - remainder);
         sundry.amount.text = diff > 0 ? diff.toStringAsFixed(2) : '';
+        sundry.percent.clear();
         sundry.isNegative = false;
       } else {
         sundry.amount.text = remainder > 0 ? remainder.toStringAsFixed(2) : '';
+        sundry.percent.clear();
         sundry.isNegative = true;
       }
+    } else if (sundry.percent.text.isNotEmpty) {
+      VoucherCalculationService.recalculateSundryFromPercent(sundry, _itemSubTotal);
     }
   }
 
@@ -393,7 +639,6 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
 
     row.cgst.addListener(() {
       if (row.cgstFocus.hasFocus) {
-        row.sgst.text = row.cgst.text;
         _recalculateAmountFromTaxes(row);
         _calculateAllTotals();
       }
@@ -456,6 +701,15 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   }
 
   void _calculateAllTotals() {
+    for (final s in _sundries) {
+      final name = s.name.text;
+      if (!name.contains('Round') && !name.contains('Rnd')) {
+        if (s.percent.text.isNotEmpty && !s.amountFocus.hasFocus) {
+          VoucherCalculationService.recalculateSundryFromPercent(s, _itemSubTotal);
+        }
+      }
+    }
+
     final result = VoucherCalculationService.calculateTotals(
       items: _items,
       sundries: _sundries,
@@ -475,6 +729,21 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
       _grandTotal = result.grandTotal;
       _totalItemAmount = result.totalItemAmount;
     });
+  }
+
+  void _openTaxDetailsDialog(int index) {
+    showDialog(
+      context: context,
+      builder: (ctx) => ItemTaxDetailsDialog(
+        row: _items[index],
+        isInterState: _isInterState,
+        onUpdated: () {
+          setState(() {
+            _calculateAllTotals();
+          });
+        },
+      ),
+    );
   }
 
   void _openAddItemDialog(int index) {
@@ -618,21 +887,18 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   }
 
   Future<void> _saveVoucher() async {
-    // 1. Validate Date
     final isDateValid = _parseAndValidateDate();
     if (!isDateValid || _dateError != null) {
       _showValidationError(_dateError ?? 'Please enter a valid Voucher Date within the Financial Year', _dateFocusNode);
       return;
     }
 
-    // 2. Validate Voucher Number
     final vchNo = _vchNoController.text.trim();
     if (vchNo.isEmpty) {
       _showValidationError('Voucher Number is required and cannot be blank.', _vchNoFocus);
       return;
     }
 
-    // 3. Validate Party
     final partyName = _partyController.text.trim();
     if (partyName.isEmpty) {
       _showValidationError('Please select or add a Party/Account Ledger.', _partyFocus);
@@ -645,7 +911,6 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
       return;
     }
 
-    // 4. Validate Items (At least 1 item with positive quantity & amount)
     final validItems = _items.where((i) {
       final name = i.item.text.trim();
       final q = double.tryParse(i.qty.text) ?? 0.0;
@@ -659,7 +924,6 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
       return;
     }
 
-    // 5. Present Confirmation Summary Modal with Auto-Focus on Save
     final summaryData = {
       'voucherType': widget.voucherType,
       'voucherNumber': vchNo,
@@ -717,6 +981,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
           .where((s) => s.amount.text != '' && s.amount.text != '0.00')
           .map((s) => {
                 'name': s.name.text,
+                'percent': s.percent.text,
                 'amount': s.amount.text,
                 'isNegative': s.isNegative,
               })
@@ -750,7 +1015,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
                 const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
                 const SizedBox(width: 10),
                 Text(
-                  '${widget.voucherType} [${_vchNoController.text}] saved successfully!',
+                  '${widget.voucherType} [${_vchNoController.text}] saved to ${StorageService.resolveVoucherFileName(widget.voucherType)}!',
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ],
@@ -802,7 +1067,6 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
           ),
           actionsPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           actions: [
-            // Cancel Action (Focused by default with prominent ring)
             Focus(
               focusNode: cancelFocusNode,
               child: Builder(
@@ -831,8 +1095,6 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
               ),
             ),
             const SizedBox(width: 10),
-
-            // Exit Action (Highlights with red focus ring when tabbed to)
             Focus(
               focusNode: exitFocusNode,
               child: Builder(
@@ -893,14 +1155,6 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     } else if (field == 'price') {
       _items[index].taxableFocus.requestFocus();
     } else if (field == 'taxable') {
-      if (_isInterState) {
-        _items[index].igstFocus.requestFocus();
-      } else {
-        _items[index].cgstFocus.requestFocus();
-      }
-    } else if (field == 'cgst') {
-      _items[index].sgstFocus.requestFocus();
-    } else if (field == 'sgst' || field == 'igst') {
       _items[index].amountFocus.requestFocus();
     } else if (field == 'amount') {
       if (index + 1 < _items.length) {
@@ -913,6 +1167,8 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
 
   void _handleSundryRowEnter(int index, String field) {
     if (field == 'name') {
+      _sundries[index].percentFocus.requestFocus();
+    } else if (field == 'percent') {
       _sundries[index].amountFocus.requestFocus();
     } else if (field == 'amount') {
       if (index + 1 < _sundries.length) {
@@ -933,15 +1189,15 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
 
   Color _getVoucherBackgroundColor() {
     final vch = widget.voucherType.toLowerCase();
-    if (vch.contains('sale')) return const Color.fromARGB(255, 255, 241, 223);     // Cool Blue-Grey tint
-    if (vch.contains('purchase')) return const Color.fromARGB(255, 230, 220, 255); // Soft Violet tint
-    if (vch.contains('payment')) return const Color.fromRGBO(227, 252, 222, 1);  // Soft Warm Red tint
-    if (vch.contains('receipt')) return const Color.fromARGB(255, 240, 253, 254);  // Soft Mint tint
-    if (vch.contains('journal')) return const Color.fromARGB(255, 255, 251, 23);  // Soft Amber tint
-    if (vch.contains('contra')) return const Color.fromARGB(255, 248, 249, 255);   // Soft Sky tint
-    return const Color.fromARGB(255, 255, 245, 185);                              // Default tint
+    if (vch.contains('sale')) return const Color.fromARGB(255, 255, 241, 223);
+    if (vch.contains('purchase')) return const Color.fromARGB(255, 230, 220, 255);
+    if (vch.contains('payment')) return const Color.fromRGBO(227, 252, 222, 1);
+    if (vch.contains('receipt')) return const Color.fromARGB(255, 240, 253, 254);
+    if (vch.contains('journal')) return const Color.fromARGB(255, 255, 251, 23);
+    if (vch.contains('contra')) return const Color.fromARGB(255, 248, 249, 255);
+    return const Color.fromARGB(255, 255, 245, 185);
   }
-  
+
   @override
   void dispose() {
     _seriesController.dispose();
@@ -983,7 +1239,6 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
           backgroundColor: _getVoucherBackgroundColor(),
           body: Column(
             children: [
-              // 1. EXTRACTED TOP NAVIGATION BAR
               VoucherNavigationBar(
                 voucherType: widget.voucherType,
                 financialYear: fy,
@@ -997,14 +1252,11 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
                   }
                 },
               ),
-
-              // 2. MAIN VOUCHER BODY
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: Column(
                     children: [
-                      // Header Metadata Card
                       VoucherHeaderCard(
                         seriesController: _seriesController,
                         seriesFocus: _seriesFocus,
@@ -1027,10 +1279,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
                         onAddParty: _openAddPartyDialog,
                         onNarrationSubmitted: _focusFirstItemRow,
                       ),
-
                       const SizedBox(height: 10),
-
-                      // Items Table
                       Expanded(
                         child: VoucherItemsTable(
                           items: _items,
@@ -1038,21 +1287,16 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
                           isInterState: _isInterState,
                           totalQty: _totalQty,
                           totalTaxable: _itemSubTotal,
-                          totalCgst: _totalCgst,
-                          totalSgst: _totalSgst,
-                          totalIgst: _totalIgst,
                           totalAmount: _totalItemAmount,
                           onAddRow: () => setState(_addItemRow),
                           onRowEnter: _handleItemRowEnter,
                           onAddItem: _openAddItemDialog,
                           onItemSelected: _onItemMasterSelected,
+                          onOpenTaxDetails: _openTaxDetailsDialog,
                           onTabToSundry: _focusFirstSundryRow,
                         ),
                       ),
-
                       const SizedBox(height: 10),
-
-                      // Dual Lower Panels (Sundry & Summary)
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
