@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../constants/app_shortcuts.dart';
 import '../../../services/keyboard_shortcut_service.dart';
 import '../../../services/storage_service.dart';
 import '../../../services/voucher_calculation_service.dart';
@@ -271,8 +272,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
       return _stateNameToGstCode[rawState]!;
     }
 
-    // Default to '07' (Delhi) if not specified
-    return '07';
+    return '07'; // Fallback
   }
 
   String _extractPartyStateCode(String partyText) {
@@ -287,12 +287,10 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
       }
     }
 
-    // 2. Direct GSTIN format
     if (clean.length == 15 && int.tryParse(clean.substring(0, 2)) != null) {
       return clean.substring(0, 2);
     }
 
-    // 3. Search in current party master
     final cleanLower = clean.toLowerCase();
     final matched = _currentAvailableParties.where((p) {
       final pName = p.name.trim().toLowerCase();
@@ -350,7 +348,6 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     if (partyState.isNotEmpty) {
       final partyIsInterstate = compState != partyState;
 
-      // User chose Local, but party is from another state
       if (partyIsInterstate && isExplicitLocal) {
         _showTaxMismatchWarning(
           enteredType: 'local transaction',
@@ -365,9 +362,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
             });
           },
         );
-      }
-      // User chose InterState, but party is in the same state
-      else if (!partyIsInterstate && isExplicitInterState) {
+      } else if (!partyIsInterstate && isExplicitInterState) {
         _showTaxMismatchWarning(
           enteredType: 'interstate transaction',
           partyBelongsToText: 'local / intra-state (State code: $partyState)',
@@ -1366,6 +1361,32 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   KeyEventResult _handleVoucherKeyEvent(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) {
       return KeyEventResult.ignored;
+    }
+
+    // Central Alt+C creation routing across all inputs
+    if (AppShortcuts.isQuickAdd(event)) {
+      if (_partyFocus.hasFocus) {
+        _openAddPartyDialog();
+        return KeyEventResult.handled;
+      }
+      if (_seriesFocus.hasFocus) {
+        _openQuickAddDialog('Series');
+        return KeyEventResult.handled;
+      }
+      if (_saleTypeFocus.hasFocus) {
+        _openQuickAddDialog('Sale Type');
+        return KeyEventResult.handled;
+      }
+      if (_matCenterFocus.hasFocus) {
+        _openQuickAddDialog('Material Centre');
+        return KeyEventResult.handled;
+      }
+      for (int i = 0; i < _items.length; i++) {
+        if (_items[i].itemFocus.hasFocus) {
+          _openAddItemDialog(i);
+          return KeyEventResult.handled;
+        }
+      }
     }
 
     if (KeyboardShortcutService.matchesAction(

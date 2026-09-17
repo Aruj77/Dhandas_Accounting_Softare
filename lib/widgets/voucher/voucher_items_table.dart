@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'voucher_item_row.dart';
+import './../../constants/app_shortcuts.dart';
 
 class ItemMasterModel {
   final String name;
@@ -65,8 +66,8 @@ class VoucherItemsTable extends StatelessWidget {
   Widget build(BuildContext context) {
     return Focus(
       onKeyEvent: (node, event) {
-        if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.tab) {
-          onTabToSundry();
+        if (AppShortcuts.isQuickAdd(event)) {
+          onAddItem(items.length);
           return KeyEventResult.handled;
         }
         return KeyEventResult.ignored;
@@ -186,9 +187,7 @@ class VoucherItemsTable extends StatelessWidget {
                           width: 140,
                           child: Focus(
                             onKeyEvent: (node, event) {
-                              if (event is KeyDownEvent &&
-                                  HardwareKeyboard.instance.isAltPressed &&
-                                  event.logicalKey == LogicalKeyboardKey.keyE) {
+                              if (AppShortcuts.isTaxDetails(event)) {
                                 onOpenTaxDetails(index);
                                 return KeyEventResult.handled;
                               }

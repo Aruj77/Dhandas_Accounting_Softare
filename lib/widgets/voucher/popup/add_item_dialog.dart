@@ -88,12 +88,12 @@ class _AddItemDialogState extends State<AddItemDialog> {
       return;
     }
 
-    final isValid = RegExp(r'^[0-9]{2,8}$').hasMatch(hsn);
+    final isValid = RegExp(r'^[0-9]{4,8}$').hasMatch(hsn);
     setState(() {
       _isHsnValid = isValid;
       _hsnStatusMessage = isValid
           ? 'Valid HSN/SAC code format'
-          : 'Invalid HSN. Must be 2 to 8 digits numeric.';
+          : 'Invalid HSN. Must be 4 to 8 digits numeric.';
     });
   }
 

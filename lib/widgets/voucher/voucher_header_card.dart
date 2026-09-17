@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../constants/app_shortcuts.dart';
 
 class PartyMasterModel {
   final String name;
@@ -160,268 +161,286 @@ class VoucherHeaderCard extends StatelessWidget {
   }
 
   Widget _buildSaleTypeField() {
-    return SizedBox(
-      height: 36,
-      child: RawAutocomplete<String>(
-        focusNode: saleTypeFocus,
-        textEditingController: saleTypeController,
-        optionsBuilder: (TextEditingValue textEditingValue) {
-          final query = textEditingValue.text.trim().toLowerCase();
-          if (query.isEmpty) return taxationSaleTypes;
-          return taxationSaleTypes.where((type) => type.toLowerCase().contains(query));
-        },
-        onSelected: (String selection) {
-          saleTypeController.text = selection;
-          partyFocus.requestFocus();
-        },
-        optionsViewBuilder: (context, onSelected, options) {
-          return Align(
-            alignment: Alignment.topLeft,
-            child: Material(
-              elevation: 8,
-              borderRadius: BorderRadius.circular(10),
-              color: Colors.white,
-              child: Container(
-                width: 280,
-                constraints: const BoxConstraints(maxHeight: 250),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFD6E4F5), width: 1.2),
-                ),
-                child: ListView.separated(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  shrinkWrap: true,
-                  itemCount: options.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5FB)),
-                  itemBuilder: (BuildContext context, int index) {
-                    final String option = options.elementAt(index);
-                    final isInterState = option.contains('InterState');
-                    return InkWell(
-                      onTap: () => onSelected(option),
-                      hoverColor: const Color(0xFFF4F8FE),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        child: Row(
-                          children: [
-                            Icon(
-                              isInterState ? Icons.alt_route_rounded : Icons.sync_alt_rounded,
-                              size: 15,
-                              color: isInterState ? const Color(0xFF7E22CE) : const Color(0xFF0F62FE),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              option,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: isInterState ? const Color(0xFF7E22CE) : const Color(0xFF101C38),
+    return Focus(
+      onKeyEvent: (node, event) {
+        if (AppShortcuts.isQuickAdd(event)) {
+          onQuickAdd('Sale Type');
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: SizedBox(
+        height: 36,
+        child: RawAutocomplete<String>(
+          focusNode: saleTypeFocus,
+          textEditingController: saleTypeController,
+          optionsBuilder: (TextEditingValue textEditingValue) {
+            final query = textEditingValue.text.trim().toLowerCase();
+            if (query.isEmpty) return taxationSaleTypes;
+            return taxationSaleTypes.where((type) => type.toLowerCase().contains(query));
+          },
+          onSelected: (String selection) {
+            saleTypeController.text = selection;
+            partyFocus.requestFocus();
+          },
+          optionsViewBuilder: (context, onSelected, options) {
+            return Align(
+              alignment: Alignment.topLeft,
+              child: Material(
+                elevation: 8,
+                borderRadius: BorderRadius.circular(10),
+                color: Colors.white,
+                child: Container(
+                  width: 280,
+                  constraints: const BoxConstraints(maxHeight: 250),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFD6E4F5), width: 1.2),
+                  ),
+                  child: ListView.separated(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    shrinkWrap: true,
+                    itemCount: options.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5FB)),
+                    itemBuilder: (BuildContext context, int index) {
+                      final String option = options.elementAt(index);
+                      final isInterState = option.contains('InterState');
+                      return InkWell(
+                        onTap: () => onSelected(option),
+                        hoverColor: const Color(0xFFF4F8FE),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          child: Row(
+                            children: [
+                              Icon(
+                                isInterState ? Icons.alt_route_rounded : Icons.sync_alt_rounded,
+                                size: 15,
+                                color: isInterState ? const Color(0xFF7E22CE) : const Color(0xFF0F62FE),
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 8),
+                              Text(
+                                option,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: isInterState ? const Color(0xFF7E22CE) : const Color(0xFF101C38),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
               ),
-            ),
-          );
-        },
-        fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-          return ListenableBuilder(
-            listenable: focusNode,
-            builder: (context, _) {
-              return TextField(
-                controller: controller,
-                focusNode: focusNode,
-                textInputAction: TextInputAction.next,
-                onSubmitted: (_) {
-                  onFieldSubmitted();
-                  partyFocus.requestFocus();
-                },
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF101B3A),
-                ),
-                decoration: InputDecoration(
-                  labelText: 'Taxation / Sale Type',
-                  labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6B7B9B)),
-                  prefixIcon: const Icon(Icons.account_tree_outlined, size: 14, color: Color(0xFF0F62FE)),
-                  suffixIcon: focusNode.hasFocus
-                      ? Focus(
-                          canRequestFocus: false,
-                          descendantsAreFocusable: false,
-                          child: Container(
-                            margin: const EdgeInsets.only(right: 6),
-                            child: IconButton(
-                              icon: const Icon(Icons.add_circle, size: 18, color: Color(0xFF0F62FE)),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(maxWidth: 24, maxHeight: 24),
-                              onPressed: () => onQuickAdd('Sale Type'),
+            );
+          },
+          fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+            return ListenableBuilder(
+              listenable: focusNode,
+              builder: (context, _) {
+                return TextField(
+                  controller: controller,
+                  focusNode: focusNode,
+                  textInputAction: TextInputAction.next,
+                  onSubmitted: (_) {
+                    onFieldSubmitted();
+                    partyFocus.requestFocus();
+                  },
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF101B3A),
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Taxation / Sale Type',
+                    labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6B7B9B)),
+                    prefixIcon: const Icon(Icons.account_tree_outlined, size: 14, color: Color(0xFF0F62FE)),
+                    suffixIcon: focusNode.hasFocus
+                        ? Focus(
+                            canRequestFocus: false,
+                            descendantsAreFocusable: false,
+                            child: Container(
+                              margin: const EdgeInsets.only(right: 6),
+                              child: IconButton(
+                                icon: const Icon(Icons.add_circle, size: 18, color: Color(0xFF0F62FE)),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(maxWidth: 24, maxHeight: 24),
+                                onPressed: () => onQuickAdd('Sale Type'),
+                              ),
                             ),
-                          ),
-                        )
-                      : const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF64748B)),
-                  suffixIconConstraints: const BoxConstraints(minWidth: 32, minHeight: 24),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  filled: true,
-                  fillColor: const Color(0xFFF8FAFD),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2EAF5))),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.3)),
-                ),
-              );
-            },
-          );
-        },
+                          )
+                        : const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF64748B)),
+                    suffixIconConstraints: const BoxConstraints(minWidth: 32, minHeight: 24),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    filled: true,
+                    fillColor: const Color(0xFFF8FAFD),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2EAF5))),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.3)),
+                  ),
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }
 
   Widget _buildPartyField() {
-    return SizedBox(
-      height: 36,
-      child: RawAutocomplete<PartyMasterModel>(
-        focusNode: partyFocus,
-        textEditingController: partyController,
-        displayStringForOption: (option) => option.displayName,
-        optionsBuilder: (TextEditingValue textEditingValue) {
-          final query = textEditingValue.text.trim().toLowerCase();
-          if (query.isEmpty) return availableParties;
-          return availableParties.where((p) {
-            return p.name.toLowerCase().contains(query) ||
-                p.gstin.toLowerCase().contains(query) ||
-                p.group.toLowerCase().contains(query);
-          });
-        },
-        onSelected: (PartyMasterModel selection) {
-          partyController.text = selection.displayName;
-          matCenterFocus.requestFocus();
-        },
-        optionsViewBuilder: (context, onSelected, options) {
-          return Align(
-            alignment: Alignment.topLeft,
-            child: Material(
-              elevation: 8,
-              borderRadius: BorderRadius.circular(10),
-              color: Colors.white,
-              child: Container(
-                width: 420,
-                constraints: const BoxConstraints(maxHeight: 250),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFD6E4F5), width: 1.2),
-                ),
-                child: ListView.separated(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  shrinkWrap: true,
-                  itemCount: options.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5FB)),
-                  itemBuilder: (BuildContext context, int index) {
-                    final PartyMasterModel option = options.elementAt(index);
-                    return InkWell(
-                      onTap: () => onSelected(option),
-                      hoverColor: const Color(0xFFF4F8FE),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 28,
-                              height: 28,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFEFF6FE),
-                                borderRadius: BorderRadius.circular(6),
+    return Focus(
+      onKeyEvent: (node, event) {
+        if (AppShortcuts.isQuickAdd(event)) {
+          onAddParty();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: SizedBox(
+        height: 36,
+        child: RawAutocomplete<PartyMasterModel>(
+          focusNode: partyFocus,
+          textEditingController: partyController,
+          displayStringForOption: (option) => option.displayName,
+          optionsBuilder: (TextEditingValue textEditingValue) {
+            final query = textEditingValue.text.trim().toLowerCase();
+            if (query.isEmpty) return availableParties;
+            return availableParties.where((p) {
+              return p.name.toLowerCase().contains(query) ||
+                  p.gstin.toLowerCase().contains(query) ||
+                  p.group.toLowerCase().contains(query);
+            });
+          },
+          onSelected: (PartyMasterModel selection) {
+            partyController.text = selection.displayName;
+            matCenterFocus.requestFocus();
+          },
+          optionsViewBuilder: (context, onSelected, options) {
+            return Align(
+              alignment: Alignment.topLeft,
+              child: Material(
+                elevation: 8,
+                borderRadius: BorderRadius.circular(10),
+                color: Colors.white,
+                child: Container(
+                  width: 420,
+                  constraints: const BoxConstraints(maxHeight: 250),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFD6E4F5), width: 1.2),
+                  ),
+                  child: ListView.separated(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    shrinkWrap: true,
+                    itemCount: options.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5FB)),
+                    itemBuilder: (BuildContext context, int index) {
+                      final PartyMasterModel option = options.elementAt(index);
+                      return InkWell(
+                        onTap: () => onSelected(option),
+                        hoverColor: const Color(0xFFF4F8FE),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 28,
+                                height: 28,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEFF6FE),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Icon(Icons.business_rounded, size: 15, color: Color(0xFF0F62FE)),
                               ),
-                              child: const Icon(Icons.business_rounded, size: 15, color: Color(0xFF0F62FE)),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    option.name,
-                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF101C38)),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Row(
-                                    children: [
-                                      if (option.gstin.isNotEmpty) ...[
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      option.name,
+                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF101C38)),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Row(
+                                      children: [
+                                        if (option.gstin.isNotEmpty) ...[
+                                          Text(
+                                            option.gstin,
+                                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF15803D)),
+                                          ),
+                                          const SizedBox(width: 8),
+                                        ],
                                         Text(
-                                          option.gstin,
-                                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF15803D)),
+                                          option.group,
+                                          style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
                                         ),
-                                        const SizedBox(width: 8),
                                       ],
-                                      Text(
-                                        option.group,
-                                        style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
               ),
-            ),
-          );
-        },
-        fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-          return ListenableBuilder(
-            listenable: focusNode,
-            builder: (context, _) {
-              return TextField(
-                controller: controller,
-                focusNode: focusNode,
-                textInputAction: TextInputAction.next,
-                onSubmitted: (_) {
-                  onFieldSubmitted();
-                  matCenterFocus.requestFocus();
-                },
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF101B3A),
-                ),
-                decoration: InputDecoration(
-                  labelText: 'Party / Account Ledger',
-                  labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6B7B9B)),
-                  prefixIcon: const Icon(Icons.person_outline_rounded, size: 14, color: Color(0xFF0F62FE)),
-                  suffixIcon: focusNode.hasFocus
-                      ? Focus(
-                          canRequestFocus: false,
-                          descendantsAreFocusable: false,
-                          child: Container(
-                            margin: const EdgeInsets.only(right: 6),
-                            child: IconButton(
-                              icon: const Icon(Icons.add_circle, size: 18, color: Color(0xFF0F62FE)),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(maxWidth: 24, maxHeight: 24),
-                              onPressed: onAddParty,
+            );
+          },
+          fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+            return ListenableBuilder(
+              listenable: focusNode,
+              builder: (context, _) {
+                return TextField(
+                  controller: controller,
+                  focusNode: focusNode,
+                  textInputAction: TextInputAction.next,
+                  onSubmitted: (_) {
+                    onFieldSubmitted();
+                    matCenterFocus.requestFocus();
+                  },
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF101B3A),
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Party / Account Ledger',
+                    labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6B7B9B)),
+                    prefixIcon: const Icon(Icons.person_outline_rounded, size: 14, color: Color(0xFF0F62FE)),
+                    suffixIcon: focusNode.hasFocus
+                        ? Focus(
+                            canRequestFocus: false,
+                            descendantsAreFocusable: false,
+                            child: Container(
+                              margin: const EdgeInsets.only(right: 6),
+                              child: IconButton(
+                                icon: const Icon(Icons.add_circle, size: 18, color: Color(0xFF0F62FE)),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(maxWidth: 24, maxHeight: 24),
+                                onPressed: onAddParty,
+                              ),
                             ),
-                          ),
-                        )
-                      : null,
-                  suffixIconConstraints: const BoxConstraints(minWidth: 32, minHeight: 24),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  filled: true,
-                  fillColor: const Color(0xFFF8FAFD),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2EAF5))),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.3)),
-                ),
-              );
-            },
-          );
-        },
+                          )
+                        : null,
+                    suffixIconConstraints: const BoxConstraints(minWidth: 32, minHeight: 24),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    filled: true,
+                    fillColor: const Color(0xFFF8FAFD),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2EAF5))),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.3)),
+                  ),
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }
@@ -435,48 +454,57 @@ class VoucherHeaderCard extends StatelessWidget {
     VoidCallback? onSubmitted,
     double? width,
   }) {
-    return ListenableBuilder(
-      listenable: focusNode,
-      builder: (context, _) {
-        final field = SizedBox(
-          height: 36,
-          child: TextField(
-            controller: controller,
-            focusNode: focusNode,
-            textInputAction: TextInputAction.next,
-            onSubmitted: (_) => onSubmitted?.call(),
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF101B3A)),
-            decoration: InputDecoration(
-              labelText: label,
-              labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6B7B9B)),
-              prefixIcon: Icon(icon, size: 14, color: const Color(0xFF0F62FE)),
-              suffixIcon: focusNode.hasFocus
-                  ? Focus(
-                      canRequestFocus: false,
-                      descendantsAreFocusable: false,
-                      child: Container(
-                        margin: const EdgeInsets.only(right: 6),
-                        child: IconButton(
-                          icon: const Icon(Icons.add_circle, size: 18, color: Color(0xFF0F62FE)),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(maxWidth: 24, maxHeight: 24),
-                          onPressed: onAdd,
-                        ),
-                      ),
-                    )
-                  : null,
-              suffixIconConstraints: const BoxConstraints(minWidth: 32, minHeight: 24),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              filled: true,
-              fillColor: const Color(0xFFF8FAFD),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2EAF5))),
-              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.3)),
-            ),
-          ),
-        );
-
-        return width != null ? SizedBox(width: width, child: field) : field;
+    return Focus(
+      onKeyEvent: (node, event) {
+        if (AppShortcuts.isQuickAdd(event)) {
+          onAdd();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
       },
+      child: ListenableBuilder(
+        listenable: focusNode,
+        builder: (context, _) {
+          final field = SizedBox(
+            height: 36,
+            child: TextField(
+              controller: controller,
+              focusNode: focusNode,
+              textInputAction: TextInputAction.next,
+              onSubmitted: (_) => onSubmitted?.call(),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF101B3A)),
+              decoration: InputDecoration(
+                labelText: label,
+                labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6B7B9B)),
+                prefixIcon: Icon(icon, size: 14, color: const Color(0xFF0F62FE)),
+                suffixIcon: focusNode.hasFocus
+                    ? Focus(
+                        canRequestFocus: false,
+                        descendantsAreFocusable: false,
+                        child: Container(
+                          margin: const EdgeInsets.only(right: 6),
+                          child: IconButton(
+                            icon: const Icon(Icons.add_circle, size: 18, color: Color(0xFF0F62FE)),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(maxWidth: 24, maxHeight: 24),
+                            onPressed: onAdd,
+                          ),
+                        ),
+                      )
+                    : null,
+                suffixIconConstraints: const BoxConstraints(minWidth: 32, minHeight: 24),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                filled: true,
+                fillColor: const Color(0xFFF8FAFD),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2EAF5))),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.3)),
+              ),
+            ),
+          );
+
+          return width != null ? SizedBox(width: width, child: field) : field;
+        },
+      ),
     );
   }
 
