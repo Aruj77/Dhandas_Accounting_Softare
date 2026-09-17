@@ -15,9 +15,12 @@ dependencies:
   shared_preferences: ^2.3.2
   file_picker: ^8.1.2
   http: ^1.2.2
+  excel: ^4.0.3
 
   # iOS-style icons. Safe to keep for cross-platform compatibility.
   cupertino_icons: ^1.0.8
+  printing: ^5.14.3
+  pdf: ^3.12.0
 
 dev_dependencies:
   flutter_test:
