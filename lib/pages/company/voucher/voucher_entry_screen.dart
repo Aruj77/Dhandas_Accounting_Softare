@@ -21,6 +21,8 @@ class VoucherEntryScreen extends StatefulWidget {
   final String voucherType;
   final VoidCallback onClose;
   final KeyboardShortcutSettings keyboardSettings;
+  final Map<String, dynamic>? voucherToEdit;
+  final bool isEdit;
 
   const VoucherEntryScreen({
     super.key,
@@ -28,6 +30,8 @@ class VoucherEntryScreen extends StatefulWidget {
     required this.voucherType,
     required this.onClose,
     required this.keyboardSettings,
+    this.voucherToEdit,
+    this.isEdit = false,
   });
 
   @override
@@ -134,7 +138,201 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   void initState() {
     super.initState();
     _attachControllerListeners();
-    _loadCompanyMastersAndInitialize();
+
+    if (widget.isEdit && widget.voucherToEdit != null) {
+      _loadExistingVoucherData(widget.voucherToEdit!);
+    } else {
+      _loadCompanyMastersAndInitialize();
+    }
+  }
+
+  void _loadExistingVoucherData(Map<String, dynamic> v) {
+    _seriesController.text = v['series']?.toString() ?? 'Main';
+    _dateController.text = v['date']?.toString() ?? '';
+    _vchNoController.text = v['voucherNumber']?.toString() ?? '';
+    _saleTypeController.text = v['saleType']?.toString() ?? 'Local Itemwise';
+    _partyController.text = v['party']?.toString() ?? '';
+    _matCenterController.text = v['materialCenter']?.toString() ?? 'Main Store';
+    _narrationController.text = v['narration']?.toString() ?? '';
+    _isInterState = v['isInterState'] == true;
+
+    final fy = v['financialYear']?.toString() ?? widget.company['activeFinancialYear'] ?? '2026-27';
+    _parseFinancialYearBounds(fy);
+
+    _items.clear();
+    final rawItems = v['items'] as List? ?? [];
+    for (final itemData in rawItems) {
+      final row = VoucherItemRow();
+      row.item.text = itemData['item']?.toString() ?? '';
+      row.hsn = itemData['hsn']?.toString() ?? '';
+      row.qty.text = itemData['qty']?.toString() ?? '';
+      row.unit.text = itemData['unit']?.toString() ?? 'Pcs';
+      row.price.text = itemData['price']?.toString() ?? '';
+      row.taxable.text = itemData['taxable']?.toString() ?? '';
+      row.cgst.text = itemData['cgst']?.toString() ?? '';
+      row.sgst.text = itemData['sgst']?.toString() ?? '';
+      row.igst.text = itemData['igst']?.toString() ?? '';
+      row.amount.text = itemData['amount']?.toString() ?? '';
+      row.gstRate = double.tryParse(itemData['gstRate']?.toString() ?? '18') ?? 18.0;
+
+      _attachItemRowListeners(row);
+      _items.add(row);
+    }
+
+    while (_items.length < 20) {
+      _addItemRow();
+    }
+
+    _sundries.clear();
+    final rawSundries = v['sundries'] as List? ?? [];
+    for (final sData in rawSundries) {
+      final sundry = VoucherSundryRow();
+      sundry.name.text = sData['name']?.toString() ?? '';
+      sundry.percent.text = sData['percent']?.toString() ?? '';
+      sundry.amount.text = sData['amount']?.toString() ?? '';
+      sundry.isNegative = sData['isNegative'] == true;
+
+      _attachSundryRowListeners(sundry);
+      _sundries.add(sundry);
+    }
+
+    while (_sundries.length < 5) {
+      _addSundryRow();
+    }
+
+    _loadCompanyMastersOnly();
+    _calculateAllTotals();
+  }
+
+  Future<void> _loadCompanyMastersOnly() async {
+    final folderPath = widget.company['folderPath'];
+    if (folderPath != null) {
+      final rawMasters = await StorageService.loadCompanyMasters(folderPath: folderPath);
+      final rawDebtors = rawMasters['debtors'] as List? ?? [];
+      final rawCreditors = rawMasters['creditors'] as List? ?? [];
+      final rawItems = rawMasters['items'] as List? ?? [];
+
+      _debtorsList = rawDebtors.map((d) => PartyMasterModel(
+        name: d['name']?.toString() ?? '',
+        gstin: d['gstin']?.toString() ?? '',
+        group: d['group']?.toString() ?? 'Sundry Debtors',
+      )).toList();
+
+      _creditorsList = rawCreditors.map((c) => PartyMasterModel(
+        name: c['name']?.toString() ?? '',
+        gstin: c['gstin']?.toString() ?? '',
+        group: c['group']?.toString() ?? 'Sundry Creditors',
+      )).toList();
+
+      _itemsMasterList = rawItems.map((i) => ItemMasterModel(
+        name: i['name']?.toString() ?? '',
+        hsn: i['hsn']?.toString() ?? '',
+        unit: i['unit']?.toString() ?? 'Pcs',
+        taxCategory: i['taxCategory']?.toString() ?? 'GST 18%',
+        taxRate: (i['taxRate'] is num) ? (i['taxRate'] as num).toDouble() : 18.0,
+        salesPrice: (i['salesPrice'] is num) ? (i['salesPrice'] as num).toDouble() : 0.0,
+        purchasePrice: (i['purchasePrice'] is num) ? (i['purchasePrice'] as num).toDouble() : 0.0,
+        mrp: (i['mrp'] is num) ? (i['mrp'] as num).toDouble() : 0.0,
+      )).toList();
+    }
+  }
+
+  void _attachItemRowListeners(VoucherItemRow row) {
+    row.qty.addListener(() {
+      if (row.qtyFocus.hasFocus) {
+        final q = double.tryParse(row.qty.text) ?? 0.0;
+        final p = double.tryParse(row.price.text) ?? 0.0;
+        final t = double.tryParse(row.taxable.text) ?? 0.0;
+
+        if (p > 0) {
+          final taxVal = q * p;
+          row.taxable.text = taxVal > 0 ? taxVal.toStringAsFixed(2) : '';
+          VoucherCalculationService.recalculateTaxesFromTaxable(row, _isInterState);
+        } else if (t > 0 && q > 0) {
+          row.price.text = (t / q).toStringAsFixed(2);
+        }
+        _calculateAllTotals();
+      }
+    });
+
+    row.price.addListener(() {
+      if (row.priceFocus.hasFocus) {
+        final q = double.tryParse(row.qty.text) ?? 0.0;
+        final p = double.tryParse(row.price.text) ?? 0.0;
+        final t = double.tryParse(row.taxable.text) ?? 0.0;
+
+        if (q > 0) {
+          final taxVal = q * p;
+          row.taxable.text = taxVal > 0 ? taxVal.toStringAsFixed(2) : '';
+          VoucherCalculationService.recalculateTaxesFromTaxable(row, _isInterState);
+        } else if (t > 0 && p > 0) {
+          row.qty.text = (t / p).toStringAsFixed(2);
+        }
+        _calculateAllTotals();
+      }
+    });
+
+    row.taxable.addListener(() {
+      if (row.taxableFocus.hasFocus) {
+        final t = double.tryParse(row.taxable.text) ?? 0.0;
+        final q = double.tryParse(row.qty.text) ?? 0.0;
+
+        if (q > 0) {
+          row.price.text = (t / q).toStringAsFixed(2);
+        }
+        VoucherCalculationService.recalculateTaxesFromTaxable(row, _isInterState);
+        _calculateAllTotals();
+      }
+    });
+
+    row.cgst.addListener(() {
+      if (row.cgstFocus.hasFocus) {
+        _recalculateAmountFromTaxes(row);
+        _calculateAllTotals();
+      }
+    });
+
+    row.sgst.addListener(() {
+      if (row.sgstFocus.hasFocus) {
+        _recalculateAmountFromTaxes(row);
+        _calculateAllTotals();
+      }
+    });
+
+    row.igst.addListener(() {
+      if (row.igstFocus.hasFocus) {
+        _recalculateAmountFromTaxes(row);
+        _calculateAllTotals();
+      }
+    });
+
+    row.amount.addListener(() {
+      if (row.amountFocus.hasFocus) {
+        VoucherCalculationService.recalculateFromInvoiceAmount(row, _isInterState);
+        _calculateAllTotals();
+      }
+    });
+  }
+
+  void _attachSundryRowListeners(VoucherSundryRow row) {
+    row.name.addListener(() {
+      _applySundryAutoValue(row);
+      _calculateAllTotals();
+    });
+
+    row.percent.addListener(() {
+      if (row.percentFocus.hasFocus) {
+        VoucherCalculationService.recalculateSundryFromPercent(row, _itemSubTotal);
+        _calculateAllTotals();
+      }
+    });
+
+    row.amount.addListener(() {
+      if (row.amountFocus.hasFocus) {
+        VoucherCalculationService.recalculateSundryFromAmount(row, _itemSubTotal);
+        _calculateAllTotals();
+      }
+    });
   }
 
   void _attachControllerListeners() {
@@ -272,7 +470,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
       return _stateNameToGstCode[rawState]!;
     }
 
-    return '07'; // Fallback
+    return '07';
   }
 
   String _extractPartyStateCode(String partyText) {
@@ -533,26 +731,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
 
   void _addSundryRow() {
     final row = VoucherSundryRow();
-
-    row.name.addListener(() {
-      _applySundryAutoValue(row);
-      _calculateAllTotals();
-    });
-
-    row.percent.addListener(() {
-      if (row.percentFocus.hasFocus) {
-        VoucherCalculationService.recalculateSundryFromPercent(row, _itemSubTotal);
-        _calculateAllTotals();
-      }
-    });
-
-    row.amount.addListener(() {
-      if (row.amountFocus.hasFocus) {
-        VoucherCalculationService.recalculateSundryFromAmount(row, _itemSubTotal);
-        _calculateAllTotals();
-      }
-    });
-
+    _attachSundryRowListeners(row);
     _sundries.add(row);
   }
 
@@ -584,82 +763,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
 
   void _addItemRow() {
     final row = VoucherItemRow();
-
-    row.qty.addListener(() {
-      if (row.qtyFocus.hasFocus) {
-        final q = double.tryParse(row.qty.text) ?? 0.0;
-        final p = double.tryParse(row.price.text) ?? 0.0;
-        final t = double.tryParse(row.taxable.text) ?? 0.0;
-
-        if (p > 0) {
-          final taxVal = q * p;
-          row.taxable.text = taxVal > 0 ? taxVal.toStringAsFixed(2) : '';
-          VoucherCalculationService.recalculateTaxesFromTaxable(row, _isInterState);
-        } else if (t > 0 && q > 0) {
-          row.price.text = (t / q).toStringAsFixed(2);
-        }
-        _calculateAllTotals();
-      }
-    });
-
-    row.price.addListener(() {
-      if (row.priceFocus.hasFocus) {
-        final q = double.tryParse(row.qty.text) ?? 0.0;
-        final p = double.tryParse(row.price.text) ?? 0.0;
-        final t = double.tryParse(row.taxable.text) ?? 0.0;
-
-        if (q > 0) {
-          final taxVal = q * p;
-          row.taxable.text = taxVal > 0 ? taxVal.toStringAsFixed(2) : '';
-          VoucherCalculationService.recalculateTaxesFromTaxable(row, _isInterState);
-        } else if (t > 0 && p > 0) {
-          row.qty.text = (t / p).toStringAsFixed(2);
-        }
-        _calculateAllTotals();
-      }
-    });
-
-    row.taxable.addListener(() {
-      if (row.taxableFocus.hasFocus) {
-        final t = double.tryParse(row.taxable.text) ?? 0.0;
-        final q = double.tryParse(row.qty.text) ?? 0.0;
-
-        if (q > 0) {
-          row.price.text = (t / q).toStringAsFixed(2);
-        }
-        VoucherCalculationService.recalculateTaxesFromTaxable(row, _isInterState);
-        _calculateAllTotals();
-      }
-    });
-
-    row.cgst.addListener(() {
-      if (row.cgstFocus.hasFocus) {
-        _recalculateAmountFromTaxes(row);
-        _calculateAllTotals();
-      }
-    });
-
-    row.sgst.addListener(() {
-      if (row.sgstFocus.hasFocus) {
-        _recalculateAmountFromTaxes(row);
-        _calculateAllTotals();
-      }
-    });
-
-    row.igst.addListener(() {
-      if (row.igstFocus.hasFocus) {
-        _recalculateAmountFromTaxes(row);
-        _calculateAllTotals();
-      }
-    });
-
-    row.amount.addListener(() {
-      if (row.amountFocus.hasFocus) {
-        VoucherCalculationService.recalculateFromInvoiceAmount(row, _isInterState);
-        _calculateAllTotals();
-      }
-    });
-
+    _attachItemRowListeners(row);
     _items.add(row);
   }
 
@@ -948,6 +1052,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
 
   Future<void> _executeVoucherPersistence() async {
     final voucherPayload = {
+      'id': widget.voucherToEdit?['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
       'voucherType': widget.voucherType,
       'voucherNumber': _vchNoController.text.trim(),
       'date': _dateController.text,
@@ -997,7 +1102,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
       'sundryTotal': _sundryTotal,
       'roundOff': _roundOff,
       'grandTotal': _grandTotal,
-      'createdAt': DateTime.now().toIso8601String(),
+      'createdAt': widget.voucherToEdit?['createdAt'] ?? DateTime.now().toIso8601String(),
     };
 
     final folderPath = widget.company['folderPath'];
@@ -1018,7 +1123,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
                 const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
                 const SizedBox(width: 10),
                 Text(
-                  '${widget.voucherType} [${_vchNoController.text}] saved to ${StorageService.resolveVoucherFileName(widget.voucherType)}!',
+                  '${widget.voucherType} [${_vchNoController.text}] saved successfully!',
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ],
@@ -1027,7 +1132,11 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
             behavior: SnackBarBehavior.floating,
           ),
         );
-        _initializeNewVoucher();
+        if (widget.isEdit) {
+          widget.onClose();
+        } else {
+          _initializeNewVoucher();
+        }
       }
     }
   }
@@ -1036,11 +1145,15 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     final FocusNode cancelFocusNode = FocusNode();
     final FocusNode exitFocusNode = FocusNode();
 
+    if (!mounted) return true;
+
     final shouldClose = await showDialog<bool>(
       context: context,
       builder: (ctx) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          cancelFocusNode.requestFocus();
+          if (cancelFocusNode.canRequestFocus) {
+            cancelFocusNode.requestFocus();
+          }
         });
 
         return AlertDialog(
@@ -1073,8 +1186,8 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
             Focus(
               focusNode: cancelFocusNode,
               child: Builder(
-                builder: (context) {
-                  final isFocused = Focus.of(context).hasFocus;
+                builder: (BuildContext innerContext) {
+                  final isFocused = Focus.of(innerContext).hasFocus;
                   return OutlinedButton(
                     onPressed: () => Navigator.pop(ctx, false),
                     style: OutlinedButton.styleFrom(
@@ -1101,8 +1214,8 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
             Focus(
               focusNode: exitFocusNode,
               child: Builder(
-                builder: (context) {
-                  final isFocused = Focus.of(context).hasFocus;
+                builder: (BuildContext innerContext) {
+                  final isFocused = Focus.of(innerContext).hasFocus;
                   return ElevatedButton(
                     onPressed: () => Navigator.pop(ctx, true),
                     style: ElevatedButton.styleFrom(
@@ -1371,7 +1484,6 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
       return KeyEventResult.ignored;
     }
 
-    // Central Alt+C creation routing across all inputs
     if (AppShortcuts.isQuickAdd(event)) {
       if (_partyFocus.hasFocus) {
         _openAddPartyDialog();

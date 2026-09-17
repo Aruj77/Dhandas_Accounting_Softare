@@ -2,11 +2,14 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
+import '../../../services/keyboard_shortcut_service.dart';
 import '../../../services/storage_service.dart';
 import '../../../services/voucher_excel_export_service.dart';
 import '../../../services/voucher_pdf_export_service.dart';
+import 'voucher_entry_screen.dart';
 
 class VoucherListScreen extends StatefulWidget {
   final Map<String, dynamic> company;
@@ -77,6 +80,8 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
   List<Map<String, dynamic>> _vouchers = [];
   List<Map<String, dynamic>> _filtered = [];
   bool _isLoading = true;
+  int _focusedIndex = -1;
+  List<FocusNode> _rowFocusNodes = [];
 
   final Map<String, String> _columnLabels = {
     'sno': 'S.No.',
@@ -140,7 +145,20 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
     _horizontalHeaderCtrl.dispose();
     _horizontalBodyCtrl.dispose();
     _horizontalFooterCtrl.dispose();
+    for (final node in _rowFocusNodes) {
+      node.dispose();
+    }
     super.dispose();
+  }
+
+  void _syncFocusNodes() {
+    for (final node in _rowFocusNodes) {
+      node.dispose();
+    }
+    _rowFocusNodes = List.generate(
+      _filtered.length,
+      (index) => FocusNode(debugLabel: 'VoucherRow_$index'),
+    );
   }
 
   DateTime? _parseVchDate(String? raw) {
@@ -183,6 +201,7 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
           _vouchers = matching;
           _filtered = matching;
           _isLoading = false;
+          _syncFocusNodes();
         });
       }
     }
@@ -208,6 +227,7 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
           return vchNo.contains(q) || party.contains(q) || date.contains(q) || gstin.contains(q) || hasItemMatch;
         }).toList();
       }
+      _syncFocusNodes();
     });
   }
 
@@ -664,7 +684,25 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
     }
   }
 
-  // --- COMPREHENSIVE TWO-PANE PRINT STUDIO WITH STYLED TOOLBAR & CLIPPED RADIUS ---
+  // --- OPEN VOUCHER IN EDIT MODE ---
+  Future<void> _openVoucherForEdit(Map<String, dynamic> voucher) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => VoucherEntryScreen(
+          company: widget.company,
+          voucherType: widget.voucherType,
+          voucherToEdit: voucher,
+          isEdit: true,
+          keyboardSettings: KeyboardShortcutSettings.defaults(),
+          onClose: () => Navigator.of(context).pop(),
+        ),
+      ),
+    );
+    if (mounted) {
+      _loadVouchers();
+    }
+  }
+
   void _triggerPrint() {
     final activeKeys = _columnLabels.keys.where((k) => _isColVisible(k)).toList();
 
@@ -699,7 +737,6 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
               height: math.min(MediaQuery.of(context).size.height * 0.94, 900),
               child: Column(
                 children: [
-                  // Top Suite Title Header
                   Container(
                     height: 54,
                     padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -762,12 +799,9 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
                       ],
                     ),
                   ),
-
-                  // Studio Two-Pane Body
                   Expanded(
                     child: Row(
                       children: [
-                        // LEFT SIDEBAR CONTROLS
                         Container(
                           width: 320,
                           decoration: const BoxDecoration(
@@ -817,7 +851,6 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
                                 ],
                               ),
                               const SizedBox(height: 14),
-
                               _buildSidebarCard(
                                 title: 'PAGE MARGINS',
                                 icon: Icons.border_outer_rounded,
@@ -856,7 +889,6 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
                                 ],
                               ),
                               const SizedBox(height: 14),
-
                               _buildSidebarCard(
                                 title: 'TABLE SCALING',
                                 icon: Icons.tune_rounded,
@@ -913,7 +945,6 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
                                 ],
                               ),
                               const SizedBox(height: 14),
-
                               _buildSidebarCard(
                                 title: 'DOCUMENT HEADERS',
                                 icon: Icons.visibility_rounded,
@@ -943,8 +974,6 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
                             ],
                           ),
                         ),
-
-                        // RIGHT PREVIEW CANVAS (Full Styled Toolbar & Rounded Corners)
                         Expanded(
                           child: Container(
                             color: const Color(0xFFF1F5FB),
@@ -1170,7 +1199,7 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
       width: rowWidth,
       padding: const EdgeInsets.symmetric(vertical: 7),
       decoration: BoxDecoration(
-        color: isSubRow ? const Color(0xFFFAFBFD) : Colors.white,
+        color: isSubRow ? const Color(0xFFFAFBFD) : Colors.transparent,
       ),
       child: Row(
         children: [
@@ -1216,7 +1245,6 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
       backgroundColor: const Color(0xFFF1F5FB),
       body: Column(
         children: [
-          // Top Navigation Bar
           Container(
             height: 56,
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -1303,7 +1331,6 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
             ),
           ),
 
-          // Search & Metric Tiles
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
             child: Row(
@@ -1361,7 +1388,6 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
             ),
           ),
 
-          // Main Table View
           Expanded(
             child: Container(
               margin: const EdgeInsets.fromLTRB(20, 0, 20, 14),
@@ -1382,7 +1408,6 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
 
                     return Column(
                       children: [
-                        // Table Headers
                         SingleChildScrollView(
                           controller: _horizontalHeaderCtrl,
                           scrollDirection: Axis.horizontal,
@@ -1428,7 +1453,6 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
                           ),
                         ),
 
-                        // Table Body Rows
                         Expanded(
                           child: _isLoading
                               ? const Center(child: CircularProgressIndicator(color: Color(0xFF0F62FE)))
@@ -1466,62 +1490,120 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
                                             final invoiceTotal = double.tryParse(v['grandTotal']?.toString() ?? '0') ?? 0.0;
                                             final cessTotal = _extractCessAmount(v);
                                             final items = v['items'] as List? ?? [];
-
-                                            if (items.isEmpty) {
-                                              return _buildRegisterRow(
-                                                sno: '${idx + 1}',
-                                                party: partyName,
-                                                gstin: gstin,
-                                                pos: pos,
-                                                vchNo: vchNo.toString(),
-                                                date: date.toString(),
-                                                qty: '0.00',
-                                                unit: 'Pcs',
-                                                hsn: '',
-                                                invoiceValue: invoiceTotal.toStringAsFixed(2),
-                                                taxable: '0.00',
-                                                taxRate: '0%',
-                                                igst: (double.tryParse(v['igst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
-                                                cgst: (double.tryParse(v['cgst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
-                                                sgst: (double.tryParse(v['sgst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
-                                                cess: cessTotal.toStringAsFixed(2),
-                                                rowWidth: dynamicTableWidth,
-                                              );
+                                            final isFocused = _focusedIndex == idx;
+                                            
+                                            // Ensure focus node exists for this index
+                                            if (_rowFocusNodes.length <= idx) {
+                                              _syncFocusNodes();
                                             }
+                                            final currentFocusNode = _rowFocusNodes[idx];
 
-                                            return Column(
-                                              children: List.generate(items.length, (itemIdx) {
-                                                final item = items[itemIdx];
-                                                final qty = (double.tryParse(item['qty']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2);
-                                                final unit = item['unit'] ?? 'Pcs';
-                                                final hsn = (item['hsn'] ?? '').toString();
-                                                final taxable = (double.tryParse(item['taxable']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2);
-                                                final taxRate = '${item['gstRate'] ?? 0}%';
-                                                final igstVal = (double.tryParse(item['igst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2);
-                                                final cgstVal = (double.tryParse(item['cgst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2);
-                                                final sgstVal = (double.tryParse(item['sgst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2);
+                                            return Focus(
+                                              focusNode: currentFocusNode,
+                                              onFocusChange: (hasFocus) {
+                                                if (hasFocus) {
+                                                  setState(() => _focusedIndex = idx);
+                                                }
+                                              },
+                                              onKey: (node, event) {
+                                                if (event is RawKeyDownEvent) {
+                                                  if (event.logicalKey == LogicalKeyboardKey.enter ||
+                                                      event.logicalKey == LogicalKeyboardKey.numpadEnter) {
+                                                    _openVoucherForEdit(v);
+                                                    return KeyEventResult.handled;
+                                                  }
+                                                  // Circular Wrapping Logic
+                                                  if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+                                                    if (idx + 1 < _rowFocusNodes.length) {
+                                                      _rowFocusNodes[idx + 1].requestFocus();
+                                                    } else if (_rowFocusNodes.isNotEmpty) {
+                                                      _rowFocusNodes[0].requestFocus(); // Loop to top
+                                                    }
+                                                    return KeyEventResult.handled;
+                                                  }
+                                                  if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+                                                    if (idx - 1 >= 0) {
+                                                      _rowFocusNodes[idx - 1].requestFocus();
+                                                    } else if (_rowFocusNodes.isNotEmpty) {
+                                                      _rowFocusNodes[_rowFocusNodes.length - 1].requestFocus(); // Loop to bottom
+                                                    }
+                                                    return KeyEventResult.handled;
+                                                  }
+                                                }
+                                                return KeyEventResult.ignored;
+                                              },
+                                              child: GestureDetector(
+                                                onDoubleTap: () => _openVoucherForEdit(v),
+                                                onTap: () {
+                                                  setState(() => _focusedIndex = idx);
+                                                  currentFocusNode.requestFocus();
+                                                },
+                                                child: Container(
+                                                  decoration: BoxDecoration(
+                                                    color: isFocused
+                                                        ? const Color(0xFFEFF6FE)
+                                                        : Colors.transparent,
+                                                    border: isFocused
+                                                        ? Border.all(color: const Color(0xFF0F62FE), width: 1.5)
+                                                        : null,
+                                                    borderRadius: isFocused ? BorderRadius.circular(6) : null,
+                                                  ),
+                                                  child: items.isEmpty
+                                                      ? _buildRegisterRow(
+                                                          sno: '${idx + 1}',
+                                                          party: partyName,
+                                                          gstin: gstin,
+                                                          pos: pos,
+                                                          vchNo: vchNo.toString(),
+                                                          date: date.toString(),
+                                                          qty: '0.00',
+                                                          unit: 'Pcs',
+                                                          hsn: '',
+                                                          invoiceValue: invoiceTotal.toStringAsFixed(2),
+                                                          taxable: '0.00',
+                                                          taxRate: '0%',
+                                                          igst: (double.tryParse(v['igst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
+                                                          cgst: (double.tryParse(v['cgst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
+                                                          sgst: (double.tryParse(v['sgst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
+                                                          cess: cessTotal.toStringAsFixed(2),
+                                                          rowWidth: dynamicTableWidth,
+                                                        )
+                                                      : Column(
+                                                          children: List.generate(items.length, (itemIdx) {
+                                                            final item = items[itemIdx];
+                                                            final qty = (double.tryParse(item['qty']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2);
+                                                            final unit = item['unit'] ?? 'Pcs';
+                                                            final hsn = (item['hsn'] ?? '').toString();
+                                                            final taxable = (double.tryParse(item['taxable']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2);
+                                                            final taxRate = '${item['gstRate'] ?? 0}%';
+                                                            final igstVal = (double.tryParse(item['igst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2);
+                                                            final cgstVal = (double.tryParse(item['cgst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2);
+                                                            final sgstVal = (double.tryParse(item['sgst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2);
 
-                                                return _buildRegisterRow(
-                                                  sno: itemIdx == 0 ? '${idx + 1}' : '',
-                                                  party: itemIdx == 0 ? partyName : '',
-                                                  gstin: itemIdx == 0 ? gstin : '',
-                                                  pos: itemIdx == 0 ? pos : '',
-                                                  vchNo: itemIdx == 0 ? vchNo.toString() : '',
-                                                  date: itemIdx == 0 ? date.toString() : '',
-                                                  qty: qty,
-                                                  unit: unit.toString(),
-                                                  hsn: hsn,
-                                                  invoiceValue: itemIdx == 0 ? invoiceTotal.toStringAsFixed(2) : '',
-                                                  taxable: taxable,
-                                                  taxRate: taxRate,
-                                                  igst: igstVal,
-                                                  cgst: cgstVal,
-                                                  sgst: sgstVal,
-                                                  cess: itemIdx == 0 ? cessTotal.toStringAsFixed(2) : '',
-                                                  isSubRow: itemIdx > 0,
-                                                  rowWidth: dynamicTableWidth,
-                                                );
-                                              }),
+                                                            return _buildRegisterRow(
+                                                              sno: itemIdx == 0 ? '${idx + 1}' : '',
+                                                              party: itemIdx == 0 ? partyName : '',
+                                                              gstin: itemIdx == 0 ? gstin : '',
+                                                              pos: itemIdx == 0 ? pos : '',
+                                                              vchNo: itemIdx == 0 ? vchNo.toString() : '',
+                                                              date: itemIdx == 0 ? date.toString() : '',
+                                                              qty: qty,
+                                                              unit: unit.toString(),
+                                                              hsn: hsn,
+                                                              invoiceValue: itemIdx == 0 ? invoiceTotal.toStringAsFixed(2) : '',
+                                                              taxable: taxable,
+                                                              taxRate: taxRate,
+                                                              igst: igstVal,
+                                                              cgst: cgstVal,
+                                                              sgst: sgstVal,
+                                                              cess: itemIdx == 0 ? cessTotal.toStringAsFixed(2) : '',
+                                                              isSubRow: itemIdx > 0,
+                                                              rowWidth: dynamicTableWidth,
+                                                            );
+                                                          }),
+                                                        ),
+                                                ),
+                                              ),
                                             );
                                           },
                                         ),
@@ -1529,7 +1611,6 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
                                     ),
                         ),
 
-                        // Footer Totals Row
                         SingleChildScrollView(
                           controller: _horizontalFooterCtrl,
                           scrollDirection: Axis.horizontal,
