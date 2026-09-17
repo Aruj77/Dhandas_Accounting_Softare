@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../services/keyboard_shortcut_service.dart';
+import '../../core/keyboard/keyboard_system.dart';
 
 class VoucherNavigationBar extends StatelessWidget {
   final String voucherType;

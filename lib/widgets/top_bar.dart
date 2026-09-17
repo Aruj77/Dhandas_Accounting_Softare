@@ -62,7 +62,7 @@ class _TopBarState extends State<TopBar> {
                       ),
                       SizedBox(height: 1),
                       Text(
-                        'Aruj Bansal',
+                        'Ayush Jindal',
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w800,

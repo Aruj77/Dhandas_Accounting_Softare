@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import '../../../services/keyboard_shortcut_service.dart';
+
+import '../../../core/keyboard/keyboard_system.dart';
 import '../../../services/storage_service.dart';
 import '../../../services/voucher_calculation_service.dart';
 import '../../../widgets/voucher/popup/add_item_dialog.dart';
@@ -33,7 +33,9 @@ class VoucherEntryScreen extends StatefulWidget {
 }
 
 class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
-  final TextEditingController _seriesController = TextEditingController(text: 'Main');
+  final TextEditingController _seriesController = TextEditingController(
+    text: 'Main',
+  );
   final FocusNode _seriesFocus = FocusNode();
 
   final TextEditingController _dateController = TextEditingController();
@@ -41,16 +43,22 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   String? _dateError;
 
   // Kept empty by default
-  final TextEditingController _vchNoController = TextEditingController(text: '');
+  final TextEditingController _vchNoController = TextEditingController(
+    text: '',
+  );
   final FocusNode _vchNoFocus = FocusNode();
 
-  final TextEditingController _saleTypeController = TextEditingController(text: 'GST 18% (Item Wise)');
+  final TextEditingController _saleTypeController = TextEditingController(
+    text: 'GST 18% (Item Wise)',
+  );
   final FocusNode _saleTypeFocus = FocusNode();
 
   final TextEditingController _partyController = TextEditingController();
   final FocusNode _partyFocus = FocusNode();
 
-  final TextEditingController _matCenterController = TextEditingController(text: 'Main Store');
+  final TextEditingController _matCenterController = TextEditingController(
+    text: 'Main Store',
+  );
   final FocusNode _matCenterFocus = FocusNode();
 
   final TextEditingController _narrationController = TextEditingController();
@@ -83,7 +91,8 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   DateTime _fyEndDate = DateTime(2027, 3, 31, 23, 59, 59);
 
   bool get _isSalesVoucher => widget.voucherType.toLowerCase().contains('sale');
-  List<PartyMasterModel> get _currentAvailableParties => _isSalesVoucher ? _debtorsList : _creditorsList;
+  List<PartyMasterModel> get _currentAvailableParties =>
+      _isSalesVoucher ? _debtorsList : _creditorsList;
 
   @override
   void initState() {
@@ -94,34 +103,54 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   Future<void> _loadCompanyMastersAndInitialize() async {
     final folderPath = widget.company['folderPath'];
     if (folderPath != null) {
-      final rawMasters = await StorageService.loadCompanyMasters(folderPath: folderPath);
+      final rawMasters = await StorageService.loadCompanyMasters(
+        folderPath: folderPath,
+      );
 
       final rawDebtors = rawMasters['debtors'] as List? ?? [];
       final rawCreditors = rawMasters['creditors'] as List? ?? [];
       final rawItems = rawMasters['items'] as List? ?? [];
 
-      _debtorsList = rawDebtors.map((d) => PartyMasterModel(
-        name: d['name']?.toString() ?? '',
-        gstin: d['gstin']?.toString() ?? '',
-        group: d['group']?.toString() ?? 'Sundry Debtors',
-      )).toList();
+      _debtorsList = rawDebtors
+          .map(
+            (d) => PartyMasterModel(
+              name: d['name']?.toString() ?? '',
+              gstin: d['gstin']?.toString() ?? '',
+              group: d['group']?.toString() ?? 'Sundry Debtors',
+            ),
+          )
+          .toList();
 
-      _creditorsList = rawCreditors.map((c) => PartyMasterModel(
-        name: c['name']?.toString() ?? '',
-        gstin: c['gstin']?.toString() ?? '',
-        group: c['group']?.toString() ?? 'Sundry Creditors',
-      )).toList();
+      _creditorsList = rawCreditors
+          .map(
+            (c) => PartyMasterModel(
+              name: c['name']?.toString() ?? '',
+              gstin: c['gstin']?.toString() ?? '',
+              group: c['group']?.toString() ?? 'Sundry Creditors',
+            ),
+          )
+          .toList();
 
-      _itemsMasterList = rawItems.map((i) => ItemMasterModel(
-        name: i['name']?.toString() ?? '',
-        hsn: i['hsn']?.toString() ?? '',
-        unit: i['unit']?.toString() ?? 'Pcs',
-        taxCategory: i['taxCategory']?.toString() ?? 'GST 18%',
-        taxRate: (i['taxRate'] is num) ? (i['taxRate'] as num).toDouble() : 18.0,
-        salesPrice: (i['salesPrice'] is num) ? (i['salesPrice'] as num).toDouble() : 0.0,
-        purchasePrice: (i['purchasePrice'] is num) ? (i['purchasePrice'] as num).toDouble() : 0.0,
-        mrp: (i['mrp'] is num) ? (i['mrp'] as num).toDouble() : 0.0,
-      )).toList();
+      _itemsMasterList = rawItems
+          .map(
+            (i) => ItemMasterModel(
+              name: i['name']?.toString() ?? '',
+              hsn: i['hsn']?.toString() ?? '',
+              unit: i['unit']?.toString() ?? 'Pcs',
+              taxCategory: i['taxCategory']?.toString() ?? 'GST 18%',
+              taxRate: (i['taxRate'] is num)
+                  ? (i['taxRate'] as num).toDouble()
+                  : 18.0,
+              salesPrice: (i['salesPrice'] is num)
+                  ? (i['salesPrice'] as num).toDouble()
+                  : 0.0,
+              purchasePrice: (i['purchasePrice'] is num)
+                  ? (i['purchasePrice'] as num).toDouble()
+                  : 0.0,
+              mrp: (i['mrp'] is num) ? (i['mrp'] as num).toDouble() : 0.0,
+            ),
+          )
+          .toList();
     }
 
     _initializeNewVoucher();
@@ -132,21 +161,32 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     if (folderPath == null) return;
 
     final mastersData = {
-      'debtors': _debtorsList.map((d) => {'name': d.name, 'gstin': d.gstin, 'group': d.group}).toList(),
-      'creditors': _creditorsList.map((c) => {'name': c.name, 'gstin': c.gstin, 'group': c.group}).toList(),
-      'items': _itemsMasterList.map((i) => {
-        'name': i.name,
-        'hsn': i.hsn,
-        'unit': i.unit,
-        'taxCategory': i.taxCategory,
-        'taxRate': i.taxRate,
-        'salesPrice': i.salesPrice,
-        'purchasePrice': i.purchasePrice,
-        'mrp': i.mrp,
-      }).toList(),
+      'debtors': _debtorsList
+          .map((d) => {'name': d.name, 'gstin': d.gstin, 'group': d.group})
+          .toList(),
+      'creditors': _creditorsList
+          .map((c) => {'name': c.name, 'gstin': c.gstin, 'group': c.group})
+          .toList(),
+      'items': _itemsMasterList
+          .map(
+            (i) => {
+              'name': i.name,
+              'hsn': i.hsn,
+              'unit': i.unit,
+              'taxCategory': i.taxCategory,
+              'taxRate': i.taxRate,
+              'salesPrice': i.salesPrice,
+              'purchasePrice': i.purchasePrice,
+              'mrp': i.mrp,
+            },
+          )
+          .toList(),
     };
 
-    await StorageService.saveCompanyMasters(folderPath: folderPath, mastersData: mastersData);
+    await StorageService.saveCompanyMasters(
+      folderPath: folderPath,
+      mastersData: mastersData,
+    );
   }
 
   void _initializeNewVoucher() {
@@ -174,7 +214,10 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     _partyController.addListener(() {
       _checkGstMode();
       for (final row in _items) {
-        VoucherCalculationService.recalculateTaxesFromTaxable(row, _isInterState);
+        VoucherCalculationService.recalculateTaxesFromTaxable(
+          row,
+          _isInterState,
+        );
       }
       _calculateAllTotals();
     });
@@ -274,14 +317,17 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
       }
     }
 
-    if (day == null || month == null || month < 1 || month > 12 || day < 1 || day > 31) {
+    if (day == null ||
+        month == null ||
+        month < 1 ||
+        month > 12 ||
+        day < 1 ||
+        day > 31) {
       setState(() => _dateError = 'Invalid date');
       return false;
     }
 
-    if (year == null) {
-      year = (month >= 4 && month <= 12) ? _fyStartDate.year : _fyEndDate.year;
-    }
+    year ??= (month >= 4 && month <= 12) ? _fyStartDate.year : _fyEndDate.year;
 
     DateTime parsedDate;
     try {
@@ -353,7 +399,10 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
         if (p > 0) {
           final taxVal = q * p;
           row.taxable.text = taxVal > 0 ? taxVal.toStringAsFixed(2) : '';
-          VoucherCalculationService.recalculateTaxesFromTaxable(row, _isInterState);
+          VoucherCalculationService.recalculateTaxesFromTaxable(
+            row,
+            _isInterState,
+          );
         } else if (t > 0 && q > 0) {
           row.price.text = (t / q).toStringAsFixed(2);
         }
@@ -370,7 +419,10 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
         if (q > 0) {
           final taxVal = q * p;
           row.taxable.text = taxVal > 0 ? taxVal.toStringAsFixed(2) : '';
-          VoucherCalculationService.recalculateTaxesFromTaxable(row, _isInterState);
+          VoucherCalculationService.recalculateTaxesFromTaxable(
+            row,
+            _isInterState,
+          );
         } else if (t > 0 && p > 0) {
           row.qty.text = (t / p).toStringAsFixed(2);
         }
@@ -386,7 +438,10 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
         if (q > 0) {
           row.price.text = (t / q).toStringAsFixed(2);
         }
-        VoucherCalculationService.recalculateTaxesFromTaxable(row, _isInterState);
+        VoucherCalculationService.recalculateTaxesFromTaxable(
+          row,
+          _isInterState,
+        );
         _calculateAllTotals();
       }
     });
@@ -415,7 +470,10 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
 
     row.amount.addListener(() {
       if (row.amountFocus.hasFocus) {
-        VoucherCalculationService.recalculateFromInvoiceAmount(row, _isInterState);
+        VoucherCalculationService.recalculateFromInvoiceAmount(
+          row,
+          _isInterState,
+        );
         _calculateAllTotals();
       }
     });
@@ -428,7 +486,9 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     row.unit.text = selectedItem.unit;
     row.gstRate = selectedItem.taxRate;
 
-    final defaultPrice = _isSalesVoucher ? selectedItem.salesPrice : selectedItem.purchasePrice;
+    final defaultPrice = _isSalesVoucher
+        ? selectedItem.salesPrice
+        : selectedItem.purchasePrice;
     if (defaultPrice > 0) {
       row.price.text = defaultPrice.toStringAsFixed(2);
     }
@@ -441,7 +501,10 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     } else if (row.taxable.text.isNotEmpty) {
       VoucherCalculationService.recalculateTaxesFromTaxable(row, _isInterState);
     } else if (row.amount.text.isNotEmpty) {
-      VoucherCalculationService.recalculateFromInvoiceAmount(row, _isInterState);
+      VoucherCalculationService.recalculateFromInvoiceAmount(
+        row,
+        _isInterState,
+      );
     }
     _calculateAllTotals();
   }
@@ -504,7 +567,9 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Registered and saved to company: ${newModel.name}'),
+                content: Text(
+                  'Registered and saved to company: ${newModel.name}',
+                ),
                 backgroundColor: const Color(0xFF10A35B),
               ),
             );
@@ -522,8 +587,14 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
         onPartyCreated: (partyData) async {
           final name = partyData['name'] ?? '';
           final gstin = partyData['gstin'] ?? '';
-          final group = partyData['group'] ?? (_isSalesVoucher ? 'Sundry Debtors' : 'Sundry Creditors');
-          final newModel = PartyMasterModel(name: name, gstin: gstin, group: group);
+          final group =
+              partyData['group'] ??
+              (_isSalesVoucher ? 'Sundry Debtors' : 'Sundry Creditors');
+          final newModel = PartyMasterModel(
+            name: name,
+            gstin: gstin,
+            group: group,
+          );
 
           setState(() {
             if (_isSalesVoucher) {
@@ -539,7 +610,9 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Registered and saved to company: ${newModel.displayName}'),
+                content: Text(
+                  'Registered and saved to company: ${newModel.displayName}',
+                ),
                 backgroundColor: const Color(0xFF10A35B),
               ),
             );
@@ -562,9 +635,16 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
-            const Icon(Icons.add_circle_outline_rounded, color: Color(0xFF0F62FE), size: 22),
+            const Icon(
+              Icons.add_circle_outline_rounded,
+              color: Color(0xFF0F62FE),
+              size: 22,
+            ),
             const SizedBox(width: 8),
-            Text('Add $masterType', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+            Text(
+              'Add $masterType',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+            ),
           ],
         ),
         content: TextField(
@@ -592,8 +672,13 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
                 ),
               );
             },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F62FE)),
-            child: const Text('Save Master', style: TextStyle(color: Colors.white)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0F62FE),
+            ),
+            child: const Text(
+              'Save Master',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -605,9 +690,18 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
       SnackBar(
         content: Row(
           children: [
-            const Icon(Icons.error_outline_rounded, color: Colors.white, size: 18),
+            const Icon(
+              Icons.error_outline_rounded,
+              color: Colors.white,
+              size: 18,
+            ),
             const SizedBox(width: 8),
-            Expanded(child: Text(message, style: const TextStyle(fontWeight: FontWeight.w600))),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
           ],
         ),
         backgroundColor: const Color(0xFFEE4343),
@@ -621,27 +715,42 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     // 1. Validate Date
     final isDateValid = _parseAndValidateDate();
     if (!isDateValid || _dateError != null) {
-      _showValidationError(_dateError ?? 'Please enter a valid Voucher Date within the Financial Year', _dateFocusNode);
+      _showValidationError(
+        _dateError ??
+            'Please enter a valid Voucher Date within the Financial Year',
+        _dateFocusNode,
+      );
       return;
     }
 
     // 2. Validate Voucher Number
     final vchNo = _vchNoController.text.trim();
     if (vchNo.isEmpty) {
-      _showValidationError('Voucher Number is required and cannot be blank.', _vchNoFocus);
+      _showValidationError(
+        'Voucher Number is required and cannot be blank.',
+        _vchNoFocus,
+      );
       return;
     }
 
     // 3. Validate Party
     final partyName = _partyController.text.trim();
     if (partyName.isEmpty) {
-      _showValidationError('Please select or add a Party/Account Ledger.', _partyFocus);
+      _showValidationError(
+        'Please select or add a Party/Account Ledger.',
+        _partyFocus,
+      );
       return;
     }
 
-    final isPartyListed = _currentAvailableParties.any((p) => p.displayName == partyName || p.name == partyName);
+    final isPartyListed = _currentAvailableParties.any(
+      (p) => p.displayName == partyName || p.name == partyName,
+    );
     if (!isPartyListed) {
-      _showValidationError('Selected party "$partyName" is not registered. Choose from the list or click + to add.', _partyFocus);
+      _showValidationError(
+        'Selected party "$partyName" is not registered. Choose from the list or click + to add.',
+        _partyFocus,
+      );
       return;
     }
 
@@ -654,7 +763,10 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     }).toList();
 
     if (validItems.isEmpty) {
-      _showValidationError('Add at least one valid item with Item Name, Qty (> 0), and Amount.', null);
+      _showValidationError(
+        'Add at least one valid item with Item Name, Qty (> 0), and Amount.',
+        null,
+      );
       if (_items.isNotEmpty) _items[0].itemFocus.requestFocus();
       return;
     }
@@ -700,26 +812,30 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
       'financialYear': widget.company['activeFinancialYear'],
       'items': _items
           .where((i) => i.item.text.isNotEmpty)
-          .map((i) => {
-                'item': i.item.text,
-                'qty': i.qty.text,
-                'unit': _getUnitString(i.unit),
-                'price': i.price.text,
-                'taxable': i.taxable.text,
-                'cgst': i.cgst.text,
-                'sgst': i.sgst.text,
-                'igst': i.igst.text,
-                'amount': i.amount.text,
-                'gstRate': i.gstRate,
-              })
+          .map(
+            (i) => {
+              'item': i.item.text,
+              'qty': i.qty.text,
+              'unit': _getUnitString(i.unit),
+              'price': i.price.text,
+              'taxable': i.taxable.text,
+              'cgst': i.cgst.text,
+              'sgst': i.sgst.text,
+              'igst': i.igst.text,
+              'amount': i.amount.text,
+              'gstRate': i.gstRate,
+            },
+          )
           .toList(),
       'sundries': _sundries
           .where((s) => s.amount.text != '' && s.amount.text != '0.00')
-          .map((s) => {
-                'name': s.name.text,
-                'amount': s.amount.text,
-                'isNegative': s.isNegative,
-              })
+          .map(
+            (s) => {
+              'name': s.name.text,
+              'amount': s.amount.text,
+              'isNegative': s.isNegative,
+            },
+          )
           .toList(),
       'subTotal': _itemSubTotal,
       'cgst': _totalCgst,
@@ -747,7 +863,11 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                const Icon(
+                  Icons.check_circle_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
                 const SizedBox(width: 10),
                 Text(
                   '${widget.voucherType} [${_vchNoController.text}] saved successfully!',
@@ -777,7 +897,9 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
 
         return AlertDialog(
           backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: Row(
             children: [
               Container(
@@ -787,12 +909,20 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
                   color: const Color(0xFFFEF2F2),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 20),
+                child: const Icon(
+                  Icons.warning_amber_rounded,
+                  color: Color(0xFFDC2626),
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 10),
               const Text(
                 'Unsaved Changes',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF101B3A)),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF101B3A),
+                ),
               ),
             ],
           ),
@@ -800,7 +930,10 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
             'You have unsaved changes in this voucher. Are you sure you want to discard and exit?',
             style: TextStyle(fontSize: 13, color: Color(0xFF475569)),
           ),
-          actionsPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          actionsPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 16,
+          ),
           actions: [
             // Cancel Action (Focused by default with prominent ring)
             Focus(
@@ -811,19 +944,30 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
                   return OutlinedButton(
                     onPressed: () => Navigator.pop(ctx, false),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                      backgroundColor: isFocused ? const Color(0xFFF1F5FB) : Colors.transparent,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 12,
+                      ),
+                      backgroundColor: isFocused
+                          ? const Color(0xFFF1F5FB)
+                          : Colors.transparent,
                       side: BorderSide(
-                        color: isFocused ? const Color(0xFF0F62FE) : const Color(0xFFCBD5E1),
+                        color: isFocused
+                            ? const Color(0xFF0F62FE)
+                            : const Color(0xFFCBD5E1),
                         width: isFocused ? 2.0 : 1.0,
                       ),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                     child: Text(
                       'Cancel (Esc)',
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
-                        color: isFocused ? const Color(0xFF0F62FE) : const Color(0xFF475569),
+                        color: isFocused
+                            ? const Color(0xFF0F62FE)
+                            : const Color(0xFF475569),
                       ),
                     ),
                   );
@@ -843,12 +987,17 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFEE4343),
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
                       elevation: isFocused ? 3 : 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                         side: BorderSide(
-                          color: isFocused ? const Color(0xFF7F1D1D) : Colors.transparent,
+                          color: isFocused
+                              ? const Color(0xFF7F1D1D)
+                              : Colors.transparent,
                           width: 2.0,
                         ),
                       ),
@@ -925,23 +1074,41 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
 
   Color _getVoucherHeaderColor() {
     final vch = widget.voucherType.toLowerCase();
-    if (vch.contains('sale')) return const Color.fromARGB(255, 236, 118, 21);
-    if (vch.contains('purchase')) return const Color(0xFF7034E6);
-    if (vch.contains('payment') || vch.contains('receipt')) return const Color(0xFF10A35B);
+    if (vch.contains('sale')) {
+      return const Color.fromARGB(255, 236, 118, 21);
+    }
+    if (vch.contains('purchase')) {
+      return const Color(0xFF7034E6);
+    }
+    if (vch.contains('payment') || vch.contains('receipt')) {
+      return const Color(0xFF10A35B);
+    }
     return const Color(0xFF0D9488);
   }
 
   Color _getVoucherBackgroundColor() {
     final vch = widget.voucherType.toLowerCase();
-    if (vch.contains('sale')) return const Color.fromARGB(255, 255, 241, 223);     // Cool Blue-Grey tint
-    if (vch.contains('purchase')) return const Color.fromARGB(255, 230, 220, 255); // Soft Violet tint
-    if (vch.contains('payment')) return const Color.fromRGBO(227, 252, 222, 1);  // Soft Warm Red tint
-    if (vch.contains('receipt')) return const Color.fromARGB(255, 240, 253, 254);  // Soft Mint tint
-    if (vch.contains('journal')) return const Color.fromARGB(255, 255, 251, 23);  // Soft Amber tint
-    if (vch.contains('contra')) return const Color.fromARGB(255, 248, 249, 255);   // Soft Sky tint
-    return const Color.fromARGB(255, 255, 245, 185);                              // Default tint
+    if (vch.contains('sale')) {
+      return const Color.fromARGB(255, 255, 241, 223); // Cool Blue-Grey tint
+    }
+    if (vch.contains('purchase')) {
+      return const Color.fromARGB(255, 230, 220, 255); // Soft Violet tint
+    }
+    if (vch.contains('payment')) {
+      return const Color.fromRGBO(227, 252, 222, 1); // Soft Warm Red tint
+    }
+    if (vch.contains('receipt')) {
+      return const Color.fromARGB(255, 240, 253, 254); // Soft Mint tint
+    }
+    if (vch.contains('journal')) {
+      return const Color.fromARGB(255, 255, 251, 23); // Soft Amber tint
+    }
+    if (vch.contains('contra')) {
+      return const Color.fromARGB(255, 248, 249, 255); // Soft Sky tint
+    }
+    return const Color.fromARGB(255, 255, 245, 185); // Default tint
   }
-  
+
   @override
   void dispose() {
     _seriesController.dispose();
@@ -974,11 +1141,40 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     final fy = widget.company['activeFinancialYear'] ?? '2026-27';
     final headerColor = _getVoucherHeaderColor();
 
-    return WillPopScope(
-      onWillPop: _onWillPop,
-      child: Focus(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        if (await _onWillPop()) {
+          widget.onClose();
+        }
+      },
+      child: KeyboardScope(
         autofocus: true,
-        onKeyEvent: _handleVoucherKeyEvent,
+        onAction: _handleVoucherAction,
+        // Scope to this screen's own action set so Busy-style F3/F7/F9/etc.
+        // here never collide with the app-level meaning of the same bare
+        // key elsewhere (e.g. F3 = Open Company on the home screen).
+        actionIds: const [
+          KeyboardAction.back,
+          KeyboardAction.cancel,
+          KeyboardAction.save,
+          KeyboardAction.saveVoucher,
+          KeyboardAction.help,
+          KeyboardAction.newRecord,
+          KeyboardAction.delete,
+          KeyboardAction.duplicate,
+          KeyboardAction.print,
+          KeyboardAction.export,
+          KeyboardAction.createLedger,
+          KeyboardAction.createItem,
+          KeyboardAction.findMaster,
+          KeyboardAction.repeatField,
+          KeyboardAction.cancelVoucher,
+          KeyboardAction.calculator,
+          KeyboardAction.hideRow,
+          KeyboardAction.unhideRow,
+        ],
         child: Scaffold(
           backgroundColor: _getVoucherBackgroundColor(),
           body: Column(
@@ -1074,7 +1270,8 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
                                 });
                               },
                               onRowEnter: _handleSundryRowEnter,
-                              onTabToSave: () => _saveButtonFocusNode.requestFocus(),
+                              onTabToSave: () =>
+                                  _saveButtonFocusNode.requestFocus(),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -1096,14 +1293,16 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
                                   widget.onClose();
                                 }
                               },
-                              saveShortcutLabel: KeyboardShortcutService.labelForAction(
-                                widget.keyboardSettings,
-                                KeyboardShortcutService.saveVoucherAction,
-                              ),
-                              quitShortcutLabel: KeyboardShortcutService.labelForAction(
-                                widget.keyboardSettings,
-                                KeyboardShortcutService.goBackAction,
-                              ),
+                              saveShortcutLabel:
+                                  KeyboardShortcutService.labelForAction(
+                                    widget.keyboardSettings,
+                                    KeyboardShortcutService.saveVoucherAction,
+                                  ),
+                              quitShortcutLabel:
+                                  KeyboardShortcutService.labelForAction(
+                                    widget.keyboardSettings,
+                                    KeyboardShortcutService.goBackAction,
+                                  ),
                             ),
                           ),
                         ],
@@ -1119,31 +1318,68 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     );
   }
 
-  KeyEventResult _handleVoucherKeyEvent(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent) {
-      return KeyEventResult.ignored;
-    }
+  // Every action id comes from the single global KeyboardAction/KeyboardRegistry
+  // definition; this screen only decides what a given action does while a
+  // voucher is open. Unmapped actions are ignored so they still reach fields.
+  KeyEventResult _handleVoucherAction(String actionId, KeyEvent event) {
+    switch (actionId) {
+      case KeyboardAction.back:
+      case KeyboardAction.cancel:
+        _onWillPop().then((shouldClose) {
+          if (shouldClose) widget.onClose();
+        });
+        return KeyEventResult.handled;
 
-    if (KeyboardShortcutService.matchesAction(
-      widget.keyboardSettings,
-      KeyboardShortcutService.goBackAction,
-      event,
-    )) {
-      _onWillPop().then((shouldClose) {
-        if (shouldClose) widget.onClose();
-      });
-      return KeyEventResult.handled;
-    }
+      case KeyboardAction.save:
+      case KeyboardAction.saveVoucher:
+        _saveVoucher();
+        return KeyEventResult.handled;
 
-    if (KeyboardShortcutService.matchesAction(
-      widget.keyboardSettings,
-      KeyboardShortcutService.saveVoucherAction,
-      event,
-    )) {
-      _saveVoucher();
-      return KeyEventResult.handled;
-    }
+      case KeyboardAction.help:
+        KeyboardHelpDialog.show(context);
+        return KeyEventResult.handled;
 
-    return KeyEventResult.ignored;
+      case KeyboardAction.newRecord:
+        _saveVoucher();
+        return KeyEventResult.handled;
+
+      case KeyboardAction.delete:
+        return KeyEventResult.ignored;
+
+      case KeyboardAction.duplicate:
+      case KeyboardAction.print:
+      case KeyboardAction.export:
+        return KeyEventResult.ignored;
+
+      // ---- Busy-style voucher-entry shortcuts ----
+      case KeyboardAction.createLedger:
+        _openQuickAddDialog('Account Ledger');
+        return KeyEventResult.handled;
+
+      case KeyboardAction.createItem:
+        _openQuickAddDialog('Item');
+        return KeyEventResult.handled;
+
+      case KeyboardAction.findMaster:
+        _openAddPartyDialog();
+        return KeyEventResult.handled;
+
+      case KeyboardAction.cancelVoucher:
+        _onWillPop().then((shouldClose) {
+          if (shouldClose) widget.onClose();
+        });
+        return KeyEventResult.handled;
+
+      case KeyboardAction.repeatField:
+      case KeyboardAction.hideRow:
+      case KeyboardAction.unhideRow:
+      case KeyboardAction.calculator:
+        // Key is captured and routed here; feature not built yet on this
+        // screen. Wire real behaviour when that feature exists.
+        return KeyEventResult.ignored;
+
+      default:
+        return KeyEventResult.ignored;
+    }
   }
 }

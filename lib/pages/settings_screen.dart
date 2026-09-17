@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../services/keyboard_shortcut_service.dart';
+import '../core/keyboard/keyboard_system.dart';
 import '../services/loading_service.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -79,7 +79,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _applyKeyboardSettings(
     KeyboardShortcutSettings settings,
   ) async {
-    setState(() => _keyboardSettings = settings);
+    // Update the UI immediately.
+    setState(() {
+      _keyboardSettings = settings;
+    });
+
+    // IMPORTANT:
+    // Update the runtime keyboard system immediately.
+    KeyboardRegistry.instance.updateSettings(settings);
+
+    // Persist/update the parent application settings.
     await widget.onKeyboardSettingsChanged?.call(settings);
   }
 

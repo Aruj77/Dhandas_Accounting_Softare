@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../services/keyboard_shortcut_service.dart';
+import '../core/keyboard/keyboard_system.dart';
 import '../services/storage_service.dart';
 import '../services/loading_service.dart';
 import '../widgets/sidebar.dart';
@@ -87,6 +87,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadKeyboardSettings() async {
     final settings = await KeyboardShortcutService.loadSettings();
+    KeyboardRegistry.instance.updateSettings(settings);
     if (mounted) {
       setState(() => _keyboardSettings = settings);
     }
@@ -96,6 +97,7 @@ class _HomeScreenState extends State<HomeScreen> {
     KeyboardShortcutSettings settings,
   ) async {
     await KeyboardShortcutService.saveSettings(settings);
+    KeyboardRegistry.instance.updateSettings(settings);
     if (mounted) {
       setState(() => _keyboardSettings = settings);
     }
@@ -315,84 +317,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _sidebarKey.currentState?.focusActiveItem();
   }
 
-  KeyEventResult _handleKeyboardEvent(FocusNode node, KeyEvent event) {
-    if (!_keyboardSettings.keyboardIntensiveMode) {
-      return KeyEventResult.ignored;
-    }
-
-    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
-      return KeyEventResult.ignored;
-    }
-
-    if (_isEditableFocusActive()) {
-      return KeyEventResult.ignored;
-    }
-
-    if (KeyboardShortcutService.matchesAction(
-      _keyboardSettings,
-      KeyboardShortcutService.goBackAction,
-      event,
-    )) {
-      _goBack();
-      return KeyEventResult.handled;
-    }
-
-    if (_activeVoucherType != null || _activeListQuery != null) {
-      return KeyEventResult.ignored;
-    }
-
-    if (KeyboardShortcutService.matchesAction(
-      _keyboardSettings,
-      KeyboardShortcutService.openCompanyAction,
-      event,
-    )) {
-      _showOpenCompanyModal();
-      return KeyEventResult.handled;
-    }
-
-    if (KeyboardShortcutService.matchesAction(
-      _keyboardSettings,
-      KeyboardShortcutService.createCompanyAction,
-      event,
-    )) {
-      _showCreateCompanyModal();
-      return KeyEventResult.handled;
-    }
-
-    if (KeyboardShortcutService.matchesAction(
-      _keyboardSettings,
-      KeyboardShortcutService.changeDirectoryAction,
-      event,
-    )) {
-      _showSetDirectoryModal();
-      return KeyEventResult.handled;
-    }
-
-    if (KeyboardShortcutService.matchesAction(
-      _keyboardSettings,
-      KeyboardShortcutService.openSettingsAction,
-      event,
-    )) {
-      setState(() {
-        _activeCompany = null;
-        _activeVoucherType = null;
-        _activeListQuery = null;
-        _selectedIndex = 3;
-      });
-      return KeyEventResult.handled;
-    }
-
-    if (KeyboardShortcutService.matchesAction(
-      _keyboardSettings,
-      KeyboardShortcutService.switchWorkspaceAction,
-      event,
-    )) {
-      _switchWorkspace();
-      return KeyEventResult.handled;
-    }
-
-    return KeyEventResult.ignored;
-  }
+  
 
   @override
   Widget build(BuildContext context) {
@@ -443,10 +368,10 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    return Focus(
-      autofocus: true,
-      onKeyEvent: _handleKeyboardEvent,
-      child: Scaffold(
+    return KeyboardScope(
+        enabled: _keyboardSettings.keyboardIntensiveMode,
+        onAction: _handleCentralKeyboardAction,
+        child: Scaffold(
         backgroundColor: const Color(0xFFF1F5FB),
         body: Column(
           children: [
@@ -464,6 +389,88 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+    KeyEventResult _handleCentralKeyboardAction(
+    String actionId,
+    KeyEvent event,
+  ) {
+    if (!_keyboardSettings.keyboardIntensiveMode) {
+      return KeyEventResult.ignored;
+    }
+
+    if (_isEditableFocusActive()) {
+      return KeyEventResult.ignored;
+    }
+
+    switch (actionId) {
+      case KeyboardAction.back:
+        _goBack();
+        return KeyEventResult.handled;
+
+      case KeyboardAction.openCompany:
+        if (_activeVoucherType == null &&
+            _activeListQuery == null) {
+          _showOpenCompanyModal();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+
+      case KeyboardAction.createCompany:
+        if (_activeVoucherType == null &&
+            _activeListQuery == null) {
+          _showCreateCompanyModal();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+
+      case KeyboardAction.changeDirectory:
+        if (_activeVoucherType == null &&
+            _activeListQuery == null) {
+          _showSetDirectoryModal();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+
+      case KeyboardAction.settings:
+      case KeyboardAction.configuration:
+        if (_activeVoucherType == null &&
+            _activeListQuery == null) {
+          setState(() {
+            _activeCompany = null;
+            _activeVoucherType = null;
+            _activeListQuery = null;
+            _selectedIndex = 3;
+          });
+
+          return KeyEventResult.handled;
+        }
+
+        return KeyEventResult.ignored;
+
+      case KeyboardAction.switchWorkspace:
+        if (_activeCompany != null) {
+          _switchWorkspace();
+          return KeyEventResult.handled;
+        }
+
+        return KeyEventResult.ignored;
+
+      case KeyboardAction.focusSidebar:
+        _jumpToSidebar();
+        return KeyEventResult.handled;
+
+      case KeyboardAction.focusContent:
+        _jumpToRightPane();
+        return KeyEventResult.handled;
+
+      case KeyboardAction.help:
+        KeyboardHelpDialog.show(context);
+        return KeyEventResult.handled;
+
+      default:
+        return KeyEventResult.ignored;
+    }
   }
 
   Widget _buildActiveCompanyView() {
