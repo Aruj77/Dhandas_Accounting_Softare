@@ -667,6 +667,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     final row = _items[index];
     row.unit.text = selectedItem.unit;
     row.gstRate = selectedItem.taxRate;
+    row.hsn = selectedItem.hsn;
 
     final defaultPrice = _isSalesVoucher ? selectedItem.salesPrice : selectedItem.purchasePrice;
     if (defaultPrice > 0) {
@@ -961,6 +962,13 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
           .where((i) => i.item.text.isNotEmpty)
           .map((i) => {
                 'item': i.item.text,
+                'hsn': i.hsn.isNotEmpty
+                    ? i.hsn
+                    : (_itemsMasterList
+                            .where((m) => m.name.trim().toLowerCase() == i.item.text.trim().toLowerCase())
+                            .firstOrNull
+                            ?.hsn ??
+                        ''),
                 'qty': i.qty.text,
                 'unit': _getUnitString(i.unit),
                 'price': i.price.text,

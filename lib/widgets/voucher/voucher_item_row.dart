@@ -4,6 +4,8 @@ class VoucherItemRow {
   final TextEditingController item = TextEditingController();
   final FocusNode itemFocus = FocusNode();
 
+  String hsn = '';
+
   final TextEditingController qty = TextEditingController(text: '');
   final FocusNode qtyFocus = FocusNode();
 
