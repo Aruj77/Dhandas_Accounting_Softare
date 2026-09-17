@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../widgets/company/date_range_dialog.dart';
+import '../../widgets/voucher/popup/voucher_modify_dialog.dart';
 
 enum TransactionAction { add, modify, list }
 
@@ -9,6 +10,7 @@ class TransactionsDashboard extends StatefulWidget {
   final VoidCallback? onMoveToSidebar;
   final void Function(String voucherType)? onAddTransaction;
   final void Function(String voucherType, DateTime from, DateTime to)? onShowList;
+  final VoidCallback? onVouchersChanged;
 
   const TransactionsDashboard({
     super.key,
@@ -16,6 +18,7 @@ class TransactionsDashboard extends StatefulWidget {
     this.onMoveToSidebar,
     this.onAddTransaction,
     this.onShowList,
+    this.onVouchersChanged,
   });
 
   @override
@@ -98,11 +101,28 @@ class TransactionsDashboardState extends State<TransactionsDashboard> {
     required String voucherType,
     required TransactionAction action,
   }) async {
+    // 1. ADD NEW
     if (action == TransactionAction.add) {
       widget.onAddTransaction?.call(voucherType);
       return;
     }
 
+    // 2. MODIFY (Opens VoucherModifyDialog with default last saved voucher)
+    if (action == TransactionAction.modify) {
+      showDialog(
+        context: context,
+        builder: (ctx) => VoucherModifyDialog(
+          company: widget.company,
+          voucherType: voucherType,
+          onVoucherUpdated: () {
+            widget.onVouchersChanged?.call();
+          },
+        ),
+      );
+      return;
+    }
+
+    // 3. LIST (Opens Date Range Filter before list)
     if (action == TransactionAction.list) {
       final fy = (widget.company['activeFinancialYear'] ?? '2026-27').toString();
       final result = await showDialog<Map<String, DateTime>>(
@@ -118,15 +138,6 @@ class TransactionsDashboardState extends State<TransactionsDashboard> {
       }
       return;
     }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Modify / Edit — $voucherType'),
-        backgroundColor: const Color(0xFF0F62FE),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
-    );
   }
 
   @override
@@ -173,7 +184,7 @@ class TransactionsDashboardState extends State<TransactionsDashboard> {
           const SizedBox(height: 4),
           const Text(
             'Use [Arrow Keys / NumPad 2, 4, 6, 8] to navigate continuously across blocks, [Enter] for actions.',
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 13.5,
               fontWeight: FontWeight.w500,
               color: Color(0xFF637392),
@@ -459,8 +470,7 @@ class TransactionsDashboardState extends State<TransactionsDashboard> {
                 ),
               ],
               child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 child: Row(
                   children: [
                     Container(

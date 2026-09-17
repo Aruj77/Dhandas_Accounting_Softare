@@ -4,9 +4,11 @@ import '../../../constants/app_shortcuts.dart';
 import '../../../services/keyboard_shortcut_service.dart';
 import '../../../services/storage_service.dart';
 import '../../../services/voucher_calculation_service.dart';
+import '../../../widgets/voucher/popup/calculator_dialog.dart';
 import '../../../widgets/voucher/popup/add_item_dialog.dart';
 import '../../../widgets/voucher/popup/add_party_dialog.dart';
 import '../../../widgets/voucher/popup/item_tax_details_dialog.dart';
+import '../../../widgets/voucher/popup/sales_invoice_print_preview_dialog.dart';
 import '../../../widgets/voucher/popup/voucher_save_confirm_dialog.dart';
 import '../../../widgets/voucher/voucher_header_card.dart';
 import '../../../widgets/voucher/voucher_item_row.dart';
@@ -354,6 +356,25 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     });
   }
 
+  void _openCalculatorForController(TextEditingController controller) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Calculator',
+      barrierColor: Colors.transparent,
+      pageBuilder: (context, anim1, anim2) {
+        return CalculatorDialog(
+          initialValue: controller.text,
+          onSubmitted: (val) {
+            controller.text = val;
+            controller.selection = TextSelection.fromPosition(TextPosition(offset: controller.text.length));
+            _calculateAllTotals();
+          },
+        );
+      },
+    );
+  }
+
   Future<void> _loadCompanyMastersAndInitialize() async {
     final folderPath = widget.company['folderPath'];
     if (folderPath != null) {
@@ -699,9 +720,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
       return false;
     }
 
-    if (year == null) {
-      year = (month >= 4 && month <= 12) ? _fyStartDate.year : _fyEndDate.year;
-    }
+    year ??= (month >= 4 && month <= 12) ? _fyStartDate.year : _fyEndDate.year;
 
     DateTime parsedDate;
     try {
@@ -1050,6 +1069,85 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     );
   }
 
+  Future<bool> _askToPrintSalesInvoice(String vchNo) async {
+    final FocusNode yesFocusNode = FocusNode();
+    final FocusNode noFocusNode = FocusNode();
+
+    final printDecision = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (yesFocusNode.canRequestFocus) {
+            yesFocusNode.requestFocus();
+          }
+        });
+
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F62FE).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.print_rounded, color: Color(0xFF0F62FE), size: 20),
+              ),
+              const SizedBox(width: 10),
+              const Text('Print Sales Invoice', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+            ],
+          ),
+          content: Text(
+            'Sales Invoice [$vchNo] has been recorded successfully.\n\nDo you want to print this sales invoice now?',
+            style: const TextStyle(fontSize: 13, color: Color(0xFF334155), height: 1.4),
+          ),
+          actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          actions: [
+            Focus(
+              focusNode: noFocusNode,
+              child: Builder(builder: (c) {
+                final isF = Focus.of(c).hasFocus;
+                return OutlinedButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: isF ? const Color(0xFF0F62FE) : const Color(0xFFCBD5E1), width: isF ? 2 : 1),
+                  ),
+                  child: const Text('No'),
+                );
+              }),
+            ),
+            Focus(
+              focusNode: yesFocusNode,
+              child: Builder(builder: (c) {
+                final isF = Focus.of(c).hasFocus;
+                return ElevatedButton.icon(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  icon: const Icon(Icons.print_rounded, size: 16, color: Colors.white),
+                  label: const Text('Yes, Print', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0F62FE),
+                    elevation: isF ? 4 : 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: BorderSide(color: isF ? const Color(0xFF092B60) : Colors.transparent, width: 2),
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ],
+        );
+      },
+    );
+
+    yesFocusNode.dispose();
+    noFocusNode.dispose();
+    return printDecision ?? false;
+  }
+
   Future<void> _executeVoucherPersistence() async {
     final voucherPayload = {
       'id': widget.voucherToEdit?['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
@@ -1132,6 +1230,21 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
             behavior: SnackBarBehavior.floating,
           ),
         );
+
+        // If Sales voucher, ask to print with focus on Yes
+        if (_isSalesVoucher) {
+          final shouldPrint = await _askToPrintSalesInvoice(_vchNoController.text.trim());
+          if (shouldPrint && mounted) {
+            await showDialog(
+              context: context,
+              builder: (_) => SalesInvoicePrintPreviewDialog(
+                company: widget.company,
+                voucherData: voucherPayload,
+              ),
+            );
+          }
+        }
+
         if (widget.isEdit) {
           widget.onClose();
         } else {
@@ -1482,6 +1595,33 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   KeyEventResult _handleVoucherKeyEvent(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) {
       return KeyEventResult.ignored;
+    }
+
+    if (event.logicalKey == LogicalKeyboardKey.f4) {
+      for (final row in _items) {
+        if (row.qtyFocus.hasFocus) {
+          _openCalculatorForController(row.qty);
+          return KeyEventResult.handled;
+        }
+        if (row.priceFocus.hasFocus) {
+          _openCalculatorForController(row.price);
+          return KeyEventResult.handled;
+        }
+        if (row.taxableFocus.hasFocus) {
+          _openCalculatorForController(row.taxable);
+          return KeyEventResult.handled;
+        }
+        if (row.amountFocus.hasFocus) {
+          _openCalculatorForController(row.amount);
+          return KeyEventResult.handled;
+        }
+      }
+      for (final sundry in _sundries) {
+        if (sundry.amountFocus.hasFocus) {
+          _openCalculatorForController(sundry.amount);
+          return KeyEventResult.handled;
+        }
+      }
     }
 
     if (AppShortcuts.isQuickAdd(event)) {

@@ -287,13 +287,35 @@ class StorageService {
         (item['voucherNumber']?.toString().trim() ?? '') == newVchNo);
 
     if (existingIndex != -1 && newVchNo.isNotEmpty) {
-      voucherList[existingIndex] = voucherData; // Update existing voucher
+      voucherList[existingIndex] = voucherData;
     } else {
-      voucherList.add(voucherData); // Append new voucher
+      voucherList.add(voucherData);
     }
 
     await file.writeAsString(
       const JsonEncoder.withIndent('  ').convert(voucherList),
+    );
+  }
+
+  static Future<void> saveAllVouchers({
+    required String folderPath,
+    required String financialYear,
+    required String voucherType,
+    required List<Map<String, dynamic>> vouchers,
+  }) async {
+    final fySlug = normalizeFySlug(financialYear);
+    final vouchersDir = Directory(
+      '$folderPath${Platform.pathSeparator}$fySlug${Platform.pathSeparator}vouchers',
+    );
+    if (!await vouchersDir.exists()) {
+      await vouchersDir.create(recursive: true);
+    }
+
+    final targetFileName = resolveVoucherFileName(voucherType);
+    final file = File('${vouchersDir.path}${Platform.pathSeparator}$targetFileName');
+
+    await file.writeAsString(
+      const JsonEncoder.withIndent('  ').convert(vouchers),
     );
   }
 

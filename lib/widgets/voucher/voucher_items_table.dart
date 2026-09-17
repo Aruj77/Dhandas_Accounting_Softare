@@ -117,7 +117,7 @@ class VoucherItemsTable extends StatelessWidget {
             Expanded(
               child: ListView.separated(
                 itemCount: items.length,
-                separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5FB)),
+                separatorBuilder: (_, _) => const Divider(height: 1, color: Color(0xFFF1F5FB)),
                 itemBuilder: (context, index) {
                   final row = items[index];
                   return Padding(
@@ -291,7 +291,7 @@ class VoucherItemsTable extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   shrinkWrap: true,
                   itemCount: options.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5FB)),
+                  separatorBuilder: (_, _) => const Divider(height: 1, color: Color(0xFFF1F5FB)),
                   itemBuilder: (context, idx) {
                     final ItemMasterModel item = options.elementAt(idx);
                     return InkWell(
