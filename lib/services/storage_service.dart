@@ -4,7 +4,36 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class StorageService {
   static const String _prefDirectoryKey = 'dhandas_data_directory_path';
-
+    static const Map<String, dynamic> defaultCompanyMasters = {
+    'debtors': [
+      {'name': 'Cash', 'gstin': '', 'group': 'Cash-in-Hand'},
+    ],
+    'creditors': [
+      {'name': 'Cash', 'gstin': '', 'group': 'Cash-in-Hand'},
+    ],
+    'items': [
+      {
+        'name': '3304 18% Pcs',
+        'hsn': '3304',
+        'unit': 'Pcs',
+        'taxCategory': 'GST 18%',
+        'taxRate': 18.0,
+        'salesPrice': 250.0,
+        'purchasePrice': 200.0,
+        'mrp': 300.0,
+      },
+      {
+        'name': '8471 18% Nos',
+        'hsn': '8471',
+        'unit': 'Nos',
+        'taxCategory': 'GST 18%',
+        'taxRate': 18.0,
+        'salesPrice': 45000.0,
+        'purchasePrice': 40000.0,
+        'mrp': 52000.0,
+      },
+    ],
+  };
   static Future<String?> getSavedDirectory() async {
     final prefs = await SharedPreferences.getInstance();
     final path = prefs.getString(_prefDirectoryKey);

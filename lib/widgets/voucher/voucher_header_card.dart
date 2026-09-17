@@ -1,19 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../constants/app_shortcuts.dart';
-
-class PartyMasterModel {
-  final String name;
-  final String gstin;
-  final String group;
-
-  const PartyMasterModel({
-    required this.name,
-    required this.gstin,
-    required this.group,
-  });
-
-  String get displayName => gstin.isNotEmpty ? '$name [$gstin]' : name;
-}
+import '../../models/party_master_model.dart';
 
 class VoucherHeaderCard extends StatelessWidget {
   final TextEditingController seriesController;

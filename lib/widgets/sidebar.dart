@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../constants/app_colors.dart';
+import '../services/keyboard_shortcut_service.dart';
 
 class SideBar extends StatefulWidget {
   final int selectedIndex;
@@ -30,15 +32,10 @@ class SideBarState extends State<SideBar> {
     if (widget.activeCompany != null) {
       return const [
         _MenuItem(icon: Icons.receipt_long_rounded, title: 'Transactions'),
-        _MenuItem(
-            icon: Icons.account_balance_wallet_outlined,
-            title: 'Accounts & Ledgers'),
-        _MenuItem(
-            icon: Icons.inventory_2_outlined, title: 'Inventory & Stock'),
+        _MenuItem(icon: Icons.account_balance_wallet_outlined, title: 'Accounts & Ledgers'),
+        _MenuItem(icon: Icons.inventory_2_outlined, title: 'Inventory & Stock'),
         _MenuItem(icon: Icons.bar_chart_rounded, title: 'Reports & GST'),
-        _MenuItem(
-            icon: Icons.admin_panel_settings_outlined,
-            title: 'Administration'),
+        _MenuItem(icon: Icons.admin_panel_settings_outlined, title: 'Administration'),
       ];
     }
     return const [
@@ -94,23 +91,15 @@ class SideBarState extends State<SideBar> {
 
     final key = event.logicalKey;
 
-    // Up: ArrowUp or NumPad 8
-    if (key == LogicalKeyboardKey.arrowUp || key == LogicalKeyboardKey.numpad8) {
+    if (KeyboardShortcutService.isUp(key)) {
       final prev = (index - 1).clamp(0, _itemFocusNodes.length - 1);
       _itemFocusNodes[prev].requestFocus();
       widget.onItemSelected(prev);
-    }
-    // Down: ArrowDown or NumPad 2
-    else if (key == LogicalKeyboardKey.arrowDown || key == LogicalKeyboardKey.numpad2) {
+    } else if (KeyboardShortcutService.isDown(key)) {
       final next = (index + 1).clamp(0, _itemFocusNodes.length - 1);
       _itemFocusNodes[next].requestFocus();
       widget.onItemSelected(next);
-    }
-    // Right / Enter: ArrowRight, NumPad 6, Enter, or NumPad Enter
-    else if (key == LogicalKeyboardKey.arrowRight ||
-        key == LogicalKeyboardKey.numpad6 ||
-        key == LogicalKeyboardKey.enter ||
-        key == LogicalKeyboardKey.numpadEnter) {
+    } else if (KeyboardShortcutService.isRight(key) || KeyboardShortcutService.isConfirm(key)) {
       widget.onItemSelected(index);
       widget.onMoveToRightPane?.call();
     }
@@ -123,14 +112,12 @@ class SideBarState extends State<SideBar> {
     return Container(
       width: 260,
       decoration: const BoxDecoration(
-        color: Colors.white,
-        border:
-            Border(right: BorderSide(color: Color(0xFFE5ECF5), width: 1.2)),
+        color: AppColors.surface,
+        border: Border(right: BorderSide(color: AppColors.border, width: 1.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // BRAND LOGO & HEADER
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 28, 20, 24),
             child: Row(
@@ -142,23 +129,19 @@ class SideBarState extends State<SideBar> {
                     gradient: const LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [Color(0xFF2C7BF6), Color(0xFF0F62FE)],
+                      colors: [Color(0xFF2C7BF6), AppColors.primary],
                     ),
                     borderRadius: BorderRadius.circular(12),
-                    boxShadow: const [
+                    boxShadow: [
                       BoxShadow(
-                        color: Color(0x350F62FE),
+                        color: AppColors.primary.withValues(alpha: 0.25),
                         blurRadius: 10,
-                        offset: Offset(0, 4),
+                        offset: const Offset(0, 4),
                       ),
                     ],
                   ),
                   child: const Center(
-                    child: Icon(
-                      Icons.account_balance_wallet_rounded,
-                      color: Colors.white,
-                      size: 22,
-                    ),
+                    child: Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 22),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -170,26 +153,20 @@ class SideBarState extends State<SideBar> {
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w900,
-                        color: Color(0xFF101C38),
+                        color: AppColors.textPrimary,
                         letterSpacing: -0.4,
                       ),
                     ),
                     SizedBox(height: 1),
                     Text(
                       'Accounts Made Simple',
-                      style: TextStyle(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF7586A3),
-                      ),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: Color(0xFF7586A3)),
                     ),
                   ],
                 ),
               ],
             ),
           ),
-
-          // SWITCH WORKSPACE BANNER
           if (widget.activeCompany != null) ...[
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -197,30 +174,23 @@ class SideBarState extends State<SideBar> {
                 onTap: widget.onSwitchCompany,
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF1F6FE),
+                    color: AppColors.primaryLight,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: const Color(0xFFD6E4FA)),
                   ),
                   child: const Row(
                     children: [
-                      Icon(Icons.swap_horiz_rounded,
-                          size: 18, color: Color(0xFF0F62FE)),
+                      Icon(Icons.swap_horiz_rounded, size: 18, color: AppColors.primary),
                       SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           'Switch Workspace',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF0F62FE),
-                          ),
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.primary),
                         ),
                       ),
-                      Icon(Icons.chevron_right_rounded,
-                          size: 16, color: Color(0xFF0F62FE)),
+                      Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.primary),
                     ],
                   ),
                 ),
@@ -228,8 +198,6 @@ class SideBarState extends State<SideBar> {
             ),
             const SizedBox(height: 12),
           ],
-
-          // NAV ITEMS
           Expanded(
             child: ListView.separated(
               padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -239,9 +207,7 @@ class SideBarState extends State<SideBar> {
                 final item = items[index];
                 final isSelected = widget.selectedIndex == index;
                 final isHovered = hoveringIndex == index;
-                final focusNode = index < _itemFocusNodes.length
-                    ? _itemFocusNodes[index]
-                    : null;
+                final focusNode = index < _itemFocusNodes.length ? _itemFocusNodes[index] : null;
                 final hasFocus = focusedIndex == index;
 
                 return Focus(
@@ -258,15 +224,12 @@ class SideBarState extends State<SideBar> {
                   },
                   onKeyEvent: (node, event) {
                     _handleKeyNavigation(index, event);
+                    final key = event.logicalKey;
                     if (event is KeyDownEvent &&
-                        (event.logicalKey == LogicalKeyboardKey.arrowDown ||
-                            event.logicalKey == LogicalKeyboardKey.arrowUp ||
-                            event.logicalKey == LogicalKeyboardKey.arrowRight ||
-                            event.logicalKey == LogicalKeyboardKey.enter ||
-                            event.logicalKey == LogicalKeyboardKey.numpad2 ||
-                            event.logicalKey == LogicalKeyboardKey.numpad8 ||
-                            event.logicalKey == LogicalKeyboardKey.numpad6 ||
-                            event.logicalKey == LogicalKeyboardKey.numpadEnter)) {
+                        (KeyboardShortcutService.isUp(key) ||
+                            KeyboardShortcutService.isDown(key) ||
+                            KeyboardShortcutService.isRight(key) ||
+                            KeyboardShortcutService.isConfirm(key))) {
                       return KeyEventResult.handled;
                     }
                     return KeyEventResult.ignored;
@@ -289,45 +252,37 @@ class SideBarState extends State<SideBar> {
                         height: 46,
                         decoration: BoxDecoration(
                           gradient: isSelected
-                              ? const LinearGradient(
-                                  colors: [
-                                    Color(0xFFE9F2FE),
-                                    Color(0xFFF3F7FF),
-                                  ],
-                                )
+                              ? const LinearGradient(colors: [Color(0xFFE9F2FE), Color(0xFFF3F7FF)])
                               : (hasFocus || isHovered)
                                   ? LinearGradient(
                                       colors: [
                                         const Color(0xFFF0F5FC),
-                                        const Color(0xFFF6F9FE)
-                                            .withValues(alpha: 0.8),
+                                        const Color(0xFFF6F9FE).withValues(alpha: 0.8),
                                       ],
                                     )
                                   : null,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: hasFocus
-                                ? const Color(0xFF0F62FE)
-                                : (isSelected
-                                    ? const Color(0xFFD2E3FB)
-                                    : Colors.transparent),
+                                ? AppColors.primary
+                                : (isSelected ? const Color(0xFFD2E3FB) : Colors.transparent),
                             width: hasFocus ? 2.5 : 1.1,
                           ),
                           boxShadow: hasFocus
-                              ? const [
+                              ? [
                                   BoxShadow(
-                                    color: Color(0x330F62FE),
+                                    color: AppColors.primary.withValues(alpha: 0.2),
                                     blurRadius: 10,
                                     spreadRadius: 1,
-                                    offset: Offset(0, 2),
+                                    offset: const Offset(0, 2),
                                   ),
                                 ]
                               : (isSelected
-                                  ? const [
+                                  ? [
                                       BoxShadow(
-                                        color: Color(0x0E0F62FE),
+                                        color: AppColors.primary.withValues(alpha: 0.08),
                                         blurRadius: 8,
-                                        offset: Offset(0, 3),
+                                        offset: const Offset(0, 3),
                                       ),
                                     ]
                                   : null),
@@ -343,41 +298,32 @@ class SideBarState extends State<SideBar> {
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 160),
                                 width: isSelected ? 3.5 : 0,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF0F62FE),
-                                  borderRadius: const BorderRadius.horizontal(
-                                    right: Radius.circular(4),
-                                  ),
+                                decoration: const BoxDecoration(
+                                  color: AppColors.primary,
+                                  borderRadius: BorderRadius.horizontal(right: Radius.circular(4)),
                                 ),
                               ),
                             ),
                             Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 16),
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
                               child: Row(
                                 children: [
                                   Icon(
                                     item.icon,
                                     size: 20,
                                     color: isSelected || hasFocus
-                                        ? const Color(0xFF0F62FE)
-                                        : (isHovered
-                                            ? const Color(0xFF1E2F50)
-                                            : const Color(0xFF6B7E9D)),
+                                        ? AppColors.primary
+                                        : (isHovered ? const Color(0xFF1E2F50) : const Color(0xFF6B7E9D)),
                                   ),
                                   const SizedBox(width: 14),
                                   Text(
                                     item.title,
                                     style: TextStyle(
                                       fontSize: 13,
-                                      fontWeight: isSelected || hasFocus
-                                          ? FontWeight.w800
-                                          : FontWeight.w600,
+                                      fontWeight: isSelected || hasFocus ? FontWeight.w800 : FontWeight.w600,
                                       color: isSelected || hasFocus
-                                          ? const Color(0xFF0F62FE)
-                                          : (isHovered
-                                              ? const Color(0xFF101D38)
-                                              : const Color(0xFF455573)),
+                                          ? AppColors.primary
+                                          : (isHovered ? const Color(0xFF101D38) : const Color(0xFF455573)),
                                       letterSpacing: -0.1,
                                     ),
                                   ),
@@ -393,8 +339,6 @@ class SideBarState extends State<SideBar> {
               },
             ),
           ),
-
-          // FOOTER / VERSION
           const Padding(
             padding: EdgeInsets.fromLTRB(22, 10, 20, 20),
             child: Column(
@@ -402,18 +346,12 @@ class SideBarState extends State<SideBar> {
               children: [
                 Text(
                   'Version 1.0.0',
-                  style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF90A1BA)),
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textMuted),
                 ),
                 SizedBox(height: 2),
                 Text(
                   '© 2026 Dhandas. All rights reserved.',
-                  style: TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFFA1B0C5)),
+                  style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w500, color: Color(0xFFA1B0C5)),
                 ),
               ],
             ),

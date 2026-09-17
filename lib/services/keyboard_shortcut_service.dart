@@ -124,6 +124,23 @@ class KeyboardShortcutService {
   static const String keyF12 = 'f12';
   static const String keySpace = 'space';
 
+  static bool isUp(LogicalKeyboardKey key) =>
+    key == LogicalKeyboardKey.arrowUp || key == LogicalKeyboardKey.numpad8;
+
+  static bool isDown(LogicalKeyboardKey key) =>
+    key == LogicalKeyboardKey.arrowDown || key == LogicalKeyboardKey.numpad2;
+
+  static bool isLeft(LogicalKeyboardKey key) =>
+    key == LogicalKeyboardKey.arrowLeft || key == LogicalKeyboardKey.numpad4;
+
+  static bool isRight(LogicalKeyboardKey key) =>
+    key == LogicalKeyboardKey.arrowRight || key == LogicalKeyboardKey.numpad6;
+
+  static bool isConfirm(LogicalKeyboardKey key) =>
+    key == LogicalKeyboardKey.enter ||
+    key == LogicalKeyboardKey.numpadEnter ||
+    key == LogicalKeyboardKey.space;
+
   static const Map<String, String> defaultShortcuts = {
     goBackAction: keyEscape,
     moveUpAction: keyArrowUp,

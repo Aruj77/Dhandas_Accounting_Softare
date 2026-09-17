@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../services/keyboard_shortcut_service.dart';
 import '../action_button.dart';
 import 'glass_card.dart';
 
@@ -43,10 +44,7 @@ class _DataActionCardState extends State<DataActionCard> {
   @override
   Widget build(BuildContext context) {
     return ModernGlassCard(
-      gradientColors: const [
-        Color(0xFFFBF4FF),
-        Color(0xFFF3E4FF),
-      ],
+      gradientColors: const [Color(0xFFFBF4FF), Color(0xFFF3E4FF)],
       borderColor: const Color(0xFFE5CCFF),
       glowColor: const Color(0x187034E6),
       child: Column(
@@ -57,10 +55,7 @@ class _DataActionCardState extends State<DataActionCard> {
             icon: Icons.layers_rounded,
             title: 'Data Management',
             subtitle: 'Secure backups and restore company records',
-            badgeGradient: [
-              Color(0xFF8E54F7),
-              Color(0xFF7034E6),
-            ],
+            badgeGradient: [Color(0xFF8E54F7), Color(0xFF7034E6)],
             illustrationAsset: 'assets/images/data_illustration.png',
           ),
           const SizedBox(height: 20),
@@ -71,20 +66,18 @@ class _DataActionCardState extends State<DataActionCard> {
                   focusNode: _backupNode,
                   onFocusChange: (val) => setState(() => _isBackupFocused = val),
                   onKeyEvent: (node, event) {
-                    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
-                      return KeyEventResult.ignored;
-                    }
+                    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return KeyEventResult.ignored;
                     final key = event.logicalKey;
-                    if (key == LogicalKeyboardKey.arrowRight || key == LogicalKeyboardKey.numpad6) {
+                    if (KeyboardShortcutService.isRight(key)) {
                       _restoreNode.requestFocus();
                       return KeyEventResult.handled;
-                    } else if (key == LogicalKeyboardKey.arrowLeft || key == LogicalKeyboardKey.numpad4) {
+                    } else if (KeyboardShortcutService.isLeft(key)) {
                       widget.onMoveLeft?.call();
                       return KeyEventResult.handled;
-                    } else if (key == LogicalKeyboardKey.arrowDown || key == LogicalKeyboardKey.numpad2) {
+                    } else if (KeyboardShortcutService.isDown(key)) {
                       widget.onMoveDown?.call();
                       return KeyEventResult.handled;
-                    } else if (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.numpadEnter) {
+                    } else if (KeyboardShortcutService.isConfirm(key)) {
                       widget.onBackup?.call();
                       return KeyEventResult.handled;
                     }
@@ -126,20 +119,18 @@ class _DataActionCardState extends State<DataActionCard> {
                   focusNode: _restoreNode,
                   onFocusChange: (val) => setState(() => _isRestoreFocused = val),
                   onKeyEvent: (node, event) {
-                    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
-                      return KeyEventResult.ignored;
-                    }
+                    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return KeyEventResult.ignored;
                     final key = event.logicalKey;
-                    if (key == LogicalKeyboardKey.arrowLeft || key == LogicalKeyboardKey.numpad4) {
+                    if (KeyboardShortcutService.isLeft(key)) {
                       _backupNode.requestFocus();
                       return KeyEventResult.handled;
-                    } else if (key == LogicalKeyboardKey.arrowRight || key == LogicalKeyboardKey.numpad6) {
+                    } else if (KeyboardShortcutService.isRight(key)) {
                       widget.onMoveRight?.call();
                       return KeyEventResult.handled;
-                    } else if (key == LogicalKeyboardKey.arrowDown || key == LogicalKeyboardKey.numpad2) {
+                    } else if (KeyboardShortcutService.isDown(key)) {
                       widget.onMoveDown?.call();
                       return KeyEventResult.handled;
-                    } else if (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.numpadEnter) {
+                    } else if (KeyboardShortcutService.isConfirm(key)) {
                       widget.onRestore?.call();
                       return KeyEventResult.handled;
                     }

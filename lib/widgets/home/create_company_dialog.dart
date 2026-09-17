@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../constants/app_colors.dart';
+import '../../constants/gst_constants.dart';
 import '../../services/storage_service.dart';
 
 class CreateCompanyDialog extends StatefulWidget {
@@ -27,70 +29,20 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
   String? _gstError;
 
   static const List<String> _countries = [
-    'India',
-    'United States',
-    'United Kingdom',
-    'United Arab Emirates',
-    'Singapore',
-    'Germany',
-    'Canada',
-    'Australia',
+    'India', 'United States', 'United Kingdom', 'United Arab Emirates', 'Singapore', 'Germany', 'Canada', 'Australia',
   ];
 
-  static const Map<String, String> _gstStateCodes = {
-    '01': 'Jammu and Kashmir',
-    '02': 'Himachal Pradesh',
-    '03': 'Punjab',
-    '04': 'Chandigarh',
-    '05': 'Uttarakhand',
-    '06': 'Haryana',
-    '07': 'Delhi',
-    '08': 'Rajasthan',
-    '09': 'Uttar Pradesh',
-    '10': 'Bihar',
-    '11': 'Sikkim',
-    '12': 'Arunachal Pradesh',
-    '13': 'Nagaland',
-    '14': 'Manipur',
-    '15': 'Mizoram',
-    '16': 'Tripura',
-    '17': 'Meghalaya',
-    '18': 'Assam',
-    '19': 'West Bengal',
-    '20': 'Jharkhand',
-    '21': 'Odisha',
-    '22': 'Chhattisgarh',
-    '23': 'Madhya Pradesh',
-    '24': 'Gujarat',
-    '26': 'Dadra and Nagar Haveli and Daman and Diu',
-    '27': 'Maharashtra',
-    '29': 'Karnataka',
-    '30': 'Goa',
-    '31': 'Lakshadweep',
-    '32': 'Kerala',
-    '33': 'Tamil Nadu',
-    '34': 'Puducherry',
-    '35': 'Andaman and Nicobar Islands',
-    '36': 'Telangana',
-    '37': 'Andhra Pradesh',
-    '38': 'Ladakh',
-    '97': 'Other Territory',
-  };
-
-  List<String> get _allStates => _gstStateCodes.values.toSet().toList()..sort();
+  List<String> get _allStates => GstConstants.allSortedStateNames;
 
   Future<void> _validateAndFetchGstin() async {
     final gstin = _gstinController.text.trim().toUpperCase();
-    final gstRegex = RegExp(
-      r'^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$',
-    );
 
     if (gstin.isEmpty) {
       setState(() => _gstError = 'Enter a GSTIN to validate');
       return;
     }
 
-    if (!gstRegex.hasMatch(gstin)) {
+    if (!GstConstants.gstinRegex.hasMatch(gstin)) {
       setState(() {
         _gstError = 'Invalid GSTIN format (e.g. 09AAECB1234F1Z5)';
         _isGstValid = false;
@@ -106,12 +58,12 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
     await Future.delayed(const Duration(milliseconds: 750));
 
     final stateCode = gstin.substring(0, 2);
-    final detectedState = _gstStateCodes[stateCode] ?? 'Delhi';
+    final detectedState = GstConstants.getStateName(stateCode);
 
     setState(() {
       _isValidatingGst = false;
       _isGstValid = true;
-      _selectedState = detectedState;
+      _selectedState = detectedState != 'Unknown' ? detectedState : 'Delhi';
       _selectedCountry = 'India';
 
       if (_companyNameController.text.isEmpty) {
@@ -138,10 +90,8 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
     if (widget.currentDirectory == null || widget.currentDirectory!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Please select a Data Directory first before creating a company.',
-          ),
-          backgroundColor: Color(0xFFEE4343),
+          content: Text('Please select a Data Directory first before creating a company.'),
+          backgroundColor: AppColors.error,
         ),
       );
       return;
@@ -174,7 +124,7 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error saving company: $e'),
-            backgroundColor: const Color(0xFFEE4343),
+            backgroundColor: AppColors.error,
           ),
         );
       }
@@ -218,10 +168,7 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
               _buildHeader(context),
               Flexible(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 36,
-                    vertical: 28,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 28),
                   child: Form(
                     key: _formKey,
                     child: Column(
@@ -249,7 +196,7 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
     return Container(
       padding: const EdgeInsets.fromLTRB(36, 24, 24, 24),
       decoration: const BoxDecoration(
-        color: Color(0xFFFAFBFD),
+        color: AppColors.cardBg,
         border: Border(bottom: BorderSide(color: Color(0xFFEDF2F7))),
       ),
       child: Row(
@@ -266,17 +213,13 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
               borderRadius: BorderRadius.circular(14),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF2563EB).withValues(alpha: 0.3),
+                  color: AppColors.primaryAccent.withValues(alpha: 0.3),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
               ],
             ),
-            child: const Icon(
-              Icons.domain_add_rounded,
-              color: Colors.white,
-              size: 24,
-            ),
+            child: const Icon(Icons.domain_add_rounded, color: Colors.white, size: 24),
           ),
           const SizedBox(width: 16),
           const Expanded(
@@ -295,11 +238,7 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
                 SizedBox(height: 3),
                 Text(
                   'Configure company credentials and official address details',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF64748B),
-                    fontWeight: FontWeight.w400,
-                  ),
+                  style: TextStyle(fontSize: 13, color: AppColors.textSecondary, fontWeight: FontWeight.w400),
                 ),
               ],
             ),
@@ -309,13 +248,7 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
             child: IconButton(
               onPressed: () => Navigator.of(context).pop(),
               icon: const Icon(Icons.close_rounded, size: 22),
-              color: const Color(0xFF94A3B8),
-              style: IconButton.styleFrom(
-                hoverColor: const Color(0xFFF1F5F9),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
+              color: AppColors.textMuted,
             ),
           ),
         ],
@@ -344,28 +277,17 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEFF6FF),
+                    color: AppColors.primaryLight,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(
-                    Icons.camera_alt_outlined,
-                    color: Color(0xFF2563EB),
-                    size: 22,
-                  ),
+                  child: const Icon(Icons.camera_alt_outlined, color: AppColors.primaryAccent, size: 22),
                 ),
                 const SizedBox(height: 8),
                 const Text(
                   'Upload Logo',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF334155),
-                  ),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
                 ),
-                const Text(
-                  'PNG or JPG',
-                  style: TextStyle(fontSize: 10, color: Color(0xFF94A3B8)),
-                ),
+                const Text('PNG or JPG', style: TextStyle(fontSize: 10, color: AppColors.textMuted)),
               ],
             ),
           ),
@@ -378,8 +300,7 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
             controller: _companyNameController,
             prefixIcon: Icons.badge_outlined,
             isRequired: true,
-            validator: (v) =>
-                (v == null || v.trim().isEmpty) ? 'Company name is required' : null,
+            validator: (v) => (v == null || v.trim().isEmpty) ? 'Company name is required' : null,
           ),
         ),
       ],
@@ -403,38 +324,23 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
             children: [
               const Text(
                 'Tax Identification (GSTIN)',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF1E293B),
-                ),
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1E293B)),
               ),
               const SizedBox(width: 8),
               if (_isGstValid)
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: const Color(0xFFDCFCE7),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Row(
                     children: [
-                      Icon(
-                        Icons.check_circle,
-                        size: 13,
-                        color: Color(0xFF16A34A),
-                      ),
+                      Icon(Icons.check_circle, size: 13, color: AppColors.successDark),
                       SizedBox(width: 4),
                       Text(
                         'Verified & Autofilled',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF15803D),
-                        ),
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.successDark),
                       ),
                     ],
                   ),
@@ -448,7 +354,7 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
                 color: _gstError != null
-                    ? const Color(0xFFEF4444)
+                    ? AppColors.error
                     : _isGstValid
                         ? const Color(0xFF22C55E)
                         : const Color(0xFFCBD5E1),
@@ -458,30 +364,16 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
             padding: const EdgeInsets.only(left: 14, right: 6),
             child: Row(
               children: [
-                const Icon(
-                  Icons.qr_code_scanner_rounded,
-                  color: Color(0xFF3B82F6),
-                  size: 20,
-                ),
+                const Icon(Icons.qr_code_scanner_rounded, color: Color(0xFF3B82F6), size: 20),
                 const SizedBox(width: 12),
                 Expanded(
                   child: TextFormField(
                     controller: _gstinController,
                     textCapitalization: TextCapitalization.characters,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.1,
-                      color: Color(0xFF0F172A),
-                    ),
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, letterSpacing: 1.1, color: Color(0xFF0F172A)),
                     decoration: const InputDecoration(
                       hintText: '22AAAAA0000A1Z5',
-                      hintStyle: TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w400,
-                        letterSpacing: 0,
-                        color: Color(0xFF94A3B8),
-                      ),
+                      hintStyle: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w400, letterSpacing: 0, color: AppColors.textMuted),
                       border: InputBorder.none,
                       isDense: true,
                       contentPadding: EdgeInsets.symmetric(vertical: 14),
@@ -491,32 +383,18 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
                 FilledButton.icon(
                   onPressed: _isValidatingGst ? null : _validateAndFetchGstin,
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF2563EB),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 18,
-                      vertical: 12,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+                    backgroundColor: AppColors.primaryAccent,
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                   icon: _isValidatingGst
                       ? const SizedBox(
                           width: 14,
                           height: 14,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                         )
                       : const Icon(Icons.auto_awesome, size: 16),
-                  label: Text(
-                    _isValidatingGst ? 'Verifying...' : 'Fetch Details',
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  label: Text(_isValidatingGst ? 'Verifying...' : 'Fetch Details', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
                 ),
               ],
             ),
@@ -526,11 +404,7 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
               padding: const EdgeInsets.only(top: 6, left: 4),
               child: Text(
                 _gstError!,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFFEF4444),
-                ),
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.error),
               ),
             ),
         ],
@@ -608,17 +482,9 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
           children: [
             Text(
               label,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF334155),
-              ),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
             ),
-            if (isRequired)
-              const Text(
-                ' *',
-                style: TextStyle(color: Color(0xFFEF4444), fontSize: 13),
-              ),
+            if (isRequired) const Text(' *', style: TextStyle(color: AppColors.error, fontSize: 13)),
           ],
         ),
         const SizedBox(height: 7),
@@ -626,50 +492,29 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
           controller: controller,
           maxLines: maxLines,
           validator: validator,
-          style: const TextStyle(
-            fontSize: 13.5,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF0F172A),
-          ),
+          style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(
-              fontSize: 13,
-              color: Color(0xFF94A3B8),
-              fontWeight: FontWeight.w400,
-            ),
-            prefixIcon: Icon(
-              prefixIcon,
-              color: const Color(0xFF64748B),
-              size: 19,
-            ),
+            hintStyle: const TextStyle(fontSize: 13, color: AppColors.textMuted, fontWeight: FontWeight.w400),
+            prefixIcon: Icon(prefixIcon, color: AppColors.textSecondary, size: 19),
             filled: true,
             fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 13,
-            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: Color(0xFF2563EB),
-                width: 1.5,
-              ),
+              borderSide: const BorderSide(color: AppColors.primaryAccent, width: 1.5),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFEF4444)),
+              borderSide: const BorderSide(color: AppColors.error),
             ),
             focusedErrorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: Color(0xFFEF4444),
-                width: 1.5,
-              ),
+              borderSide: const BorderSide(color: AppColors.error, width: 1.5),
             ),
           ),
         ),
@@ -690,53 +535,28 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF334155),
-          ),
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
         ),
         const SizedBox(height: 7),
         DropdownButtonFormField<String>(
           value: items.contains(value) ? value : null,
-          icon: const Icon(
-            Icons.keyboard_arrow_down_rounded,
-            color: Color(0xFF64748B),
-          ),
+          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.textSecondary),
           isExpanded: true,
-          style: const TextStyle(
-            fontSize: 13.5,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF0F172A),
-          ),
+          style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(
-              fontSize: 13,
-              color: Color(0xFF94A3B8),
-              fontWeight: FontWeight.w400,
-            ),
-            prefixIcon: Icon(
-              prefixIcon,
-              color: const Color(0xFF64748B),
-              size: 19,
-            ),
+            hintStyle: const TextStyle(fontSize: 13, color: AppColors.textMuted, fontWeight: FontWeight.w400),
+            prefixIcon: Icon(prefixIcon, color: AppColors.textSecondary, size: 19),
             filled: true,
             fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 13,
-            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: Color(0xFF2563EB),
-                width: 1.5,
-              ),
+              borderSide: const BorderSide(color: AppColors.primaryAccent, width: 1.5),
             ),
           ),
           items: items.map((item) {
@@ -745,10 +565,7 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
               child: Text(
                 item,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Color(0xFF0F172A),
-                  fontWeight: FontWeight.w500,
-                ),
+                style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w500),
               ),
             );
           }).toList(),
@@ -762,7 +579,7 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 20),
       decoration: const BoxDecoration(
-        color: Color(0xFFFAFBFD),
+        color: AppColors.cardBg,
         border: Border(top: BorderSide(color: Color(0xFFEDF2F7))),
       ),
       child: Row(
@@ -773,50 +590,31 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
             style: OutlinedButton.styleFrom(
               foregroundColor: const Color(0xFF475569),
               side: const BorderSide(color: Color(0xFFCBD5E1)),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 22,
-                vertical: 14,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
+            child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.w600)),
           ),
           const SizedBox(width: 12),
           FilledButton.icon(
             onPressed: _isSaving ? null : _submitForm,
             style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF2563EB),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 26,
-                vertical: 14,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+              backgroundColor: AppColors.primaryAccent,
+              padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               elevation: 2,
-              shadowColor: const Color(0xFF2563EB).withValues(alpha: 0.35),
+              shadowColor: AppColors.primaryAccent.withValues(alpha: 0.35),
             ),
             icon: _isSaving
                 ? const SizedBox(
                     width: 16,
                     height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                   )
                 : const Icon(Icons.arrow_forward_rounded, size: 18),
             label: Text(
               _isSaving ? 'Saving...' : 'Save & Continue',
-              style: const TextStyle(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w700,
-              ),
+              style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
             ),
           ),
         ],
