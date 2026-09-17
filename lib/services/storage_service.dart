@@ -79,7 +79,6 @@ class StorageService {
       ..['activeFinancialYear'] =
           companyData['activeFinancialYear'] ?? defaultActiveFy;
 
-    // Initialize sub-folders for each financial year
     for (final fy in (updatedData['financialYears'] as List)) {
       final fyDir = Directory(
         '${companyDir.path}${Platform.pathSeparator}${normalizeFySlug(fy.toString())}${Platform.pathSeparator}vouchers',
@@ -97,19 +96,14 @@ class StorageService {
       const JsonEncoder.withIndent('  ').convert(updatedData),
     );
 
-    // Initialize default masters.json for this new company
     await saveCompanyMasters(
       folderPath: companyDir.path,
       mastersData: {
         'debtors': [
-          {'name': 'Cash in Hand', 'gstin': '', 'group': 'Cash-in-Hand'},
-          {'name': 'Apex Retail Traders', 'gstin': '07AABCA1234F1Z1', 'group': 'Sundry Debtors'},
-          {'name': 'Modern Lifestyle Co', 'gstin': '09AABCA9999F1Z9', 'group': 'Sundry Debtors'},
+          {'name': 'Cash', 'gstin': '', 'group': 'Cash-in-Hand'},
         ],
         'creditors': [
-          {'name': 'Cash in Hand', 'gstin': '', 'group': 'Cash-in-Hand'},
-          {'name': 'National Supplies Ltd', 'gstin': '27AAACN1234P1Z3', 'group': 'Sundry Creditors'},
-          {'name': 'Bharat Wholesale Corp', 'gstin': '09AAACB5678Q1Z2', 'group': 'Sundry Creditors'},
+          {'name': 'Cash', 'gstin': '', 'group': 'Cash-in-Hand'},
         ],
         'items': [
           {
@@ -193,8 +187,6 @@ class StorageService {
     }
   }
 
-  // --- COMPANY-SPECIFIC MASTERS STORAGE ---
-
   static Future<Map<String, dynamic>> loadCompanyMasters({
     required String folderPath,
   }) async {
@@ -209,17 +201,12 @@ class StorageService {
       } catch (_) {}
     }
 
-    // Default fallback structure
     return {
       'debtors': [
-        {'name': 'Cash in Hand', 'gstin': '', 'group': 'Cash-in-Hand'},
-        {'name': 'Apex Retail Traders', 'gstin': '07AABCA1234F1Z1', 'group': 'Sundry Debtors'},
-        {'name': 'Modern Lifestyle Co', 'gstin': '09AABCA9999F1Z9', 'group': 'Sundry Debtors'},
+        {'name': 'Cash', 'gstin': '', 'group': 'Cash-in-Hand'},
       ],
       'creditors': [
-        {'name': 'Cash in Hand', 'gstin': '', 'group': 'Cash-in-Hand'},
-        {'name': 'National Supplies Ltd', 'gstin': '27AAACN1234P1Z3', 'group': 'Sundry Creditors'},
-        {'name': 'Bharat Wholesale Corp', 'gstin': '09AAACB5678Q1Z2', 'group': 'Sundry Creditors'},
+        {'name': 'Cash', 'gstin': '', 'group': 'Cash-in-Hand'},
       ],
       'items': [
         {
@@ -256,7 +243,16 @@ class StorageService {
     );
   }
 
-  // --- VOUCHERS STORAGE ---
+  static String resolveVoucherFileName(String voucherType) {
+    final vch = voucherType.toLowerCase().trim();
+    if (vch.contains('sale')) return 'sales.json';
+    if (vch.contains('purchase')) return 'purchase.json';
+    if (vch.contains('payment')) return 'payment.json';
+    if (vch.contains('receipt')) return 'receipt.json';
+    if (vch.contains('journal')) return 'journal.json';
+    if (vch.contains('contra')) return 'contra.json';
+    return '${vch.replaceAll(RegExp(r'[^a-z0-9]'), '_')}.json';
+  }
 
   static Future<void> saveVoucher({
     required String folderPath,
@@ -271,29 +267,40 @@ class StorageService {
       await vouchersDir.create(recursive: true);
     }
 
-    final vchNo = (voucherData['voucherNumber'] ??
-            DateTime.now().millisecondsSinceEpoch)
-        .toString()
-        .replaceAll('/', '-')
-        .replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '');
+    final targetFileName = resolveVoucherFileName(voucherData['voucherType'] ?? 'voucher');
+    final file = File('${vouchersDir.path}${Platform.pathSeparator}$targetFileName');
 
-    final vchType = (voucherData['voucherType'] ?? 'voucher')
-        .toString()
-        .toLowerCase()
-        .replaceAll(RegExp(r'[^a-z0-9]'), '_');
+    List<dynamic> voucherList = [];
+    if (await file.exists()) {
+      try {
+        final content = await file.readAsString();
+        final parsed = jsonDecode(content);
+        if (parsed is List) {
+          voucherList = parsed;
+        }
+      } catch (_) {}
+    }
 
-    final file = File(
-      '${vouchersDir.path}${Platform.pathSeparator}${vchType}_$vchNo.json',
-    );
+    final newVchNo = voucherData['voucherNumber']?.toString().trim() ?? '';
+    final existingIndex = voucherList.indexWhere((item) =>
+        item is Map<String, dynamic> &&
+        (item['voucherNumber']?.toString().trim() ?? '') == newVchNo);
+
+    if (existingIndex != -1 && newVchNo.isNotEmpty) {
+      voucherList[existingIndex] = voucherData; // Update existing voucher
+    } else {
+      voucherList.add(voucherData); // Append new voucher
+    }
 
     await file.writeAsString(
-      const JsonEncoder.withIndent('  ').convert(voucherData),
+      const JsonEncoder.withIndent('  ').convert(voucherList),
     );
   }
 
   static Future<List<Map<String, dynamic>>> loadVouchers({
     required String folderPath,
     required String financialYear,
+    String? voucherType,
   }) async {
     final fySlug = normalizeFySlug(financialYear);
     final vouchersDir = Directory(
@@ -301,19 +308,37 @@ class StorageService {
     );
     if (!await vouchersDir.exists()) return [];
 
-    final List<Map<String, dynamic>> vouchers = [];
+    final List<Map<String, dynamic>> allVouchers = [];
+
+    if (voucherType != null) {
+      final fileName = resolveVoucherFileName(voucherType);
+      final file = File('${vouchersDir.path}${Platform.pathSeparator}$fileName');
+      if (await file.exists()) {
+        try {
+          final content = await file.readAsString();
+          final data = jsonDecode(content);
+          if (data is List) {
+            allVouchers.addAll(data.whereType<Map<String, dynamic>>());
+          }
+        } catch (_) {}
+      }
+      return allVouchers;
+    }
+
     await for (final entity in vouchersDir.list()) {
       if (entity is File && entity.path.endsWith('.json')) {
         try {
           final content = await entity.readAsString();
           final data = jsonDecode(content);
-          if (data is Map<String, dynamic>) {
-            vouchers.add(data);
+          if (data is List) {
+            allVouchers.addAll(data.whereType<Map<String, dynamic>>());
+          } else if (data is Map<String, dynamic>) {
+            allVouchers.add(data);
           }
         } catch (_) {}
       }
     }
-    return vouchers;
+    return allVouchers;
   }
 
   static Future<List<Map<String, dynamic>>> loadCompanies(
@@ -344,19 +369,6 @@ class StorageService {
             }
           } catch (_) {}
         }
-      } else if (entity is File && entity.path.endsWith('.json')) {
-        try {
-          final content = await entity.readAsString();
-          final data = jsonDecode(content);
-          if (data is Map<String, dynamic>) {
-            final fileName = entity.uri.pathSegments.last;
-            data['folderName'] ??= fileName;
-            data['legacyFilePath'] = entity.path;
-            data['financialYears'] ??= ['2024-25', '2025-26', '2026-27'];
-            data['activeFinancialYear'] ??= '2026-27';
-            companies.add(data);
-          }
-        } catch (_) {}
       }
     }
 

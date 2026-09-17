@@ -28,7 +28,6 @@ class VoucherTotalsResult {
 }
 
 class VoucherCalculationService {
-  /// Recalculates taxable value and tax breakdowns from Qty & Price
   static void recalculateTaxableAndTaxes(VoucherItemRow row, bool isInterState) {
     final q = double.tryParse(row.qty.text) ?? 0.0;
     final p = double.tryParse(row.price.text) ?? 0.0;
@@ -37,7 +36,6 @@ class VoucherCalculationService {
     recalculateTaxesFromTaxable(row, isInterState);
   }
 
-  /// Calculates CGST/SGST or IGST given a Taxable value
   static void recalculateTaxesFromTaxable(VoucherItemRow row, bool isInterState) {
     final taxVal = double.tryParse(row.taxable.text) ?? 0.0;
     final rate = row.gstRate;
@@ -62,7 +60,6 @@ class VoucherCalculationService {
     row.amount.text = gross == 0 ? '' : gross.toStringAsFixed(2);
   }
 
-  /// Reverse calculates Taxable and Tax splits from an all-inclusive Invoice Amount
   static void recalculateFromInvoiceAmount(VoucherItemRow row, bool isInterState) {
     final invoiceAmt = double.tryParse(row.amount.text) ?? 0.0;
     if (invoiceAmt <= 0) return;
@@ -90,7 +87,24 @@ class VoucherCalculationService {
     }
   }
 
-  /// Calculates total grid balances, sundry offsets, and automatic round-off
+  /// Calculates sundry amount from percentage against the taxable subtotal
+  static void recalculateSundryFromPercent(VoucherSundryRow sundry, double baseTaxable) {
+    final pct = double.tryParse(sundry.percent.text) ?? 0.0;
+    if (pct > 0 && baseTaxable > 0) {
+      final calculated = (baseTaxable * pct) / 100.0;
+      sundry.amount.text = calculated.toStringAsFixed(2);
+    }
+  }
+
+  /// Calculates sundry percentage from amount against the taxable subtotal
+  static void recalculateSundryFromAmount(VoucherSundryRow sundry, double baseTaxable) {
+    final amt = double.tryParse(sundry.amount.text) ?? 0.0;
+    if (amt > 0 && baseTaxable > 0) {
+      final calculatedPct = (amt / baseTaxable) * 100.0;
+      sundry.percent.text = calculatedPct.toStringAsFixed(2);
+    }
+  }
+
   static VoucherTotalsResult calculateTotals({
     required List<VoucherItemRow> items,
     required List<VoucherSundryRow> sundries,
@@ -127,9 +141,9 @@ class VoucherCalculationService {
     double sundrySum = 0.0;
     for (final s in sundries) {
       final amt = double.tryParse(s.amount.text) ?? 0.0;
-      if (s.name.text == 'Round off+') {
+      if (s.name.text == 'Round off+' || s.name.text == 'Round Off+') {
         sundrySum += amt;
-      } else if (s.name.text == 'Rnd off -' || s.isNegative) {
+      } else if (s.name.text == 'Round Off-' || s.name.text == 'Rnd off -' || s.isNegative) {
         sundrySum -= amt.abs();
       } else {
         sundrySum += amt.abs();

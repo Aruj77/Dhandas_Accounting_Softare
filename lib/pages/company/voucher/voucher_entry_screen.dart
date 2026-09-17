@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../constants/app_shortcuts.dart';
 import '../../../core/keyboard/keyboard_system.dart';
 import '../../../services/storage_service.dart';
 import '../../../services/voucher_calculation_service.dart';
@@ -34,6 +35,49 @@ class VoucherEntryScreen extends StatefulWidget {
 }
 
 class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
+  static const Map<String, String> _stateNameToGstCode = {
+    'jammu and kashmir': '01',
+    'himachal pradesh': '02',
+    'punjab': '03',
+    'chandigarh': '04',
+    'uttarakhand': '05',
+    'haryana': '06',
+    'delhi': '07',
+    'rajasthan': '08',
+    'uttar pradesh': '09',
+    'bihar': '10',
+    'sikkim': '11',
+    'arunachal pradesh': '12',
+    'nagaland': '13',
+    'manipur': '14',
+    'mizoram': '15',
+    'tripura': '16',
+    'meghalaya': '17',
+    'assam': '18',
+    'west bengal': '19',
+    'jharkhand': '20',
+    'odisha': '21',
+    'orissa': '21',
+    'chhattisgarh': '22',
+    'madhya pradesh': '23',
+    'gujarat': '24',
+    'daman and diu': '26',
+    'dadra and nagar haveli': '26',
+    'maharashtra': '27',
+    'andhra pradesh': '37',
+    'karnataka': '29',
+    'goa': '30',
+    'lakshadweep': '31',
+    'kerala': '32',
+    'tamil nadu': '33',
+    'puducherry': '34',
+    'pondicherry': '34',
+    'andaman and nicobar islands': '35',
+    'telangana': '36',
+    'ladakh': '38',
+    'other territory': '97',
+  };
+
   final TextEditingController _seriesController = TextEditingController(
     text: 'Main',
   );
@@ -87,6 +131,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
 
   bool _isInterState = false;
   bool _autoRoundOff = true;
+  bool _isAutoAdjustingSaleType = false;
 
   DateTime _fyStartDate = DateTime(2026, 4, 1);
   DateTime _fyEndDate = DateTime(2027, 3, 31, 23, 59, 59);
@@ -98,6 +143,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   @override
   void initState() {
     super.initState();
+    _attachControllerListeners();
     _loadCompanyMastersAndInitialize();
     // Focus the very first header field the instant the voucher opens, so
     // Tab/Enter/arrows work immediately without a mouse click. (Item rows
@@ -105,6 +151,25 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     // company-data load below finishes.)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _seriesFocus.requestFocus();
+    });
+  }
+
+  void _attachControllerListeners() {
+    _dateFocusNode.addListener(() {
+      if (!_dateFocusNode.hasFocus) {
+        _parseAndValidateDate();
+      }
+    });
+
+    _partyController.addListener(() {
+      _checkGstMode(autoAdjustSaleType: true);
+      _refreshTaxesOnAllRows();
+    });
+
+    _saleTypeController.addListener(() {
+      if (!_isAutoAdjustingSaleType) {
+        _handleManualSaleTypeChange();
+      }
     });
   }
 
@@ -213,23 +278,6 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
       _dateController.text = '01-04-${_fyStartDate.year}';
     }
 
-    _dateFocusNode.addListener(() {
-      if (!_dateFocusNode.hasFocus) {
-        _parseAndValidateDate();
-      }
-    });
-
-    _partyController.addListener(() {
-      _checkGstMode();
-      for (final row in _items) {
-        VoucherCalculationService.recalculateTaxesFromTaxable(
-          row,
-          _isInterState,
-        );
-      }
-      _calculateAllTotals();
-    });
-
     _items.clear();
     for (int i = 0; i < 20; i++) {
       _addItemRow();
@@ -243,25 +291,214 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     if (mounted) setState(() {});
   }
 
-  void _checkGstMode() {
-    final companyGst = (widget.company['gstin'] ?? '').toString().trim();
-    final partyText = _partyController.text.trim();
+  String _getCompanyStateCode() {
+    final rawGstin =
+        (widget.company['gstin'] ??
+                widget.company['gstNumber'] ??
+                widget.company['gstNo'] ??
+                widget.company['gst'] ??
+                '')
+            .toString()
+            .trim();
 
-    String partyGstin = '';
-    final match = RegExp(r'\[([A-Z0-9]{15})\]').firstMatch(partyText);
+    if (rawGstin.length >= 2 &&
+        int.tryParse(rawGstin.substring(0, 2)) != null) {
+      return rawGstin.substring(0, 2);
+    }
+
+    final rawCode =
+        (widget.company['stateCode'] ?? widget.company['code'] ?? '')
+            .toString()
+            .trim();
+    if (rawCode.isNotEmpty && int.tryParse(rawCode) != null) {
+      return rawCode.padLeft(2, '0');
+    }
+
+    final rawState =
+        (widget.company['state'] ?? widget.company['stateName'] ?? '')
+            .toString()
+            .trim()
+            .toLowerCase();
+    return _stateNameToGstCode[rawState] ?? '07';
+  }
+
+  String _extractPartyStateCode(String partyText) {
+    final clean = partyText.trim();
+    if (clean.isEmpty) return '';
+
+    final match = RegExp(r'\[\s*([^\]]+)\s*\]').firstMatch(clean);
     if (match != null) {
-      partyGstin = match.group(1) ?? '';
-    } else if (partyText.length == 15) {
-      partyGstin = partyText;
+      final inside = match.group(1)!.trim();
+      if (inside.length >= 2 && int.tryParse(inside.substring(0, 2)) != null) {
+        return inside.substring(0, 2);
+      }
     }
 
-    if (companyGst.length >= 2 && partyGstin.length >= 2) {
-      final compState = companyGst.substring(0, 2);
-      final partyState = partyGstin.substring(0, 2);
-      _isInterState = compState != partyState;
-    } else {
-      _isInterState = false;
+    if (clean.length == 15 && int.tryParse(clean.substring(0, 2)) != null) {
+      return clean.substring(0, 2);
     }
+
+    final cleanLower = clean.toLowerCase();
+    final matched = _currentAvailableParties.where((p) {
+      final pName = p.name.trim().toLowerCase();
+      final pDisplay = p.displayName.trim().toLowerCase();
+      return pName == cleanLower || pDisplay == cleanLower;
+    }).firstOrNull;
+
+    final gstin = matched?.gstin.trim() ?? '';
+    if (gstin.length >= 2 && int.tryParse(gstin.substring(0, 2)) != null) {
+      return gstin.substring(0, 2);
+    }
+    return '';
+  }
+
+  void _checkGstMode({bool autoAdjustSaleType = false}) {
+    final compState = _getCompanyStateCode();
+    final partyState = _extractPartyStateCode(_partyController.text);
+    final detectedInterState = partyState.isNotEmpty && compState != partyState;
+    _isInterState = detectedInterState;
+
+    if (autoAdjustSaleType) {
+      final currentType = _saleTypeController.text;
+      var suffix = 'Itemwise';
+      if (currentType.contains('Multirate')) suffix = 'Multirate';
+      if (currentType.contains('Exempt')) suffix = 'Exempt';
+      final targetType = detectedInterState
+          ? 'InterState $suffix'
+          : 'Local $suffix';
+      if (_saleTypeController.text != targetType) {
+        _isAutoAdjustingSaleType = true;
+        _saleTypeController.text = targetType;
+        _isAutoAdjustingSaleType = false;
+      }
+    }
+  }
+
+  void _handleManualSaleTypeChange() {
+    final currentSaleType = _saleTypeController.text.trim();
+    final isExplicitLocal = currentSaleType.startsWith('Local');
+    final isExplicitInterState = currentSaleType.startsWith('InterState');
+    final compState = _getCompanyStateCode();
+    final partyState = _extractPartyStateCode(_partyController.text);
+
+    if (partyState.isNotEmpty) {
+      final partyIsInterstate = compState != partyState;
+      if (partyIsInterstate && isExplicitLocal) {
+        _showTaxMismatchWarning(
+          enteredType: 'local transaction',
+          partyBelongsToText: 'interstate (State code: $partyState)',
+          onAdjustToParty: () {
+            _isAutoAdjustingSaleType = true;
+            _saleTypeController.text = currentSaleType.replaceFirst(
+              'Local',
+              'InterState',
+            );
+            _isAutoAdjustingSaleType = false;
+            setState(() {
+              _isInterState = true;
+              _refreshTaxesOnAllRows();
+            });
+          },
+        );
+      } else if (!partyIsInterstate && isExplicitInterState) {
+        _showTaxMismatchWarning(
+          enteredType: 'interstate transaction',
+          partyBelongsToText: 'local / intra-state (State code: $partyState)',
+          onAdjustToParty: () {
+            _isAutoAdjustingSaleType = true;
+            _saleTypeController.text = currentSaleType.replaceFirst(
+              'InterState',
+              'Local',
+            );
+            _isAutoAdjustingSaleType = false;
+            setState(() {
+              _isInterState = false;
+              _refreshTaxesOnAllRows();
+            });
+          },
+        );
+      }
+    }
+
+    setState(() {
+      _isInterState = isExplicitInterState;
+      _refreshTaxesOnAllRows();
+    });
+  }
+
+  void _showTaxMismatchWarning({
+    required String enteredType,
+    required String partyBelongsToText,
+    required VoidCallback onAdjustToParty,
+  }) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(
+              Icons.warning_amber_rounded,
+              color: Color(0xFFD97706),
+              size: 24,
+            ),
+            SizedBox(width: 8),
+            Text(
+              'Taxation Warning',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+            ),
+          ],
+        ),
+        content: Text(
+          'You are entering a $enteredType but party belongs to $partyBelongsToText.\n\nDo you want to continue?',
+          style: const TextStyle(
+            fontSize: 13,
+            color: Color(0xFF334155),
+            height: 1.4,
+          ),
+        ),
+        actions: [
+          OutlinedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              onAdjustToParty();
+            },
+            child: const Text('Adjust to Party'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFD97706),
+            ),
+            child: const Text(
+              'Yes, Continue',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _refreshTaxesOnAllRows() {
+    for (final row in _items) {
+      if (row.taxable.text.isNotEmpty) {
+        VoucherCalculationService.recalculateTaxesFromTaxable(
+          row,
+          _isInterState,
+        );
+      } else if (row.amount.text.isNotEmpty) {
+        VoucherCalculationService.recalculateFromInvoiceAmount(
+          row,
+          _isInterState,
+        );
+      }
+    }
+    _calculateAllTotals();
   }
 
   String _getUnitString(dynamic unitValue) {
@@ -823,6 +1060,17 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
           .map(
             (i) => {
               'item': i.item.text,
+              'hsn': i.hsn.isNotEmpty
+                  ? i.hsn
+                  : (_itemsMasterList
+                            .where(
+                              (m) =>
+                                  m.name.trim().toLowerCase() ==
+                                  i.item.text.trim().toLowerCase(),
+                            )
+                            .firstOrNull
+                            ?.hsn ??
+                        ''),
               'qty': i.qty.text,
               'unit': _getUnitString(i.unit),
               'price': i.price.text,
@@ -840,6 +1088,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
           .map(
             (s) => {
               'name': s.name.text,
+              'percent': s.percent.text,
               'amount': s.amount.text,
               'isNegative': s.isNegative,
             },
@@ -887,7 +1136,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
             behavior: SnackBarBehavior.floating,
           ),
         );
-       final wantsPrint = await VoucherPrintConfirmDialog.show(
+        final wantsPrint = await VoucherPrintConfirmDialog.show(
           context,
           voucherType: widget.voucherType,
         );
@@ -906,7 +1155,9 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     // pubspec.yaml. Stubbed for now so the Yes/No flow is fully functional.
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${widget.voucherType} [${_vchNoController.text}] sent to printer.'),
+        content: Text(
+          '${widget.voucherType} [${_vchNoController.text}] sent to printer.',
+        ),
         backgroundColor: const Color(0xFF0F62FE),
         behavior: SnackBarBehavior.floating,
       ),
@@ -1351,6 +1602,31 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   // definition; this screen only decides what a given action does while a
   // voucher is open. Unmapped actions are ignored so they still reach fields.
   KeyEventResult _handleVoucherAction(String actionId, KeyEvent event) {
+    if (AppShortcuts.isQuickAdd(event)) {
+      if (_partyFocus.hasFocus) {
+        _openAddPartyDialog();
+        return KeyEventResult.handled;
+      }
+      if (_seriesFocus.hasFocus) {
+        _openQuickAddDialog('Series');
+        return KeyEventResult.handled;
+      }
+      if (_saleTypeFocus.hasFocus) {
+        _openQuickAddDialog('Sale Type');
+        return KeyEventResult.handled;
+      }
+      if (_matCenterFocus.hasFocus) {
+        _openQuickAddDialog('Material Centre');
+        return KeyEventResult.handled;
+      }
+      for (int i = 0; i < _items.length; i++) {
+        if (_items[i].itemFocus.hasFocus) {
+          _openAddItemDialog(i);
+          return KeyEventResult.handled;
+        }
+      }
+    }
+
     switch (actionId) {
       case KeyboardAction.back:
       case KeyboardAction.cancel:

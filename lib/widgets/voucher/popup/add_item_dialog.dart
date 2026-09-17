@@ -5,10 +5,7 @@ import '../../../services/hsn_service.dart';
 class AddItemDialog extends StatefulWidget {
   final Function(Map<String, dynamic> itemData) onItemCreated;
 
-  const AddItemDialog({
-    super.key,
-    required this.onItemCreated,
-  });
+  const AddItemDialog({super.key, required this.onItemCreated});
 
   @override
   State<AddItemDialog> createState() => _AddItemDialogState();
@@ -20,7 +17,8 @@ class _AddItemDialogState extends State<AddItemDialog> {
   final TextEditingController _hsnController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _salesPriceController = TextEditingController();
-  final TextEditingController _purchasePriceController = TextEditingController();
+  final TextEditingController _purchasePriceController =
+      TextEditingController();
   final TextEditingController _mrpController = TextEditingController();
 
   static const List<String> _units = [
@@ -124,7 +122,9 @@ class _AddItemDialogState extends State<AddItemDialog> {
     if (!_formKey.currentState!.validate()) return;
 
     final taxMatch = RegExp(r'(\d+)%').firstMatch(_selectedTaxCategory);
-    final rate = taxMatch != null ? double.tryParse(taxMatch.group(1)!) ?? 18.0 : 0.0;
+    final rate = taxMatch != null
+        ? double.tryParse(taxMatch.group(1)!) ?? 18.0
+        : 0.0;
 
     final itemData = {
       'name': _nameController.text.trim(),
@@ -133,7 +133,8 @@ class _AddItemDialogState extends State<AddItemDialog> {
       'taxCategory': _selectedTaxCategory,
       'taxRate': rate,
       'salesPrice': double.tryParse(_salesPriceController.text.trim()) ?? 0.0,
-      'purchasePrice': double.tryParse(_purchasePriceController.text.trim()) ?? 0.0,
+      'purchasePrice':
+          double.tryParse(_purchasePriceController.text.trim()) ?? 0.0,
       'mrp': double.tryParse(_mrpController.text.trim()) ?? 0.0,
     };
 
@@ -175,7 +176,11 @@ class _AddItemDialogState extends State<AddItemDialog> {
                       color: const Color(0xFFEFF6FE),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.inventory_2_rounded, size: 20, color: Color(0xFF0F62FE)),
+                    child: const Icon(
+                      Icons.inventory_2_rounded,
+                      size: 20,
+                      color: Color(0xFF0F62FE),
+                    ),
                   ),
                   const SizedBox(width: 12),
                   const Column(
@@ -183,17 +188,28 @@ class _AddItemDialogState extends State<AddItemDialog> {
                     children: [
                       Text(
                         'Add New Item Master',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF101B3A)),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF101B3A),
+                        ),
                       ),
                       Text(
                         'Inventory and tariff configuration',
-                        style: TextStyle(fontSize: 11.5, color: Color(0xFF6B7B9B)),
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: Color(0xFF6B7B9B),
+                        ),
                       ),
                     ],
                   ),
                   const Spacer(),
                   IconButton(
-                    icon: const Icon(Icons.close_rounded, size: 20, color: Color(0xFF6B7B9B)),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      size: 20,
+                      color: Color(0xFF6B7B9B),
+                    ),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
@@ -210,7 +226,9 @@ class _AddItemDialogState extends State<AddItemDialog> {
                       controller: _hsnController,
                       label: 'HSN / SAC Code *',
                       hintText: 'e.g. 3304',
-                      validator: (val) => val == null || val.trim().isEmpty ? 'HSN code is required' : null,
+                      validator: (val) => val == null || val.trim().isEmpty
+                          ? 'HSN code is required'
+                          : null,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -221,18 +239,31 @@ class _AddItemDialogState extends State<AddItemDialog> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF0F62FE),
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
                       icon: _isHsnLoading
                           ? const SizedBox(
                               width: 14,
                               height: 14,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
                             )
                           : const Icon(Icons.verified_outlined, size: 16),
-                      label: Text(_isHsnLoading ? 'Checking...' : 'Validate',
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                      label: Text(
+                        _isHsnLoading ? 'Checking...' : 'Validate',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -246,7 +277,9 @@ class _AddItemDialogState extends State<AddItemDialog> {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: _isHsnValid ? const Color(0xFF15803D) : const Color(0xFFDC2626),
+                    color: _isHsnValid
+                        ? const Color(0xFF15803D)
+                        : const Color(0xFFDC2626),
                   ),
                 ),
               ],
@@ -295,7 +328,9 @@ class _AddItemDialogState extends State<AddItemDialog> {
                 controller: _nameController,
                 label: 'Item Name (Auto-Generated) *',
                 hintText: 'Auto: HSN Tax% Unit',
-                validator: (val) => val == null || val.trim().isEmpty ? 'Item name cannot be empty' : null,
+                validator: (val) => val == null || val.trim().isEmpty
+                    ? 'Item name cannot be empty'
+                    : null,
               ),
               const SizedBox(height: 14),
 
@@ -337,8 +372,13 @@ class _AddItemDialogState extends State<AddItemDialog> {
                   OutlinedButton(
                     onPressed: () => Navigator.of(context).pop(),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                     child: const Text('Cancel'),
                   ),
@@ -348,10 +388,18 @@ class _AddItemDialogState extends State<AddItemDialog> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF0F62FE),
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
-                    child: const Text('Save & Select Item', style: TextStyle(fontWeight: FontWeight.w700)),
+                    child: const Text(
+                      'Save & Select Item',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
                   ),
                 ],
               ),
@@ -371,23 +419,56 @@ class _AddItemDialogState extends State<AddItemDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF64748B))),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF64748B),
+          ),
+        ),
         const SizedBox(height: 4),
         SizedBox(
           height: 38,
           child: DropdownButtonFormField<String>(
             value: value,
             items: items
-                .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700))))
+                .map(
+                  (e) => DropdownMenuItem(
+                    value: e,
+                    child: Text(
+                      e,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                )
                 .toList(),
             onChanged: onChanged,
             decoration: InputDecoration(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 0,
+              ),
               filled: true,
               fillColor: const Color(0xFFFAFBFD),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE5EDF7))),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE5EDF7))),
-              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.4)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: Color(0xFFE5EDF7)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: Color(0xFFE5EDF7)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(
+                  color: Color(0xFF0F62FE),
+                  width: 1.4,
+                ),
+              ),
             ),
           ),
         ),
@@ -405,7 +486,14 @@ class _AddItemDialogState extends State<AddItemDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF64748B))),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF64748B),
+          ),
+        ),
         const SizedBox(height: 4),
         SizedBox(
           height: 38,
@@ -413,16 +501,38 @@ class _AddItemDialogState extends State<AddItemDialog> {
             controller: controller,
             validator: validator,
             keyboardType: keyboardType,
-            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFF101B3A)),
+            style: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF101B3A),
+            ),
             decoration: InputDecoration(
               hintText: hintText,
-              hintStyle: const TextStyle(fontSize: 11.5, color: Color(0xFF90A1BA)),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              hintStyle: const TextStyle(
+                fontSize: 11.5,
+                color: Color(0xFF90A1BA),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 8,
+              ),
               filled: true,
               fillColor: const Color(0xFFFAFBFD),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE5EDF7))),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE5EDF7))),
-              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.4)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: Color(0xFFE5EDF7)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: Color(0xFFE5EDF7)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(
+                  color: Color(0xFF0F62FE),
+                  width: 1.4,
+                ),
+              ),
             ),
           ),
         ),
