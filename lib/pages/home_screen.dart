@@ -18,6 +18,7 @@ import '../widgets/home/open_company_dialog.dart';
 import 'settings_screen.dart';
 import 'company/transactions_dashboard.dart';
 import 'company/administration_screen.dart';
+import 'company/reports_dashboard_screen.dart';
 import 'company/voucher/voucher_entry_screen.dart';
 import 'company/voucher/voucher_list_screen.dart';
 
@@ -508,12 +509,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
 
         // 3: REPORTS
-        _buildPlaceholderView(
-          icon: Icons.bar_chart_rounded,
-          title: 'Financial Reports & GST',
-          subtitle:
-              'Balance Sheet, Profit & Loss, Trial Balance, and GSTR summaries.',
-        ),
+        ReportsDashboardScreen(company: _activeCompany!),
 
         // 4: ADMINISTRATION
         AdministrationScreen(

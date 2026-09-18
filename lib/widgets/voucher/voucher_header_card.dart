@@ -79,7 +79,7 @@ class VoucherHeaderCard extends StatelessWidget {
                 label: 'Series',
                 controller: seriesController,
                 focusNode: seriesFocus,
-                width: 100,
+                width: 140,
                 icon: Icons.tag_rounded,
                 onAdd: () => onQuickAdd('Series'),
                 onSubmitted: () => dateFocus.requestFocus(),
@@ -101,7 +101,7 @@ class VoucherHeaderCard extends StatelessWidget {
                 label: 'Voucher Number',
                 controller: vchNoController,
                 focusNode: vchNoFocus,
-                width: 165, // Widened slightly
+                width: 180,
                 icon: Icons.confirmation_number_outlined,
                 onSubmitted: () => partyFocus.requestFocus(),
               ),

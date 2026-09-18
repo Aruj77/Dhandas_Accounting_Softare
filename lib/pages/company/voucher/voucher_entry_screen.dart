@@ -100,8 +100,8 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     _seriesController.text = v['series']?.toString() ?? 'Main';
     _dateController.text = v['date']?.toString() ?? '';
     _vchNoController.text = v['voucherNumber']?.toString() ?? '';
-    _saleTypeController.text = v['saleType']?.toString() ?? 'Local Itemwise';
     _partyController.text = v['party']?.toString() ?? '';
+    _saleTypeController.text = v['saleType']?.toString() ?? 'Local Itemwise';
     _matCenterController.text = v['materialCenter']?.toString() ?? 'Main Store';
     _narrationController.text = v['narration']?.toString() ?? '';
     _isInterState = v['isInterState'] == true;
@@ -717,6 +717,74 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     focus?.requestFocus();
   }
 
+  Map<String, dynamic> _buildCurrentVoucherPayload() {
+    return {
+      'id': widget.voucherToEdit?['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      'voucherType': widget.voucherType,
+      'voucherNumber': _vchNoController.text.trim(),
+      'date': _dateController.text,
+      'series': _seriesController.text,
+      'saleType': _saleTypeController.text,
+      'party': _partyController.text,
+      'isInterState': _isInterState,
+      'materialCenter': _matCenterController.text,
+      'narration': _narrationController.text,
+      'financialYear': widget.company['activeFinancialYear'],
+      'items': _items
+          .where((i) => i.item.text.isNotEmpty)
+          .map((i) => {
+                'item': i.item.text,
+                'hsn': i.hsn.isNotEmpty
+                    ? i.hsn
+                    : (_itemsMasterList
+                            .where((m) =>
+                                m.name.trim().toLowerCase() == i.item.text.trim().toLowerCase())
+                            .firstOrNull
+                            ?.hsn ??
+                        ''),
+                'qty': i.qty.text,
+                'unit': i.unit.text.isNotEmpty ? i.unit.text : 'Pcs',
+                'price': i.price.text,
+                'taxable': i.taxable.text,
+                'cgst': i.cgst.text,
+                'sgst': i.sgst.text,
+                'igst': i.igst.text,
+                'amount': i.amount.text,
+                'gstRate': i.gstRate
+              })
+          .toList(),
+      'sundries': _sundries
+          .where((s) => s.amount.text.isNotEmpty && s.amount.text != '0.00')
+          .map((s) => {
+                'name': s.name.text,
+                'percent': s.percent.text,
+                'amount': s.amount.text,
+                'isNegative': s.isNegative
+              })
+          .toList(),
+      'subTotal': _itemSubTotal,
+      'cgst': _totalCgst,
+      'sgst': _totalSgst,
+      'igst': _totalIgst,
+      'totalTax': _totalTax,
+      'sundryTotal': _sundryTotal,
+      'roundOff': _roundOff,
+      'grandTotal': _grandTotal,
+      'createdAt': widget.voucherToEdit?['createdAt'] ?? DateTime.now().toIso8601String(),
+    };
+  }
+
+  void _openPrintPreview() {
+    final payload = _buildCurrentVoucherPayload();
+    showDialog(
+      context: context,
+      builder: (_) => SalesInvoicePrintPreviewDialog(
+        company: widget.company,
+        voucherData: payload,
+      ),
+    );
+  }
+
   Future<void> _saveVoucher() async {
     if (!_parseAndValidateDate() || _dateError != null) {
       _showValidationError(_dateError ?? 'Valid Voucher Date required within F.Y.', _dateFocusNode);
@@ -773,61 +841,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   }
 
   Future<void> _executeVoucherPersistence() async {
-    final payload = {
-      'id': widget.voucherToEdit?['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
-      'voucherType': widget.voucherType,
-      'voucherNumber': _vchNoController.text.trim(),
-      'date': _dateController.text,
-      'series': _seriesController.text,
-      'saleType': _saleTypeController.text,
-      'party': _partyController.text,
-      'isInterState': _isInterState,
-      'materialCenter': _matCenterController.text,
-      'narration': _narrationController.text,
-      'financialYear': widget.company['activeFinancialYear'],
-      'items': _items
-          .where((i) => i.item.text.isNotEmpty)
-          .map((i) => {
-                'item': i.item.text,
-                'hsn': i.hsn.isNotEmpty
-                    ? i.hsn
-                    : (_itemsMasterList
-                            .where((m) =>
-                                m.name.trim().toLowerCase() == i.item.text.trim().toLowerCase())
-                            .firstOrNull
-                            ?.hsn ??
-                        ''),
-                'qty': i.qty.text,
-                'unit': i.unit.text.isNotEmpty ? i.unit.text : 'Pcs',
-                'price': i.price.text,
-                'taxable': i.taxable.text,
-                'cgst': i.cgst.text,
-                'sgst': i.sgst.text,
-                'igst': i.igst.text,
-                'amount': i.amount.text,
-                'gstRate': i.gstRate
-              })
-          .toList(),
-      'sundries': _sundries
-          .where((s) => s.amount.text.isNotEmpty && s.amount.text != '0.00')
-          .map((s) => {
-                'name': s.name.text,
-                'percent': s.percent.text,
-                'amount': s.amount.text,
-                'isNegative': s.isNegative
-              })
-          .toList(),
-      'subTotal': _itemSubTotal,
-      'cgst': _totalCgst,
-      'sgst': _totalSgst,
-      'igst': _totalIgst,
-      'totalTax': _totalTax,
-      'sundryTotal': _sundryTotal,
-      'roundOff': _roundOff,
-      'grandTotal': _grandTotal,
-      'createdAt': widget.voucherToEdit?['createdAt'] ?? DateTime.now().toIso8601String(),
-    };
-
+    final payload = _buildCurrentVoucherPayload();
     final folderPath = widget.company['folderPath'];
     if (folderPath != null) {
       await StorageService.saveVoucher(
@@ -1021,13 +1035,21 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   Widget build(BuildContext context) {
     final fy = widget.company['activeFinancialYear']?.toString() ?? AppDateUtils.defaultFinancialYear;
     final themeColor = _getVoucherColor();
-
+    
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Focus(
         autofocus: true,
         onKeyEvent: (_, event) {
           if (event is! KeyDownEvent) return KeyEventResult.ignored;
+
+          // Ctrl + P or Cmd + P Print Shortcut
+          final isCtrl = HardwareKeyboard.instance.isControlPressed || HardwareKeyboard.instance.isMetaPressed;
+          if (isCtrl && event.logicalKey == LogicalKeyboardKey.keyP) {
+            _openPrintPreview();
+            return KeyEventResult.handled;
+          }
+
           if (event.logicalKey == LogicalKeyboardKey.f4) {
             for (final r in _items) {
               for (final e in [
@@ -1085,7 +1107,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
           backgroundColor: _getScreenBackgroundColor(),
           body: Column(
             children: [
-              // Modern Clean Top App Bar (Without Save button, with Scan AI button & modern title)
+              // Top Bar with Edit-Mode Print (Ctrl+P) Button
               Container(
                 height: 52,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1151,6 +1173,23 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
                       ),
                     ),
                     const Spacer(),
+
+                    // Print (Ctrl+P) Button for Edit Mode
+                    if (widget.isEdit) ...[
+                      OutlinedButton.icon(
+                        onPressed: _openPrintPreview,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          side: const BorderSide(color: Color(0xFF93C5FD)),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        icon: const Icon(Icons.print_rounded, size: 15, color: AppColors.primary),
+                        label: const Text('Print (Ctrl+P)', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800)),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+
                     // AI Scan Button
                     OutlinedButton.icon(
                       onPressed: () {
@@ -1220,7 +1259,6 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                   child: Column(
                     children: [
-                      // Header Card (Party placed before Taxation, Vch No widened)
                       VoucherHeaderCard(
                         seriesController: _seriesController,
                         seriesFocus: _seriesFocus,
@@ -1334,6 +1372,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
                       style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF64748B)),
                     ),
                     _buildShortcutHint('[F2] Save'),
+                    if (widget.isEdit) _buildShortcutHint('[Ctrl+P] Print'),
                     _buildShortcutHint('[F4] Calculator'),
                     _buildShortcutHint('[Alt+C] Quick Add Master'),
                     _buildShortcutHint('[Alt+E] Tax Details'),

@@ -139,6 +139,14 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
           _filtered = matching;
           _isLoading = false;
           _syncFocusNodes();
+          if (_rowFocusNodes.isNotEmpty) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted && _rowFocusNodes.isNotEmpty) {
+                _rowFocusNodes[0].requestFocus();
+                setState(() => _focusedIndex = 0);
+              }
+            });
+          }
         });
       }
     }
@@ -162,6 +170,10 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
                       (it['item'] ?? '').toString().toLowerCase().contains(q));
             }).toList();
       _syncFocusNodes();
+      if (_rowFocusNodes.isNotEmpty) {
+        _rowFocusNodes[0].requestFocus();
+        _focusedIndex = 0;
+      }
     });
   }
 
@@ -719,12 +731,20 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
                                                     _openEdit(v);
                                                     return KeyEventResult.handled;
                                                   }
-                                                  if (KeyboardShortcutService.isDown(e.logicalKey) && idx + 1 < _rowFocusNodes.length) {
-                                                    _rowFocusNodes[idx + 1].requestFocus();
+                                                  if (KeyboardShortcutService.isDown(e.logicalKey)) {
+                                                    if (idx + 1 < _rowFocusNodes.length) {
+                                                      _rowFocusNodes[idx + 1].requestFocus();
+                                                    } else if (_rowFocusNodes.isNotEmpty) {
+                                                      _rowFocusNodes[0].requestFocus(); // Loop to top
+                                                    }
                                                     return KeyEventResult.handled;
                                                   }
-                                                  if (KeyboardShortcutService.isUp(e.logicalKey) && idx - 1 >= 0) {
-                                                    _rowFocusNodes[idx - 1].requestFocus();
+                                                  if (KeyboardShortcutService.isUp(e.logicalKey)) {
+                                                    if (idx - 1 >= 0) {
+                                                      _rowFocusNodes[idx - 1].requestFocus();
+                                                    } else if (_rowFocusNodes.isNotEmpty) {
+                                                      _rowFocusNodes[_rowFocusNodes.length - 1].requestFocus(); // Loop to bottom
+                                                    }
                                                     return KeyEventResult.handled;
                                                   }
                                                 }

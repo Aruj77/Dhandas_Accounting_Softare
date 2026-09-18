@@ -1,3 +1,4 @@
+
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -38,6 +39,8 @@ class _VoucherManageListScreenState extends State<VoucherManageListScreen> {
   List<Map<String, dynamic>> _filtered = [];
   final Set<String> _selectedKeys = {};
   bool _isLoading = true;
+  int _focusedIndex = -1;
+  List<FocusNode> _rowFocusNodes = [];
 
   static const double _tableMinWidth = 1680.0;
 
@@ -62,8 +65,20 @@ class _VoucherManageListScreenState extends State<VoucherManageListScreen> {
 
   @override
   void dispose() {
-    for (final c in [_searchCtrl, _headerScrollCtrl, _bodyHorizontalScrollCtrl, _bodyVerticalScrollCtrl, _footerScrollCtrl]) { c.dispose(); }
+    for (final c in [_searchCtrl, _headerScrollCtrl, _bodyHorizontalScrollCtrl, _bodyVerticalScrollCtrl, _footerScrollCtrl]) {
+      c.dispose();
+    }
+    for (final n in _rowFocusNodes) {
+      n.dispose();
+    }
     super.dispose();
+  }
+
+  void _syncFocusNodes() {
+    for (final n in _rowFocusNodes) {
+      n.dispose();
+    }
+    _rowFocusNodes = List.generate(_filtered.length, (i) => FocusNode(debugLabel: 'ManageRow_$i'));
   }
 
   void _handleSafeExit() {
@@ -80,7 +95,23 @@ class _VoucherManageListScreenState extends State<VoucherManageListScreen> {
     if (folderPath != null) {
       final all = await StorageService.loadVouchers(folderPath: folderPath, financialYear: fy, voucherType: widget.voucherType);
       final matching = all.where((v) => (v['voucherType'] ?? '').toString().toLowerCase() == widget.voucherType.toLowerCase()).toList();
-      if (mounted) setState(() { _vouchers = matching; _filtered = matching; _selectedKeys.clear(); _isLoading = false; });
+      if (mounted) {
+        setState(() {
+          _vouchers = matching;
+          _filtered = matching;
+          _selectedKeys.clear();
+          _isLoading = false;
+          _syncFocusNodes();
+          if (_rowFocusNodes.isNotEmpty) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted && _rowFocusNodes.isNotEmpty) {
+                _rowFocusNodes[0].requestFocus();
+                setState(() => _focusedIndex = 0);
+              }
+            });
+          }
+        });
+      }
     }
   }
 
@@ -94,6 +125,11 @@ class _VoucherManageListScreenState extends State<VoucherManageListScreen> {
         final items = (v['items'] as List? ?? []);
         return vch.contains(q) || party.contains(q) || gstin.contains(q) || items.any((it) => (it['hsn'] ?? '').toString().toLowerCase().contains(q) || (it['item'] ?? '').toString().toLowerCase().contains(q));
       }).toList();
+      _syncFocusNodes();
+      if (_rowFocusNodes.isNotEmpty) {
+        _rowFocusNodes[0].requestFocus();
+        _focusedIndex = 0;
+      }
     });
   }
 
@@ -125,6 +161,7 @@ class _VoucherManageListScreenState extends State<VoucherManageListScreen> {
         _vouchers.removeWhere((v) => keys.contains(_resolveKey(v, _vouchers.indexOf(v))));
         _filtered.removeWhere((v) => keys.contains(_resolveKey(v, _filtered.indexOf(v))));
         _selectedKeys.removeAll(keys);
+        _syncFocusNodes();
       });
 
       final folderPath = widget.company['folderPath']?.toString();
@@ -246,65 +283,89 @@ class _VoucherManageListScreenState extends State<VoucherManageListScreen> {
                                         final fullParty = (v['party'] ?? '').toString(), gstin = GstPartyUtils.extractPartyGstin(fullParty);
                                         final items = v['items'] as List? ?? [], invoiceTotal = (double.tryParse(v['grandTotal']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2);
                                         final cessTotal = GstPartyUtils.extractCessAmount(v).toStringAsFixed(2);
+                                        final isFocused = _focusedIndex == idx;
+                                        if (_rowFocusNodes.length <= idx) _syncFocusNodes();
 
                                         Widget buildActions() => Container(width: 90, padding: const EdgeInsets.symmetric(horizontal: 4), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [IconButton(icon: const Icon(Icons.edit_note_rounded, size: 20, color: AppColors.primary), onPressed: () => _editVoucher(v), splashRadius: 18), IconButton(icon: const Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.error), onPressed: () => _confirmAndDelete([v]), splashRadius: 18)]));
 
-                                        return Container(
-                                          color: isSelected ? AppColors.primaryLight : Colors.white,
-                                          child: items.isEmpty
-                                              ? Row(
-                                                  children: [
-                                                    SizedBox(width: 40, child: Center(child: Checkbox(value: isSelected, activeColor: AppColors.primary, onChanged: (val) { setState(() { val == true ? _selectedKeys.add(key) : _selectedKeys.remove(key); }); }))),
-                                                    RegisterDataCell('${idx + 1}', width: 45, isMuted: true),
-                                                    RegisterDataCell(GstPartyUtils.extractPartyName(fullParty), width: 180, isBold: true),
-                                                    RegisterDataCell(gstin, width: 135, color: AppColors.successDark),
-                                                    RegisterDataCell(_getPos(gstin, v['isInterState'] == true), width: 140),
-                                                    RegisterDataCell((v['voucherNumber'] ?? '').toString(), width: 95, color: AppColors.primary, isBold: true),
-                                                    RegisterDataCell((v['date'] ?? '').toString(), width: 90),
-                                                    const RegisterDataCell('0.00', width: 70, textAlign: TextAlign.right),
-                                                    const RegisterDataCell('Pcs', width: 55, textAlign: TextAlign.center, isMuted: true),
-                                                    const RegisterDataCell('', width: 80),
-                                                    RegisterDataCell(invoiceTotal, width: 115, textAlign: TextAlign.right, isBold: true),
-                                                    const RegisterDataCell('0.00', width: 105, textAlign: TextAlign.right),
-                                                    const RegisterDataCell('0%', width: 60, textAlign: TextAlign.right, isMuted: true),
-                                                    RegisterDataCell((double.tryParse(v['igst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2), width: 85, textAlign: TextAlign.right),
-                                                    RegisterDataCell((double.tryParse(v['cgst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2), width: 85, textAlign: TextAlign.right),
-                                                    RegisterDataCell((double.tryParse(v['sgst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2), width: 85, textAlign: TextAlign.right),
-                                                    RegisterDataCell(cessTotal, width: 75, textAlign: TextAlign.right),
-                                                    buildActions(),
-                                                  ],
-                                                )
-                                              : Column(
-                                                  children: List.generate(items.length, (iIdx) {
-                                                    final item = items[iIdx];
-                                                    return Container(
-                                                      color: iIdx > 0 ? AppColors.cardBg : Colors.transparent,
-                                                      padding: const EdgeInsets.symmetric(vertical: 4),
-                                                      child: Row(
-                                                        children: [
-                                                          SizedBox(width: 40, child: iIdx == 0 ? Center(child: Checkbox(value: isSelected, activeColor: AppColors.primary, onChanged: (val) { setState(() { val == true ? _selectedKeys.add(key) : _selectedKeys.remove(key); }); })) : null),
-                                                          RegisterDataCell(iIdx == 0 ? '${idx + 1}' : '', width: 45, isMuted: true),
-                                                          RegisterDataCell(iIdx == 0 ? GstPartyUtils.extractPartyName(fullParty) : '', width: 180, isBold: true),
-                                                          RegisterDataCell(iIdx == 0 ? gstin : '', width: 135, color: AppColors.successDark),
-                                                          RegisterDataCell(iIdx == 0 ? _getPos(gstin, v['isInterState'] == true) : '', width: 140),
-                                                          RegisterDataCell(iIdx == 0 ? (v['voucherNumber'] ?? '').toString() : '', width: 95, color: AppColors.primary, isBold: true),
-                                                          RegisterDataCell(iIdx == 0 ? (v['date'] ?? '').toString() : '', width: 90),
-                                                          RegisterDataCell((double.tryParse(item['qty']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2), width: 70, textAlign: TextAlign.right),
-                                                          RegisterDataCell((item['unit'] ?? 'Pcs').toString(), width: 55, textAlign: TextAlign.center, isMuted: true),
-                                                          RegisterDataCell((item['hsn'] ?? '').toString(), width: 80),
-                                                          RegisterDataCell(iIdx == 0 ? invoiceTotal : '', width: 115, textAlign: TextAlign.right, isBold: true),
-                                                          RegisterDataCell((double.tryParse(item['taxable']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2), width: 105, textAlign: TextAlign.right),
-                                                          RegisterDataCell('${item['gstRate'] ?? 0}%', width: 60, textAlign: TextAlign.right, isMuted: true),
-                                                          RegisterDataCell((double.tryParse(item['igst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2), width: 85, textAlign: TextAlign.right),
-                                                          RegisterDataCell((double.tryParse(item['cgst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2), width: 85, textAlign: TextAlign.right),
-                                                          RegisterDataCell((double.tryParse(item['sgst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2), width: 85, textAlign: TextAlign.right),
-                                                          RegisterDataCell(iIdx == 0 ? cessTotal : '', width: 75, textAlign: TextAlign.right),
-                                                          iIdx == 0 ? buildActions() : const SizedBox(width: 90),
-                                                        ],
-                                                      ),
-                                                    );
-                                                  }),
-                                                ),
+                                        return Focus(
+                                          focusNode: _rowFocusNodes[idx],
+                                          onFocusChange: (f) { if (f) setState(() => _focusedIndex = idx); },
+                                          onKeyEvent: (_, e) {
+                                            if (e is KeyDownEvent) {
+                                              if (KeyboardShortcutService.isConfirm(e.logicalKey)) { _editVoucher(v); return KeyEventResult.handled; }
+                                              if (KeyboardShortcutService.isDown(e.logicalKey)) {
+                                                if (idx + 1 < _rowFocusNodes.length) { _rowFocusNodes[idx + 1].requestFocus(); } else if (_rowFocusNodes.isNotEmpty) { _rowFocusNodes[0].requestFocus(); }
+                                                return KeyEventResult.handled;
+                                              }
+                                              if (KeyboardShortcutService.isUp(e.logicalKey)) {
+                                                if (idx - 1 >= 0) { _rowFocusNodes[idx - 1].requestFocus(); } else if (_rowFocusNodes.isNotEmpty) { _rowFocusNodes[_rowFocusNodes.length - 1].requestFocus(); }
+                                                return KeyEventResult.handled;
+                                              }
+                                            }
+                                            return KeyEventResult.ignored;
+                                          },
+                                          child: GestureDetector(
+                                            onDoubleTap: () => _editVoucher(v),
+                                            onTap: () { setState(() => _focusedIndex = idx); _rowFocusNodes[idx].requestFocus(); },
+                                            child: Container(
+                                              decoration: BoxDecoration(color: isFocused ? AppColors.primaryLight : (isSelected ? AppColors.primaryLight.withValues(alpha: 0.5) : Colors.white), border: isFocused ? Border.all(color: AppColors.primary, width: 1.5) : null, borderRadius: isFocused ? BorderRadius.circular(6) : null),
+                                              child: items.isEmpty
+                                                  ? Row(
+                                                      children: [
+                                                        SizedBox(width: 40, child: Center(child: Checkbox(value: isSelected, activeColor: AppColors.primary, onChanged: (val) { setState(() { val == true ? _selectedKeys.add(key) : _selectedKeys.remove(key); }); }))),
+                                                        RegisterDataCell('${idx + 1}', width: 45, isMuted: true),
+                                                        RegisterDataCell(GstPartyUtils.extractPartyName(fullParty), width: 180, isBold: true),
+                                                        RegisterDataCell(gstin, width: 135, color: AppColors.successDark),
+                                                        RegisterDataCell(_getPos(gstin, v['isInterState'] == true), width: 140),
+                                                        RegisterDataCell((v['voucherNumber'] ?? '').toString(), width: 95, color: AppColors.primary, isBold: true),
+                                                        RegisterDataCell((v['date'] ?? '').toString(), width: 90),
+                                                        const RegisterDataCell('0.00', width: 70, textAlign: TextAlign.right),
+                                                        const RegisterDataCell('Pcs', width: 55, textAlign: TextAlign.center, isMuted: true),
+                                                        const RegisterDataCell('', width: 80),
+                                                        RegisterDataCell(invoiceTotal, width: 115, textAlign: TextAlign.right, isBold: true),
+                                                        const RegisterDataCell('0.00', width: 105, textAlign: TextAlign.right),
+                                                        const RegisterDataCell('0%', width: 60, textAlign: TextAlign.right, isMuted: true),
+                                                        RegisterDataCell((double.tryParse(v['igst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2), width: 85, textAlign: TextAlign.right),
+                                                        RegisterDataCell((double.tryParse(v['cgst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2), width: 85, textAlign: TextAlign.right),
+                                                        RegisterDataCell((double.tryParse(v['sgst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2), width: 85, textAlign: TextAlign.right),
+                                                        RegisterDataCell(cessTotal, width: 75, textAlign: TextAlign.right),
+                                                        buildActions(),
+                                                      ],
+                                                    )
+                                                  : Column(
+                                                      children: List.generate(items.length, (iIdx) {
+                                                        final item = items[iIdx];
+                                                        return Container(
+                                                          color: iIdx > 0 ? AppColors.cardBg : Colors.transparent,
+                                                          padding: const EdgeInsets.symmetric(vertical: 4),
+                                                          child: Row(
+                                                            children: [
+                                                              SizedBox(width: 40, child: iIdx == 0 ? Center(child: Checkbox(value: isSelected, activeColor: AppColors.primary, onChanged: (val) { setState(() { val == true ? _selectedKeys.add(key) : _selectedKeys.remove(key); }); })) : null),
+                                                              RegisterDataCell(iIdx == 0 ? '${idx + 1}' : '', width: 45, isMuted: true),
+                                                              RegisterDataCell(iIdx == 0 ? GstPartyUtils.extractPartyName(fullParty) : '', width: 180, isBold: true),
+                                                              RegisterDataCell(iIdx == 0 ? gstin : '', width: 135, color: AppColors.successDark),
+                                                              RegisterDataCell(iIdx == 0 ? _getPos(gstin, v['isInterState'] == true) : '', width: 140),
+                                                              RegisterDataCell(iIdx == 0 ? (v['voucherNumber'] ?? '').toString() : '', width: 95, color: AppColors.primary, isBold: true),
+                                                              RegisterDataCell(iIdx == 0 ? (v['date'] ?? '').toString() : '', width: 90),
+                                                              RegisterDataCell((double.tryParse(item['qty']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2), width: 70, textAlign: TextAlign.right),
+                                                              RegisterDataCell((item['unit'] ?? 'Pcs').toString(), width: 55, textAlign: TextAlign.center, isMuted: true),
+                                                              RegisterDataCell((item['hsn'] ?? '').toString(), width: 80),
+                                                              RegisterDataCell(iIdx == 0 ? invoiceTotal : '', width: 115, textAlign: TextAlign.right, isBold: true),
+                                                              RegisterDataCell((double.tryParse(item['taxable']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2), width: 105, textAlign: TextAlign.right),
+                                                              RegisterDataCell('${item['gstRate'] ?? 0}%', width: 60, textAlign: TextAlign.right, isMuted: true),
+                                                              RegisterDataCell((double.tryParse(item['igst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2), width: 85, textAlign: TextAlign.right),
+                                                              RegisterDataCell((double.tryParse(item['cgst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2), width: 85, textAlign: TextAlign.right),
+                                                              RegisterDataCell((double.tryParse(item['sgst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2), width: 85, textAlign: TextAlign.right),
+                                                              RegisterDataCell(iIdx == 0 ? cessTotal : '', width: 75, textAlign: TextAlign.right),
+                                                              iIdx == 0 ? buildActions() : const SizedBox(width: 90),
+                                                            ],
+                                                          ),
+                                                        );
+                                                      }),
+                                                    ),
+                                            ),
+                                          ),
                                         );
                                       },
                                     ),
