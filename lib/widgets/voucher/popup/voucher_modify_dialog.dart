@@ -149,7 +149,7 @@ class _VoucherModifyDialogState extends State<VoucherModifyDialog> {
                 Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0F62FE).withOpacity(0.1),
+                    color: const Color(0xFF0F62FE).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(Icons.edit_note_rounded, color: Color(0xFF0F62FE), size: 20),

@@ -197,12 +197,12 @@ class _CalculatorDialogState extends State<CalculatorDialog> {
                   width: 280,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF101B3A).withOpacity(0.96),
+                    color: const Color(0xFF101B3A).withValues(alpha: 0.96),
                     borderRadius: BorderRadius.circular(22),
                     boxShadow: const [
                       BoxShadow(color: Color(0x33092B60), blurRadius: 24, offset: Offset(0, 10)),
                     ],
-                    border: Border.all(color: Colors.white.withOpacity(0.12), width: 1.2),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.12), width: 1.2),
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -213,7 +213,7 @@ class _CalculatorDialogState extends State<CalculatorDialog> {
                           Container(
                             padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF0F62FE).withOpacity(0.2),
+                              color: const Color(0xFF0F62FE).withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: const Icon(Icons.calculate_rounded, color: Color(0xFF0F62FE), size: 15),
@@ -239,7 +239,7 @@ class _CalculatorDialogState extends State<CalculatorDialog> {
                         decoration: BoxDecoration(
                           color: const Color(0xFF1E293B),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white.withOpacity(0.06)),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
                         ),
                         child: TextField(
                           controller: _displayCtrl,

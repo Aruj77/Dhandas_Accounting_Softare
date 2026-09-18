@@ -46,8 +46,8 @@ class ModernGlassCard extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  gradientColors.first.withOpacity(0.92),
-                  gradientColors.last.withOpacity(0.96),
+                  gradientColors.first.withValues(alpha: 0.92),
+                  gradientColors.last.withValues(alpha: 0.96),
                 ],
               ),
               borderRadius: BorderRadius.circular(22),
@@ -99,7 +99,7 @@ class HomeCardHeader extends StatelessWidget {
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: [
                     BoxShadow(
-                      color: badgeGradient.last.withOpacity(0.35),
+                      color: badgeGradient.last.withValues(alpha: 0.35),
                       blurRadius: 12,
                       offset: const Offset(0, 5),
                     ),

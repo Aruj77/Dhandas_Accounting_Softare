@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../constants/app_shortcuts.dart';
+import '../../constants/app_shortcuts.dart';
 import '../../models/party_master_model.dart';
 
 class VoucherHeaderCard extends StatelessWidget {
@@ -10,11 +10,11 @@ class VoucherHeaderCard extends StatelessWidget {
   final String? dateError;
   final TextEditingController vchNoController;
   final FocusNode vchNoFocus;
-  final TextEditingController saleTypeController;
-  final FocusNode saleTypeFocus;
   final TextEditingController partyController;
   final FocusNode partyFocus;
   final List<PartyMasterModel> availableParties;
+  final TextEditingController saleTypeController;
+  final FocusNode saleTypeFocus;
   final TextEditingController matCenterController;
   final FocusNode matCenterFocus;
   final TextEditingController narrationController;
@@ -33,11 +33,11 @@ class VoucherHeaderCard extends StatelessWidget {
     required this.dateError,
     required this.vchNoController,
     required this.vchNoFocus,
-    required this.saleTypeController,
-    required this.saleTypeFocus,
     required this.partyController,
     required this.partyFocus,
     required this.availableParties,
+    required this.saleTypeController,
+    required this.saleTypeFocus,
     required this.matCenterController,
     required this.matCenterFocus,
     required this.narrationController,
@@ -71,6 +71,7 @@ class VoucherHeaderCard extends StatelessWidget {
       ),
       child: Column(
         children: [
+          // Row 1: Series, Date, Voucher Number (widened), Party (placed before taxation)
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -78,7 +79,7 @@ class VoucherHeaderCard extends StatelessWidget {
                 label: 'Series',
                 controller: seriesController,
                 focusNode: seriesFocus,
-                width: 110,
+                width: 100,
                 icon: Icons.tag_rounded,
                 onAdd: () => onQuickAdd('Series'),
                 onSubmitted: () => dateFocus.requestFocus(),
@@ -89,7 +90,7 @@ class VoucherHeaderCard extends StatelessWidget {
                 controller: dateController,
                 focusNode: dateFocus,
                 errorText: dateError,
-                width: 145,
+                width: 135,
                 onSubmitted: () {
                   onValidateDate();
                   vchNoFocus.requestFocus();
@@ -100,22 +101,24 @@ class VoucherHeaderCard extends StatelessWidget {
                 label: 'Voucher Number',
                 controller: vchNoController,
                 focusNode: vchNoFocus,
-                width: 145,
+                width: 165, // Widened slightly
                 icon: Icons.confirmation_number_outlined,
-                onSubmitted: () => saleTypeFocus.requestFocus(),
+                onSubmitted: () => partyFocus.requestFocus(),
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: _buildSaleTypeField(),
+                flex: 4,
+                child: _buildPartyField(), // Party placed before Taxation
               ),
             ],
           ),
           const SizedBox(height: 8),
+          // Row 2: Sale Type (Taxation), Material Centre, Narration
           Row(
             children: [
               Expanded(
-                flex: 5,
-                child: _buildPartyField(),
+                flex: 4,
+                child: _buildSaleTypeField(), // Taxation/Sale Type follows Party
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -131,7 +134,7 @@ class VoucherHeaderCard extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Expanded(
-                flex: 4,
+                flex: 5,
                 child: _buildPlainField(
                   label: 'Narration / Remarks',
                   controller: narrationController,
@@ -168,7 +171,7 @@ class VoucherHeaderCard extends StatelessWidget {
           },
           onSelected: (String selection) {
             saleTypeController.text = selection;
-            partyFocus.requestFocus();
+            matCenterFocus.requestFocus();
           },
           optionsViewBuilder: (context, onSelected, options) {
             return Align(
@@ -233,7 +236,7 @@ class VoucherHeaderCard extends StatelessWidget {
                   textInputAction: TextInputAction.next,
                   onSubmitted: (_) {
                     onFieldSubmitted();
-                    partyFocus.requestFocus();
+                    matCenterFocus.requestFocus();
                   },
                   style: const TextStyle(
                     fontSize: 12,
@@ -301,7 +304,7 @@ class VoucherHeaderCard extends StatelessWidget {
           },
           onSelected: (PartyMasterModel selection) {
             partyController.text = selection.displayName;
-            matCenterFocus.requestFocus();
+            saleTypeFocus.requestFocus();
           },
           optionsViewBuilder: (context, onSelected, options) {
             return Align(
@@ -390,7 +393,7 @@ class VoucherHeaderCard extends StatelessWidget {
                   textInputAction: TextInputAction.next,
                   onSubmitted: (_) {
                     onFieldSubmitted();
-                    matCenterFocus.requestFocus();
+                    saleTypeFocus.requestFocus();
                   },
                   style: const TextStyle(
                     fontSize: 12,

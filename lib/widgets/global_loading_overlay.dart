@@ -42,7 +42,7 @@ class GlobalLoadingOverlay extends StatelessWidget {
                               vertical: 22,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.95),
+                              color: Colors.white.withValues(alpha: 0.95),
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
                                 color: const Color(0xFFDCE6F5),

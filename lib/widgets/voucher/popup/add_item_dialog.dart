@@ -344,7 +344,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
         SizedBox(
           height: 38,
           child: DropdownButtonFormField<String>(
-            value: value,
+            initialValue: value,
             items: items
                 .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700))))
                 .toList(),
