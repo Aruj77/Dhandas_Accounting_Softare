@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../constants/app_colors.dart';
 
 class TopBar extends StatefulWidget {
   const TopBar({super.key});
@@ -33,8 +34,8 @@ class _TopBarState extends State<TopBar> {
                   Container(
                     width: 36,
                     height: 36,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF7E8EA6),
+                    decoration: BoxDecoration(
+                      color: AppColors.border,
                       shape: BoxShape.circle,
                     ),
                     alignment: Alignment.center,
@@ -57,7 +58,7 @@ class _TopBarState extends State<TopBar> {
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w500,
-                          color: Color(0xFF7E8DA6),
+                          color: AppColors.textMuted,
                         ),
                       ),
                       SizedBox(height: 1),
@@ -66,7 +67,7 @@ class _TopBarState extends State<TopBar> {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF142240),
+                          color: AppColors.textPrimary,
                         ),
                       ),
                     ],
@@ -76,7 +77,7 @@ class _TopBarState extends State<TopBar> {
                     menuOpen
                         ? Icons.keyboard_arrow_up_rounded
                         : Icons.keyboard_arrow_down_rounded,
-                    color: const Color(0xFF677793),
+                    color: AppColors.textSecondary,
                     size: 18,
                   ),
                 ],

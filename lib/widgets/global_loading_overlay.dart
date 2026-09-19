@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../services/loading_service.dart';
+import '../constants/app_colors.dart';
 
 class GlobalLoadingOverlay extends StatelessWidget {
   final Widget child;
@@ -33,7 +34,7 @@ class GlobalLoadingOverlay extends StatelessWidget {
                           sigmaY: 5.0 * animValue,
                         ),
                         child: Container(
-                          color: const Color(0x350A1329),
+                          color: AppColors.overlayWhite10,
                           alignment: Alignment.center,
                           child: Container(
                             width: 280,
@@ -45,12 +46,12 @@ class GlobalLoadingOverlay extends StatelessWidget {
                               color: Colors.white.withValues(alpha: 0.95),
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
-                                color: const Color(0xFFDCE6F5),
+                                color: AppColors.border,
                                 width: 1.2,
                               ),
                               boxShadow: const [
                                 BoxShadow(
-                                  color: Color(0x1E0D1B3E),
+                                  color: AppColors.shadowColor,
                                   blurRadius: 36,
                                   offset: Offset(0, 14),
                                 ),
@@ -67,14 +68,14 @@ class GlobalLoadingOverlay extends StatelessWidget {
                                       begin: Alignment.topLeft,
                                       end: Alignment.bottomRight,
                                       colors: [
-                                        Color(0xFF2E7CF6),
-                                        Color(0xFF0F62FE),
+                                        AppColors.primary,
+                                        AppColors.primaryDark,
                                       ],
                                     ),
                                     borderRadius: BorderRadius.circular(14),
                                     boxShadow: const [
                                       BoxShadow(
-                                        color: Color(0x350F62FE),
+                                        color: AppColors.shadowGlow,
                                         blurRadius: 12,
                                         offset: Offset(0, 4),
                                       ),
@@ -101,7 +102,7 @@ class GlobalLoadingOverlay extends StatelessWidget {
                                   style: const TextStyle(
                                     fontSize: 13.5,
                                     fontWeight: FontWeight.w700,
-                                    color: Color(0xFF0F1B38),
+                                    color: AppColors.textPrimary,
                                     letterSpacing: -0.2,
                                     decoration: TextDecoration.none,
                                   ),
@@ -112,7 +113,7 @@ class GlobalLoadingOverlay extends StatelessWidget {
                                   style: TextStyle(
                                     fontSize: 11.5,
                                     fontWeight: FontWeight.w500,
-                                    color: Color(0xFF6B7B9A),
+                                    color: AppColors.textSecondary,
                                     decoration: TextDecoration.none,
                                   ),
                                 ),

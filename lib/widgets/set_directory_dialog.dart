@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import '../services/storage_service.dart';
+import '../constants/app_colors.dart';
 
 class SetDirectoryDialog extends StatefulWidget {
   final String? initialPath;
@@ -73,12 +74,12 @@ class _SetDirectoryDialogState extends State<SetDirectoryDialog> {
         child: Container(
           width: 620,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.surface,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: const Color(0xFFDCE6F2), width: 1.2),
+            border: Border.all(color: AppColors.border, width: 1.2),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x240A1838),
+                color: AppColors.shadowColor,
                 blurRadius: 40,
                 offset: Offset(0, 16),
               ),
@@ -93,9 +94,9 @@ class _SetDirectoryDialogState extends State<SetDirectoryDialog> {
                 Container(
                   padding: const EdgeInsets.fromLTRB(28, 22, 20, 22),
                   decoration: const BoxDecoration(
-                    color: Color(0xFFFAFBFD),
+                    color: AppColors.cardBg,
                     border: Border(
-                      bottom: BorderSide(color: Color(0xFFE5EDF7), width: 1.2),
+                      bottom: BorderSide(color: AppColors.border, width: 1.2),
                     ),
                   ),
                   child: Row(
@@ -104,19 +105,17 @@ class _SetDirectoryDialogState extends State<SetDirectoryDialog> {
                         width: 44,
                         height: 44,
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFFBB323), Color(0xFFEB9500)],
-                          ),
+                          gradient: AppColors.folderGradient,
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: const [
                             BoxShadow(
-                              color: Color(0x35F39E00),
+                              color: AppColors.folderShadow,
                               blurRadius: 10,
                               offset: Offset(0, 3),
                             ),
                           ],
                         ),
-                        child: const Icon(Icons.folder_rounded, color: Colors.white, size: 24),
+                        child: const Icon(Icons.folder_rounded, color: AppColors.surface, size: 24),
                       ),
                       const SizedBox(width: 16),
                       const Expanded(
@@ -128,7 +127,7 @@ class _SetDirectoryDialogState extends State<SetDirectoryDialog> {
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w900,
-                                color: Color(0xFF101C38),
+                                color: AppColors.textPrimary,
                                 letterSpacing: -0.3,
                               ),
                             ),
@@ -138,7 +137,7 @@ class _SetDirectoryDialogState extends State<SetDirectoryDialog> {
                               style: TextStyle(
                                 fontSize: 12.5,
                                 fontWeight: FontWeight.w500,
-                                color: Color(0xFF657593),
+                                color: AppColors.textSecondary,
                               ),
                             ),
                           ],
@@ -147,7 +146,7 @@ class _SetDirectoryDialogState extends State<SetDirectoryDialog> {
                       IconButton(
                         onPressed: () => Navigator.of(context).pop(),
                         icon: const Icon(Icons.close_rounded),
-                        color: const Color(0xFF677797),
+                        color: AppColors.textSecondary,
                         splashRadius: 20,
                       ),
                     ],
@@ -165,7 +164,7 @@ class _SetDirectoryDialogState extends State<SetDirectoryDialog> {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF14213F),
+                          color: AppColors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -177,21 +176,21 @@ class _SetDirectoryDialogState extends State<SetDirectoryDialog> {
                               style: const TextStyle(
                                 fontSize: 13.5,
                                 fontWeight: FontWeight.w600,
-                                color: Color(0xFF101C38),
+                                color: AppColors.textPrimary,
                               ),
                               decoration: InputDecoration(
                                 hintText: 'C:\\Dhandas\\Data',
                                 hintStyle: const TextStyle(
                                   fontSize: 13,
-                                  color: Color(0xFF90A1B9),
+                                  color: AppColors.textMuted,
                                 ),
                                 prefixIcon: const Icon(
                                   Icons.folder_open_rounded,
-                                  color: Color(0xFFEB9500),
+                                  color: AppColors.folderAmber,
                                   size: 20,
                                 ),
                                 filled: true,
-                                fillColor: const Color(0xFFF9FBFE),
+                                fillColor: AppColors.cardBg,
                                 contentPadding: const EdgeInsets.symmetric(
                                   horizontal: 16,
                                   vertical: 14,
@@ -199,14 +198,14 @@ class _SetDirectoryDialogState extends State<SetDirectoryDialog> {
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(14),
                                   borderSide: const BorderSide(
-                                    color: Color(0xFFD6E3F2),
+                                    color: AppColors.borderFocus,
                                     width: 1.2,
                                   ),
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(14),
                                   borderSide: const BorderSide(
-                                    color: Color(0xFFEB9500),
+                                    color: AppColors.folderAmber,
                                     width: 1.5,
                                   ),
                                 ),
@@ -217,7 +216,7 @@ class _SetDirectoryDialogState extends State<SetDirectoryDialog> {
                           ElevatedButton.icon(
                             onPressed: _pickDirectory,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFEB9500),
+                              backgroundColor: AppColors.folderAmber,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 18,
                                 vertical: 16,
@@ -226,11 +225,11 @@ class _SetDirectoryDialogState extends State<SetDirectoryDialog> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
-                            icon: const Icon(Icons.drive_file_move_rounded, color: Colors.white, size: 18),
+                            icon: const Icon(Icons.drive_file_move_rounded, color: AppColors.surface, size: 18),
                             label: const Text(
                               'Browse',
                               style: TextStyle(
-                                color: Colors.white,
+                                color: AppColors.surface,
                                 fontWeight: FontWeight.w700,
                                 fontSize: 13,
                               ),
@@ -244,7 +243,7 @@ class _SetDirectoryDialogState extends State<SetDirectoryDialog> {
                           _errorMessage!,
                           style: const TextStyle(
                             fontSize: 12,
-                            color: Color(0xFFEE4343),
+                            color: AppColors.error,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -253,21 +252,21 @@ class _SetDirectoryDialogState extends State<SetDirectoryDialog> {
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFFFBEF),
+                          color: AppColors.warningLight,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFFFE8B2)),
+                          border: Border.all(color: AppColors.warningBorder),
                         ),
                         child: const Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(Icons.info_outline_rounded, color: Color(0xFFD98200), size: 18),
+                            Icon(Icons.info_outline_rounded, color: AppColors.warning, size: 18),
                             SizedBox(width: 10),
                             Expanded(
                               child: Text(
                                 'Dhandas will automatically save this path and remember it on all future app startups. Companies created will be written as secure JSON databases in this folder.',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Color(0xFF7A5813),
+                                  color: AppColors.warningText,
                                   height: 1.4,
                                 ),
                               ),
@@ -283,9 +282,9 @@ class _SetDirectoryDialogState extends State<SetDirectoryDialog> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 18),
                   decoration: const BoxDecoration(
-                    color: Color(0xFFFAFBFD),
+                    color: AppColors.cardBg,
                     border: Border(
-                      top: BorderSide(color: Color(0xFFE5EDF7), width: 1.2),
+                      top: BorderSide(color: AppColors.border, width: 1.2),
                     ),
                   ),
                   child: Row(
@@ -294,8 +293,8 @@ class _SetDirectoryDialogState extends State<SetDirectoryDialog> {
                       OutlinedButton(
                         onPressed: () => Navigator.of(context).pop(),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF475569),
-                          side: const BorderSide(color: Color(0xFFCBD5E1)),
+                          foregroundColor: AppColors.textSecondary,
+                          side: const BorderSide(color: AppColors.border),
                           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
@@ -305,7 +304,7 @@ class _SetDirectoryDialogState extends State<SetDirectoryDialog> {
                       ElevatedButton(
                         onPressed: _confirmDirectory,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF0F62FE),
+                          backgroundColor: AppColors.primary,
                           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
@@ -314,7 +313,7 @@ class _SetDirectoryDialogState extends State<SetDirectoryDialog> {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            color: Colors.white,
+                            color: AppColors.surface,
                           ),
                         ),
                       ),

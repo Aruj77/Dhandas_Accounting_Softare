@@ -155,7 +155,6 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
 
       final targetType = widget.voucherType.toLowerCase().trim();
 
-      // Collect all series dynamically present in the vouchers
       for (final v in allVouchers) {
         final s = (v['series'] ?? v['seriesName'] ?? '').toString().trim();
         if (s.isNotEmpty && !_availableSeries.contains(s)) {
@@ -164,7 +163,6 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
       }
 
       final matching = allVouchers.where((v) {
-        // 1. Voucher Type Matching
         final vchType = (v['voucherType'] ?? '').toString().toLowerCase().trim();
         bool typeMatches = vchType.isEmpty ||
             vchType == targetType ||
@@ -172,7 +170,6 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
             targetType.contains(vchType);
         if (!typeMatches) return false;
 
-        // 2. Strict Series Filter
         if (_selectedSeries.toLowerCase() != 'all') {
           final rawSeries = (v['series'] ?? v['seriesName'] ?? '').toString().trim();
           final voucherSeries = rawSeries.isEmpty ? 'Main' : rawSeries;
@@ -181,9 +178,8 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
           }
         }
 
-        // 3. Date Range Filter
         final dt = AppDateUtils.parseDate(v['date']?.toString());
-        if (dt == null) return true; // Failsafe include if date parsing yields null
+        if (dt == null) return true;
 
         final start = DateTime(widget.fromDate.year, widget.fromDate.month, widget.fromDate.day);
         final end = DateTime(widget.toDate.year, widget.toDate.month, widget.toDate.day, 23, 59, 59);
@@ -362,13 +358,13 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: Colors.white,
+          backgroundColor: AppColors.surface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Row(
             children: [
               Icon(Icons.view_column_rounded, color: AppColors.primary, size: 22),
               SizedBox(width: 8),
-              Text('Customize Columns', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+              Text('Customize Columns', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
             ],
           ),
           content: SizedBox(
@@ -390,7 +386,7 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
                           style: TextStyle(
                             fontSize: 12.5,
                             fontWeight: FontWeight.w700,
-                            color: hasData ? const Color(0xFF1E293B) : AppColors.textMuted,
+                            color: hasData ? AppColors.textPrimary : AppColors.textMuted,
                           ),
                         ),
                         if (!hasData) ...[
@@ -425,12 +421,12 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
                 });
                 setState(() {});
               },
-              child: const Text('Check All'),
+              child: const Text('Check All', style: TextStyle(color: AppColors.primary)),
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(ctx),
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-              child: const Text('Apply', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+              child: const Text('Apply', style: TextStyle(color: AppColors.surface, fontWeight: FontWeight.w700)),
             ),
           ],
         ),
@@ -456,7 +452,7 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
           Widget buildSidebarCard(String title, IconData icon, List<Widget> children) => Container(
                 padding: const EdgeInsets.all(12),
                 margin: const EdgeInsets.only(bottom: 14),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.border)),
+                decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.border)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -468,7 +464,7 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
               );
 
           return Dialog(
-            backgroundColor: Colors.white,
+            backgroundColor: AppColors.surface,
             clipBehavior: Clip.antiAlias,
             insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -480,12 +476,12 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
                   Container(
                     height: 54,
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    decoration: const BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: AppColors.border, width: 1.2))),
+                    decoration: const BoxDecoration(color: AppColors.surface, border: Border(bottom: BorderSide(color: AppColors.border, width: 1.2))),
                     child: Row(
                       children: [
                         Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(8)), child: const Icon(Icons.print_rounded, size: 18, color: AppColors.primary)),
                         const SizedBox(width: 10),
-                        Text('Print Studio — ${widget.voucherType} Register', style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w900, color: Color(0xFF101C38))),
+                        Text('Print Studio — ${widget.voucherType} Register', style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
                         const SizedBox(width: 8),
                         Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3), decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(6)), child: Text('${isLegal ? 'Legal' : 'A4'} • ${isLandscape ? 'Landscape' : 'Portrait'}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.primary))),
                         const Spacer(),
@@ -498,7 +494,7 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
                           label: const Text('Reset Defaults', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textSecondary)),
                         ),
                         const SizedBox(width: 8),
-                        IconButton(icon: const Icon(Icons.close_rounded, size: 20, color: Color(0xFF6B7B9B)), onPressed: () => Navigator.pop(ctx)),
+                        IconButton(icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textSecondary), onPressed: () => Navigator.pop(ctx)),
                       ],
                     ),
                   ),
@@ -512,34 +508,34 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
                             padding: const EdgeInsets.all(16),
                             children: [
                               buildSidebarCard('PAGE LAYOUT', Icons.description_rounded, [
-                                const Text('Orientation', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF334155))),
+                                const Text('Orientation', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
                                 const SizedBox(height: 6),
                                 SegmentedButton<bool>(
                                   segments: const [ButtonSegment(value: true, label: Text('Landscape', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))), ButtonSegment(value: false, label: Text('Portrait', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)))],
                                   selected: {isLandscape},
                                   showSelectedIcon: false,
-                                  style: SegmentedButton.styleFrom(selectedBackgroundColor: AppColors.primary, selectedForegroundColor: Colors.white),
+                                  style: SegmentedButton.styleFrom(selectedBackgroundColor: AppColors.primary, selectedForegroundColor: AppColors.surface),
                                   onSelectionChanged: (val) => setPrintDialogState(() => isLandscape = val.first),
                                 ),
                                 const SizedBox(height: 12),
-                                const Text('Paper Size', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF334155))),
+                                const Text('Paper Size', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
                                 const SizedBox(height: 6),
                                 SegmentedButton<bool>(
                                   segments: const [ButtonSegment(value: false, label: Text('A4', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))), ButtonSegment(value: true, label: Text('Legal', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)))],
                                   selected: {isLegal},
                                   showSelectedIcon: false,
-                                  style: SegmentedButton.styleFrom(selectedBackgroundColor: AppColors.primary, selectedForegroundColor: Colors.white),
+                                  style: SegmentedButton.styleFrom(selectedBackgroundColor: AppColors.primary, selectedForegroundColor: AppColors.surface),
                                   onSelectionChanged: (val) => setPrintDialogState(() => isLegal = val.first),
                                 ),
                               ]),
                               buildSidebarCard('PAGE MARGINS', Icons.border_outer_rounded, [
-                                Row(children: [Text('Margin: ${selectedMargin.toInt()} pt', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)), const Spacer()]),
+                                Row(children: [Text('Margin: ${selectedMargin.toInt()} pt', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textPrimary)), const Spacer()]),
                                 Slider(value: selectedMargin, min: 8.0, max: 45.0, divisions: 37, activeColor: AppColors.primary, onChanged: (val) => setPrintDialogState(() => selectedMargin = val)),
                               ]),
                               buildSidebarCard('TABLE SCALING', Icons.tune_rounded, [
-                                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('Party Flex', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)), Text('${(columnScale * 100).toInt()}%', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.primary))]),
+                                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('Party Flex', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textPrimary)), Text('${(columnScale * 100).toInt()}%', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.primary))]),
                                 Slider(value: columnScale, min: 0.8, max: 1.6, divisions: 8, activeColor: AppColors.primary, onChanged: (val) => setPrintDialogState(() => columnScale = val)),
-                                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('Font Size', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)), Text('${tableFontSize.toStringAsFixed(1)} pt', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.primary))]),
+                                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('Font Size', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textPrimary)), Text('${tableFontSize.toStringAsFixed(1)} pt', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.primary))]),
                                 Slider(value: tableFontSize, min: 7.0, max: 10.5, divisions: 7, activeColor: AppColors.primary, onChanged: (val) => setPrintDialogState(() => tableFontSize = val)),
                               ]),
                             ],
@@ -550,7 +546,7 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
                             color: AppColors.background,
                             child: Theme(
                               data: Theme.of(context).copyWith(
-                                appBarTheme: const AppBarTheme(backgroundColor: Colors.white, elevation: 0, iconTheme: IconThemeData(color: AppColors.primary)),
+                                appBarTheme: const AppBarTheme(backgroundColor: AppColors.surface, elevation: 0, iconTheme: IconThemeData(color: AppColors.primary)),
                                 primaryColor: AppColors.primary,
                                 scaffoldBackgroundColor: AppColors.background,
                               ),
@@ -664,19 +660,19 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
           Container(
             height: 56,
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            decoration: const BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: AppColors.border, width: 1.2))),
+            decoration: const BoxDecoration(color: AppColors.surface, border: Border(bottom: BorderSide(color: AppColors.border, width: 1.2))),
             child: Row(
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF2C7BF6), AppColors.primary]), borderRadius: BorderRadius.circular(8)),
-                  child: Row(children: [const Icon(Icons.format_list_bulleted_rounded, size: 16, color: Colors.white), const SizedBox(width: 6), Text('${widget.voucherType.toUpperCase()} REGISTER', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 0.5))]),
+                  decoration: BoxDecoration(gradient: const LinearGradient(colors: [AppColors.primaryAccent, AppColors.primary]), borderRadius: BorderRadius.circular(8)),
+                  child: Row(children: [const Icon(Icons.format_list_bulleted_rounded, size: 16, color: AppColors.surface), const SizedBox(width: 6), Text('${widget.voucherType.toUpperCase()} REGISTER', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: AppColors.surface, letterSpacing: 0.5))]),
                 ),
                 const SizedBox(width: 12),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(6), border: Border.all(color: const Color(0xFFD6E3F4))),
-                  child: Text('F.Y. $fy (${AppDateUtils.formatDate(widget.fromDate)} to ${AppDateUtils.formatDate(widget.toDate)})', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF101C38))),
+                  decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(6), border: Border.all(color: AppColors.borderFocus)),
+                  child: Text('F.Y. $fy (${AppDateUtils.formatDate(widget.fromDate)} to ${AppDateUtils.formatDate(widget.toDate)})', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
                 ),
                 const SizedBox(width: 10),
 
@@ -685,7 +681,7 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
                   height: 32,
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.surface,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: AppColors.primary.withValues(alpha: 0.4), width: 1.2),
                   ),
@@ -713,12 +709,12 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
                   ),
                 ),
                 const Spacer(),
-                TextButton.icon(onPressed: _openColumnSettingsDialog, icon: const Icon(Icons.view_column_rounded, size: 16, color: Color(0xFF0284C7)), label: const Text('Columns', style: TextStyle(color: Color(0xFF0284C7), fontWeight: FontWeight.bold))),
+                TextButton.icon(onPressed: _openColumnSettingsDialog, icon: const Icon(Icons.view_column_rounded, size: 16, color: AppColors.info), label: const Text('Columns', style: TextStyle(color: AppColors.info, fontWeight: FontWeight.bold))),
                 TextButton.icon(onPressed: _handleExcelExport, icon: const Icon(Icons.table_view_rounded, size: 16, color: AppColors.success), label: const Text('Excel', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold))),
                 TextButton.icon(onPressed: _exportToJson, icon: const Icon(Icons.data_object_rounded, size: 16, color: AppColors.purple), label: const Text('JSON', style: TextStyle(color: AppColors.purple, fontWeight: FontWeight.bold))),
                 TextButton.icon(onPressed: _triggerPrint, icon: const Icon(Icons.print_rounded, size: 16, color: AppColors.primary), label: const Text('Print', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold))),
                 const SizedBox(width: 8),
-                IconButton(icon: const Icon(Icons.close_rounded, size: 20, color: Color(0xFF6B7B9B)), onPressed: widget.onClose),
+                IconButton(icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textSecondary), onPressed: widget.onClose),
               ],
             ),
           ),
@@ -736,7 +732,7 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
                         hintText: 'Search by Voucher, Party, GSTIN, HSN...',
                         prefixIcon: const Icon(Icons.search_rounded, size: 17, color: AppColors.primary),
                         filled: true,
-                        fillColor: Colors.white,
+                        fillColor: AppColors.surface,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.border)),
                         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.primary, width: 1.3)),
@@ -747,7 +743,7 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
                 const SizedBox(width: 12),
                 QuickMetricBadge(label: 'Total Invoices', value: '${_summary.totalInvoices}', color: AppColors.primaryDark),
                 const SizedBox(width: 8),
-                QuickMetricBadge(label: 'Total Qty', value: _summary.totalQuantity.toStringAsFixed(2), color: const Color(0xFF0284C7)),
+                QuickMetricBadge(label: 'Total Qty', value: _summary.totalQuantity.toStringAsFixed(2), color: AppColors.info),
                 const SizedBox(width: 8),
                 QuickMetricBadge(label: 'Taxable Val', value: '₹${_summary.totalTaxable.toStringAsFixed(2)}', color: AppColors.purple),
                 const SizedBox(width: 8),
@@ -758,7 +754,7 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
           Expanded(
             child: Container(
               margin: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.border, width: 1.2)),
+              decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.border, width: 1.2)),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(14),
                 child: LayoutBuilder(
@@ -807,7 +803,7 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
                                         width: dynamicWidth,
                                         child: ListView.separated(
                                           itemCount: _filtered.length,
-                                          separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5FB)),
+                                          separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.borderLight),
                                           itemBuilder: (context, idx) {
                                             final v = _filtered[idx], fullParty = (v['party'] ?? '').toString(), gstin = GstPartyUtils.extractPartyGstin(fullParty);
                                             final isInter = v['isInterState'] == true, items = v['items'] as List? ?? [];
@@ -917,7 +913,7 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
                             height: 38,
                             decoration: const BoxDecoration(
                               color: AppColors.background,
-                              border: Border(top: BorderSide(color: Color(0xFFD6E3F4), width: 1.2)),
+                              border: Border(top: BorderSide(color: AppColors.borderFocus, width: 1.2)),
                             ),
                             child: Row(
                               children: [

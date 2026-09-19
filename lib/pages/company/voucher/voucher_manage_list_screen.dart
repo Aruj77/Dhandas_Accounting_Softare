@@ -1,4 +1,3 @@
-
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -144,13 +143,13 @@ class _VoucherManageListScreenState extends State<VoucherManageListScreen> {
     final shouldDelete = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(children: [Icon(Icons.warning_rounded, color: AppColors.error, size: 24), SizedBox(width: 8), Text('Confirm Deletion', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800))]),
-        content: Text(isPlural ? 'Permanently delete ${toDelete.length} selected vouchers?' : 'Delete Voucher [${toDelete.first['voucherNumber']}]?', style: const TextStyle(fontSize: 13, color: Color(0xFF475569))),
+        title: const Row(children: [Icon(Icons.warning_rounded, color: AppColors.error, size: 24), SizedBox(width: 8), Text('Confirm Deletion', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary))]),
+        content: Text(isPlural ? 'Permanently delete ${toDelete.length} selected vouchers?' : 'Delete Voucher [${toDelete.first['voucherNumber']}]?', style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
         actions: [
           OutlinedButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white), child: Text(isPlural ? 'Delete All (${toDelete.length})' : 'Delete', style: const TextStyle(fontWeight: FontWeight.w800))),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: AppColors.surface), child: Text(isPlural ? 'Delete All (${toDelete.length})' : 'Delete', style: const TextStyle(fontWeight: FontWeight.w800))),
         ],
       ),
     );
@@ -187,18 +186,18 @@ class _VoucherManageListScreenState extends State<VoucherManageListScreen> {
       child: Scaffold(
         backgroundColor: AppColors.background,
         appBar: AppBar(
-          backgroundColor: Colors.white,
+          backgroundColor: AppColors.surface,
           elevation: 0,
-          leading: IconButton(icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF101C38)), onPressed: _handleSafeExit),
-          title: Text('Manage ${widget.voucherType} Register', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFF101C38))),
+          leading: IconButton(icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary), onPressed: _handleSafeExit),
+          title: Text('Manage ${widget.voucherType} Register', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
           actions: [
             if (_selectedKeys.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(right: 16),
                 child: ElevatedButton.icon(
                   onPressed: () => _confirmAndDelete(_vouchers.asMap().entries.where((e) => _selectedKeys.contains(_resolveKey(e.value, e.key))).map((e) => e.value).toList()),
-                  icon: const Icon(Icons.delete_forever_rounded, size: 16, color: Colors.white),
-                  label: Text('Delete Selected (${_selectedKeys.length})', style: const TextStyle(fontWeight: FontWeight.w800, color: Colors.white)),
+                  icon: const Icon(Icons.delete_forever_rounded, size: 16, color: AppColors.surface),
+                  label: Text('Delete Selected (${_selectedKeys.length})', style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.surface)),
                   style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
                 ),
               ),
@@ -210,11 +209,11 @@ class _VoucherManageListScreenState extends State<VoucherManageListScreen> {
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 10),
               child: Row(
                 children: [
-                  Expanded(flex: 5, child: SizedBox(height: 38, child: TextField(controller: _searchCtrl, decoration: InputDecoration(hintText: 'Search voucher, party, GSTIN...', prefixIcon: const Icon(Icons.search_rounded, size: 17, color: AppColors.primary), filled: true, fillColor: Colors.white, contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.border)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.primary, width: 1.3)))))),
+                  Expanded(flex: 5, child: SizedBox(height: 38, child: TextField(controller: _searchCtrl, decoration: InputDecoration(hintText: 'Search voucher, party, GSTIN...', prefixIcon: const Icon(Icons.search_rounded, size: 17, color: AppColors.primary), filled: true, fillColor: AppColors.surface, contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.border)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.primary, width: 1.3)))))),
                   const SizedBox(width: 12),
                   QuickMetricBadge(label: 'Vouchers', value: '${_filtered.length}', color: AppColors.primaryDark),
                   const SizedBox(width: 8),
-                  QuickMetricBadge(label: 'Total Qty', value: _summary.totalQuantity.toStringAsFixed(2), color: const Color(0xFF0284C7)),
+                  QuickMetricBadge(label: 'Total Qty', value: _summary.totalQuantity.toStringAsFixed(2), color: AppColors.info),
                   const SizedBox(width: 8),
                   QuickMetricBadge(label: 'Taxable Val', value: '₹${_summary.totalTaxable.toStringAsFixed(2)}', color: AppColors.purple),
                   const SizedBox(width: 8),
@@ -225,7 +224,7 @@ class _VoucherManageListScreenState extends State<VoucherManageListScreen> {
             Expanded(
               child: Container(
                 margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.border, width: 1.2)),
+                decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.border, width: 1.2)),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(14),
                   child: LayoutBuilder(
@@ -277,7 +276,7 @@ class _VoucherManageListScreenState extends State<VoucherManageListScreen> {
                                     child: ListView.separated(
                                       controller: _bodyVerticalScrollCtrl,
                                       itemCount: _filtered.length,
-                                      separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5FB)),
+                                      separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.borderLight),
                                       itemBuilder: (context, idx) {
                                         final v = _filtered[idx], key = _resolveKey(v, idx), isSelected = _selectedKeys.contains(key);
                                         final fullParty = (v['party'] ?? '').toString(), gstin = GstPartyUtils.extractPartyGstin(fullParty);
@@ -309,7 +308,7 @@ class _VoucherManageListScreenState extends State<VoucherManageListScreen> {
                                             onDoubleTap: () => _editVoucher(v),
                                             onTap: () { setState(() => _focusedIndex = idx); _rowFocusNodes[idx].requestFocus(); },
                                             child: Container(
-                                              decoration: BoxDecoration(color: isFocused ? AppColors.primaryLight : (isSelected ? AppColors.primaryLight.withValues(alpha: 0.5) : Colors.white), border: isFocused ? Border.all(color: AppColors.primary, width: 1.5) : null, borderRadius: isFocused ? BorderRadius.circular(6) : null),
+                                              decoration: BoxDecoration(color: isFocused ? AppColors.primaryLight : (isSelected ? AppColors.primaryLight.withValues(alpha: 0.5) : AppColors.surface), border: isFocused ? Border.all(color: AppColors.primary, width: 1.5) : null, borderRadius: isFocused ? BorderRadius.circular(6) : null),
                                               child: items.isEmpty
                                                   ? Row(
                                                       children: [
@@ -378,7 +377,7 @@ class _VoucherManageListScreenState extends State<VoucherManageListScreen> {
                             controller: _footerScrollCtrl,
                             scrollDirection: Axis.horizontal,
                             child: Container(
-                              width: dynamicWidth, height: 38, decoration: const BoxDecoration(color: AppColors.background, border: Border(top: BorderSide(color: Color(0xFFD6E3F4), width: 1.2))),
+                              width: dynamicWidth, height: 38, decoration: const BoxDecoration(color: AppColors.background, border: Border(top: BorderSide(color: AppColors.borderFocus, width: 1.2))),
                               child: Row(
                                 children: [
                                   const SizedBox(width: 40),

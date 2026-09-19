@@ -31,7 +31,7 @@ class ExportDialogUtils {
         ),
         content: Text(
           'A file named "$fileName" already exists in this folder.\n\nDo you want to overwrite it?',
-          style: const TextStyle(fontSize: 13, color: Color(0xFF334155), height: 1.4),
+          style: const TextStyle(fontSize: 13, color: AppColors.textPrimary, height: 1.4),
         ),
         actions: [
           OutlinedButton(
@@ -81,7 +81,7 @@ class ExportDialogUtils {
               ),
             ),
             const SizedBox(height: 14),
-            const Text('Do you want to open this file now?', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1E293B))),
+            const Text('Do you want to open this file now?', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
           ],
         ),
         actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

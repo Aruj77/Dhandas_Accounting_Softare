@@ -109,7 +109,6 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Top Title & Control Action Bar
                   Row(
                     children: [
                       Column(
@@ -132,11 +131,10 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
                         ],
                       ),
                       const Spacer(),
-                      // Period Selector
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: AppColors.surface,
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(color: AppColors.border),
                         ),
@@ -158,7 +156,7 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
                       OutlinedButton.icon(
                         onPressed: () => _showExportSnack('Executive PDF Summary'),
                         style: OutlinedButton.styleFrom(
-                          backgroundColor: Colors.white,
+                          backgroundColor: AppColors.surface,
                           foregroundColor: AppColors.textPrimary,
                           side: const BorderSide(color: AppColors.border),
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -172,7 +170,7 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
                         onPressed: _loadFinancialData,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
+                          foregroundColor: AppColors.surface,
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           elevation: 0,
@@ -184,7 +182,6 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
                   ),
                   const SizedBox(height: 28),
 
-                  // --- SECTION 1: EXECUTIVE KPI CARDS ---
                   const Text('Executive Key Performance Indicators', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
                   const SizedBox(height: 14),
                   Row(
@@ -200,7 +197,6 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
                   ),
                   const SizedBox(height: 28),
 
-                  // --- SECTION 2: CASH FLOW & FINANCIAL RATIOS ---
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -209,7 +205,7 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
                         child: Container(
                           padding: const EdgeInsets.all(24),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: AppColors.surface,
                             borderRadius: BorderRadius.circular(18),
                             border: Border.all(color: AppColors.border),
                           ),
@@ -240,7 +236,7 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
                                         _totalReceipts >= _totalPayments
                                             ? 'Healthy cash surplus maintained. Inflows exceed outflows by ₹${(_totalReceipts - _totalPayments).toStringAsFixed(2)}.'
                                             : 'Caution: Outflows exceed recorded cash receipts. Review pending receivables.',
-                                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
+                                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
                                       ),
                                     ),
                                   ],
@@ -256,7 +252,7 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
                         child: Container(
                           padding: const EdgeInsets.all(24),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: AppColors.surface,
                             borderRadius: BorderRadius.circular(18),
                             border: Border.all(color: AppColors.border),
                           ),
@@ -268,9 +264,9 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
                               const Text('Automated solvency & liquidity benchmarks', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                               const SizedBox(height: 20),
                               _buildRatioTile('Current Ratio', '2.42 : 1', 'Safe liquidity benchmark (>1.5)', true),
-                              const Divider(height: 20),
+                              const Divider(height: 20, color: AppColors.border),
                               _buildRatioTile('Quick Ratio', '1.85 : 1', 'Immediate debt coverage capacity', true),
-                              const Divider(height: 20),
+                              const Divider(height: 20, color: AppColors.border),
                               _buildRatioTile('GST Tax Burden', '${_totalSales > 0 ? ((_totalTaxOutput / _totalSales) * 100).toStringAsFixed(1) : '0'}%', 'Average tax incidence on turnover', false),
                             ],
                           ),
@@ -280,16 +276,14 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
                   ),
                   const SizedBox(height: 28),
 
-                  // --- SECTION 3: PROFIT & LOSS & BALANCE SHEET ---
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // P&L Statement Card
                       Expanded(
                         child: Container(
                           padding: const EdgeInsets.all(24),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: AppColors.surface,
                             borderRadius: BorderRadius.circular(18),
                             border: Border.all(color: AppColors.border),
                           ),
@@ -303,7 +297,7 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
                                   Text('Profit & Loss Statement', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
                                 ],
                               ),
-                              const Divider(height: 24),
+                              const Divider(height: 24, color: AppColors.border),
                               _buildStatementGroupHeader('Income / Revenue'),
                               _buildStatementRow('Gross Turnover / Sales', _totalSales),
                               _buildStatementRow('Other Incomes', 15000.0),
@@ -313,25 +307,24 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
                               _buildStatementRow('Material Purchases', _totalPurchases),
                               _buildStatementRow('Direct Freight & Cartage', 12400.0),
                               _buildStatementTotalRow('Total Direct Expenses', _totalPurchases + 12400.0, isSub: true),
-                              const Divider(height: 24),
+                              const Divider(height: 24, color: AppColors.border),
                               _buildStatementTotalRow('Gross Profit', grossProfit, isHighlight: true),
                               const SizedBox(height: 14),
                               _buildStatementGroupHeader('Operating Expenses'),
                               _buildStatementRow('Salaries & Staff Welfare', 45000.0),
                               _buildStatementRow('Rent, Utilities & Software', 30000.0),
-                              const Divider(height: 28),
+                              const Divider(height: 28, color: AppColors.border),
                               _buildStatementTotalRow('Net Profit for Period', netProfit, isHighlight: true, isNet: true),
                             ],
                           ),
                         ),
                       ),
                       const SizedBox(width: 20),
-                      // Balance Sheet Snapshot Card
                       Expanded(
                         child: Container(
                           padding: const EdgeInsets.all(24),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: AppColors.surface,
                             borderRadius: BorderRadius.circular(18),
                             border: Border.all(color: AppColors.border),
                           ),
@@ -345,7 +338,7 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
                                   Text('Balance Sheet Snapshot', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
                                 ],
                               ),
-                              const Divider(height: 24),
+                              const Divider(height: 24, color: AppColors.border),
                               _buildStatementGroupHeader('Current Assets'),
                               _buildStatementRow('Bank & Cash Accounts', _totalReceipts),
                               _buildStatementRow('Sundry Debtors (Receivables)', _totalSales * 0.35),
@@ -355,7 +348,7 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
                               _buildStatementRow('Equipment & Fixtures', 530000.0),
                               _buildStatementRow('Sundry Creditors (Payables)', _totalPurchases * 0.30),
                               _buildStatementRow('GST Tax Payable', netGstPayable),
-                              const Divider(height: 28),
+                              const Divider(height: 28, color: AppColors.border),
                               _buildStatementTotalRow('Total Net Worth / Equity', 1000000.0 + estimatedEquity, isHighlight: true),
                             ],
                           ),
@@ -365,11 +358,10 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
                   ),
                   const SizedBox(height: 28),
 
-                  // --- SECTION 4: GST TAX COMPLIANCE SUMMARY ---
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: AppColors.surface,
                       borderRadius: BorderRadius.circular(18),
                       border: Border.all(color: AppColors.border),
                     ),
@@ -379,7 +371,7 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
                         const Text('GST Tax Liability & ITC Reconciliation', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
                         const SizedBox(height: 4),
                         const Text('Summary reconciliation of outward tax collected vs inward tax credit (ITC)', style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
-                        const Divider(height: 24),
+                        const Divider(height: 24, color: AppColors.border),
                         Row(
                           children: [
                             Expanded(child: _buildGstMetricBox('Total Outward Tax (Output GST)', '₹${_totalTaxOutput.toStringAsFixed(2)}', AppColors.primary)),
@@ -406,10 +398,10 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppColors.border),
-        boxShadow: const [BoxShadow(color: Color(0x05092B60), blurRadius: 10, offset: Offset(0, 3))],
+        boxShadow: const [BoxShadow(color: AppColors.shadowColor, blurRadius: 10, offset: Offset(0, 3))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -508,7 +500,7 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF475569))),
+          Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textSecondary)),
           Text('₹${amount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
         ],
       ),
@@ -522,7 +514,7 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
       decoration: BoxDecoration(
         color: isHighlight ? AppColors.primaryLight : (isSub ? AppColors.cardBg : Colors.transparent),
         borderRadius: BorderRadius.circular(8),
-        border: isHighlight ? Border.all(color: const Color(0xFFD2E3FB)) : null,
+        border: isHighlight ? Border.all(color: AppColors.borderFocus) : null,
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../constants/app_colors.dart';
 import '../../services/storage_service.dart';
 
 class AdministrationScreen extends StatefulWidget {
@@ -36,7 +37,7 @@ class _AdministrationScreenState extends State<AdministrationScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Switched Active Financial Year to F.Y. $newFy'),
-          backgroundColor: const Color(0xFF15803D),
+          backgroundColor: AppColors.successDark,
         ),
       );
     }
@@ -47,13 +48,20 @@ class _AdministrationScreenState extends State<AdministrationScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Add Financial Year'),
+        backgroundColor: AppColors.surface,
+        title: const Text('Add Financial Year', style: TextStyle(color: AppColors.textPrimary)),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(labelText: 'e.g. 2027-28', border: OutlineInputBorder()),
+          decoration: const InputDecoration(
+            labelText: 'e.g. 2027-28',
+            border: OutlineInputBorder(),
+          ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+          ),
           ElevatedButton(
             onPressed: () async {
               final val = controller.text.trim();
@@ -67,6 +75,10 @@ class _AdministrationScreenState extends State<AdministrationScreen> {
                 if (ctx.mounted) Navigator.pop(ctx);
               }
             },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.surface,
+            ),
             child: const Text('Add & Activate'),
           ),
         ],
@@ -84,12 +96,12 @@ class _AdministrationScreenState extends State<AdministrationScreen> {
         children: [
           const Text(
             'Company Administration',
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Color(0xFF0F1B38)),
+            style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: AppColors.primaryDark),
           ),
           const SizedBox(height: 6),
           const Text(
             'Manage financial periods, accounting parameters, and data partitions.',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF637392)),
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.textSecondary),
           ),
           const SizedBox(height: 28),
 
@@ -97,9 +109,9 @@ class _AdministrationScreenState extends State<AdministrationScreen> {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppColors.surface,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFE4EDF7)),
+              border: Border.all(color: AppColors.border),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -109,18 +121,18 @@ class _AdministrationScreenState extends State<AdministrationScreen> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEFF6FF),
+                        color: AppColors.primaryLight,
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(Icons.date_range_rounded, color: Color(0xFF0F62FE)),
+                      child: const Icon(Icons.date_range_rounded, color: AppColors.primary),
                     ),
                     const SizedBox(width: 14),
                     const Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Financial Year Selection', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF101C38))),
-                          Text('Select the current accounting year. All transactions will be isolated to this FY.', style: TextStyle(fontSize: 12, color: Color(0xFF6B7B9A))),
+                          Text('Financial Year Selection', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                          Text('Select the current accounting year. All transactions will be isolated to this FY.', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                         ],
                       ),
                     ),
@@ -128,7 +140,10 @@ class _AdministrationScreenState extends State<AdministrationScreen> {
                       onPressed: _showAddFyDialog,
                       icon: const Icon(Icons.add, size: 16),
                       label: const Text('Add F.Y.'),
-                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F62FE), foregroundColor: Colors.white),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.surface,
+                      ),
                     ),
                   ],
                 ),
@@ -144,10 +159,10 @@ class _AdministrationScreenState extends State<AdministrationScreen> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                         decoration: BoxDecoration(
-                          color: isCurrent ? const Color(0xFFEFF6FF) : const Color(0xFFF8FAFD),
+                          color: isCurrent ? AppColors.primaryLight : AppColors.cardBg,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: isCurrent ? const Color(0xFF0F62FE) : const Color(0xFFE2EAF5),
+                            color: isCurrent ? AppColors.primary : AppColors.border,
                             width: isCurrent ? 1.5 : 1.0,
                           ),
                         ),
@@ -157,7 +172,7 @@ class _AdministrationScreenState extends State<AdministrationScreen> {
                             Icon(
                               isCurrent ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
                               size: 18,
-                              color: isCurrent ? const Color(0xFF0F62FE) : const Color(0xFF94A3B8),
+                              color: isCurrent ? AppColors.primary : AppColors.textMuted,
                             ),
                             const SizedBox(width: 10),
                             Text(
@@ -165,7 +180,7 @@ class _AdministrationScreenState extends State<AdministrationScreen> {
                               style: TextStyle(
                                 fontSize: 13.5,
                                 fontWeight: isCurrent ? FontWeight.w800 : FontWeight.w600,
-                                color: isCurrent ? const Color(0xFF0F62FE) : const Color(0xFF334155),
+                                color: isCurrent ? AppColors.primary : AppColors.textPrimary,
                               ),
                             ),
                           ],

@@ -24,13 +24,11 @@ class SalesInvoicePrintPreviewDialog extends StatefulWidget {
 
 class _SalesInvoicePrintPreviewDialogState
     extends State<SalesInvoicePrintPreviewDialog> {
-  // Multiple Copies Selection
   bool _copyOriginal = true;
   bool _copyDuplicate = false;
   bool _copyTriplicate = false;
   bool _copyExtra = false;
 
-  // Customization Options ('Modern' or 'Classic')
   String _invoiceTheme = 'Modern';
   bool _isLandscape = false;
   bool _isLegalPaper = false;
@@ -43,13 +41,11 @@ class _SalesInvoicePrintPreviewDialogState
   bool _zebraStripes = true;
   bool _reverseCharge = false;
 
-  // Editable Bank Controllers
   late TextEditingController _bankNameCtrl;
   late TextEditingController _accountNoCtrl;
   late TextEditingController _ifscCtrl;
   bool _isSavingBankDetails = false;
 
-  // Editable Transport / Dispatch Controllers
   late TextEditingController _grNoCtrl;
   late TextEditingController _transportCtrl;
   late TextEditingController _vehicleNoCtrl;
@@ -331,7 +327,6 @@ class _SalesInvoicePrintPreviewDialogState
     if (_copyExtra) copiesToGenerate.add('EXTRA COPY');
     if (copiesToGenerate.isEmpty) copiesToGenerate.add('ORIGINAL FOR RECIPIENT');
 
-    // Table Column Widths for both Header & MultiPage Text Array
     final tableColumnWidths = {
       0: const pw.FixedColumnWidth(26),
       1: const pw.FlexColumnWidth(3.8),
@@ -404,7 +399,6 @@ class _SalesInvoicePrintPreviewDialogState
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.stretch,
                 children: [
-                  // 1. Top Header Banner
                   pw.Container(
                     padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: pw.BoxDecoration(
@@ -434,8 +428,6 @@ class _SalesInvoicePrintPreviewDialogState
                       ],
                     ),
                   ),
-
-                  // 2. Organization Header
                   pw.Container(
                     padding: const pw.EdgeInsets.all(10),
                     decoration: pw.BoxDecoration(
@@ -501,8 +493,6 @@ class _SalesInvoicePrintPreviewDialogState
                       ],
                     ),
                   ),
-
-                  // 3. Buyer Details & Invoice Meta Details Grid
                   pw.Container(
                     decoration: pw.BoxDecoration(
                       border: pw.Border(bottom: pw.BorderSide(color: borderColor, width: 1)),
@@ -510,7 +500,6 @@ class _SalesInvoicePrintPreviewDialogState
                     child: pw.Row(
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
-                        // Left: Buyer & Consignee
                         pw.Expanded(
                           flex: 5,
                           child: pw.Container(
@@ -551,8 +540,6 @@ class _SalesInvoicePrintPreviewDialogState
                             ),
                           ),
                         ),
-
-                        // Right: Invoice & Dispatch Meta
                         pw.Expanded(
                           flex: 5,
                           child: pw.Container(
@@ -597,7 +584,6 @@ class _SalesInvoicePrintPreviewDialogState
           },
           build: (pw.Context context) {
             return [
-              // 4. Auto-Paginating MultiPage Table
               pw.TableHelper.fromTextArray(
                 border: pw.TableBorder(
                   left: pw.BorderSide(color: borderColor, width: 1.0),
@@ -623,10 +609,10 @@ class _SalesInvoicePrintPreviewDialogState
                   fontSize: _fontScale * 0.85,
                   color: isClassic ? PdfColors.black : const PdfColor.fromInt(0xFF1E293B),
                 ),
-                rowDecoration: pw.BoxDecoration(color: PdfColors.white),
+                rowDecoration: const pw.BoxDecoration(color: PdfColors.white),
                 oddRowDecoration: (_zebraStripes && !isClassic)
                     ? pw.BoxDecoration(color: tableRowAlt)
-                    : pw.BoxDecoration(color: PdfColors.white),
+                    : const pw.BoxDecoration(color: PdfColors.white),
                 cellAlignments: {
                   0: pw.Alignment.center,
                   1: pw.Alignment.centerLeft,
@@ -641,7 +627,6 @@ class _SalesInvoicePrintPreviewDialogState
                 },
               ),
 
-              // Total Row Underneath Table
               pw.Container(
                 decoration: pw.BoxDecoration(
                   border: pw.Border(
@@ -675,7 +660,6 @@ class _SalesInvoicePrintPreviewDialogState
                 ),
               ),
 
-              // 5. Lower HSN Matrix, Calculations, Bank, and Unboxed Terms (Kept intact on final page)
               pw.Container(
                 decoration: pw.BoxDecoration(
                   border: pw.Border(
@@ -687,7 +671,6 @@ class _SalesInvoicePrintPreviewDialogState
                 child: pw.Row(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    // Left Side: HSN Matrix + Amount in Words + Bank Details + Terms
                     pw.Expanded(
                       flex: 6,
                       child: pw.Container(
@@ -777,7 +760,6 @@ class _SalesInvoicePrintPreviewDialogState
                               pw.SizedBox(height: 6),
                             ],
 
-                            // Amount in Words
                             pw.Container(
                               padding: const pw.EdgeInsets.symmetric(vertical: 2),
                               child: pw.Row(
@@ -807,7 +789,6 @@ class _SalesInvoicePrintPreviewDialogState
                             ),
                             pw.SizedBox(height: 6),
 
-                            // Bank Details Block
                             if (_showBankDetails && hasAnyBankDetails) ...[
                               pw.Container(
                                 width: double.infinity,
@@ -868,7 +849,6 @@ class _SalesInvoicePrintPreviewDialogState
                               pw.SizedBox(height: 6),
                             ],
 
-                            // Terms & Conditions (Unboxed)
                             if (_showTerms) ...[
                               pw.Text(
                                 'Terms & Conditions:',
@@ -903,7 +883,6 @@ class _SalesInvoicePrintPreviewDialogState
                       ),
                     ),
 
-                    // Right Side: Grand Total & Taxes Calculation Box
                     pw.Expanded(
                       flex: 4,
                       child: pw.Container(
@@ -960,7 +939,6 @@ class _SalesInvoicePrintPreviewDialogState
                 ),
               ),
 
-              // 6. Signatures Bottom Strip
               pw.Container(
                 decoration: pw.BoxDecoration(
                   border: pw.Border(
@@ -1081,9 +1059,9 @@ class _SalesInvoicePrintPreviewDialogState
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE2EAF5)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1094,7 +1072,7 @@ class _SalesInvoicePrintPreviewDialogState
               const SizedBox(width: 6),
               Text(
                 title,
-                style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900, color: Color(0xFF64748B), letterSpacing: 0.5),
+                style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900, color: AppColors.textSecondary, letterSpacing: 0.5),
               ),
             ],
           ),
@@ -1109,21 +1087,23 @@ class _SalesInvoicePrintPreviewDialogState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Color(0xFF475569))),
+        Text(label, style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: AppColors.textSecondary)),
         const SizedBox(height: 3),
         SizedBox(
           height: 32,
           child: TextField(
             controller: controller,
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
             decoration: InputDecoration(
               hintText: hint,
+              hintStyle: const TextStyle(fontSize: 11, color: AppColors.textMuted),
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
               filled: true,
-              fillColor: const Color(0xFFF8FAFD),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFFE2EAF5))),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFFE2EAF5))),
+              fillColor: AppColors.cardBg,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.border)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.border)),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.primary)),
             ),
             onChanged: (_) => setState(() {}),
           ),
@@ -1139,10 +1119,10 @@ class _SalesInvoicePrintPreviewDialogState
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(title, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
+          Text(title, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
           Transform.scale(
             scale: 0.75,
-            child: Switch(value: value, activeThumbColor: AppColors.primary, onChanged: onChanged),
+            child: Switch(value: value, activeThumbColor: AppColors.primary, activeTrackColor: AppColors.primaryLight, onChanged: onChanged),
           ),
         ],
       ),
@@ -1158,7 +1138,7 @@ class _SalesInvoicePrintPreviewDialogState
         dense: true,
         activeColor: AppColors.primary,
         contentPadding: EdgeInsets.zero,
-        title: Text(label, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF1E293B))),
+        title: Text(label, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
       ),
     );
   }
@@ -1166,7 +1146,7 @@ class _SalesInvoicePrintPreviewDialogState
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.surface,
       clipBehavior: Clip.antiAlias,
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -1175,12 +1155,11 @@ class _SalesInvoicePrintPreviewDialogState
         height: math.min(MediaQuery.of(context).size.height * 0.94, 900),
         child: Column(
           children: [
-            // Top Bar
             Container(
               height: 52,
               padding: const EdgeInsets.symmetric(horizontal: 20),
               decoration: const BoxDecoration(
-                border: Border(bottom: BorderSide(color: Color(0xFFE2EAF5), width: 1.2)),
+                border: Border(bottom: BorderSide(color: AppColors.border, width: 1.2)),
               ),
               child: Row(
                 children: [
@@ -1195,32 +1174,29 @@ class _SalesInvoicePrintPreviewDialogState
                   const SizedBox(width: 10),
                   Text(
                     'Invoice Studio — #${widget.voucherData['voucherNumber'] ?? ''}',
-                    style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                    style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                   ),
                   const Spacer(),
                   IconButton(
-                    icon: const Icon(Icons.close_rounded, size: 20, color: Color(0xFF64748B)),
+                    icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textSecondary),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
               ),
             ),
 
-            // Studio Layout: Sidebar Controls + Live Preview
             Expanded(
               child: Row(
                 children: [
-                  // Sidebar Controls
                   Container(
                     width: 320,
                     decoration: const BoxDecoration(
-                      color: Color(0xFFF8FAFD),
-                      border: Border(right: BorderSide(color: Color(0xFFE2EAF5), width: 1.2)),
+                      color: AppColors.cardBg,
+                      border: Border(right: BorderSide(color: AppColors.border, width: 1.2)),
                     ),
                     child: ListView(
                       padding: const EdgeInsets.all(14),
                       children: [
-                        // Multiple Copies Selection
                         _buildSidebarCard(
                           title: 'PRINT COPIES (BATCH PRINT)',
                           icon: Icons.copy_all_rounded,
@@ -1240,7 +1216,6 @@ class _SalesInvoicePrintPreviewDialogState
                           ],
                         ),
 
-                        // Theme Selection (Modern vs Classic B&W)
                         _buildSidebarCard(
                           title: 'PRINT THEME (COLOR / B&W)',
                           icon: Icons.palette_outlined,
@@ -1263,7 +1238,7 @@ class _SalesInvoicePrintPreviewDialogState
                               style: SegmentedButton.styleFrom(
                                 visualDensity: VisualDensity.compact,
                                 selectedBackgroundColor: AppColors.primary,
-                                selectedForegroundColor: Colors.white,
+                                selectedForegroundColor: AppColors.surface,
                               ),
                               onSelectionChanged: (val) => setState(() => _invoiceTheme = val.first),
                             ),
@@ -1295,9 +1270,9 @@ class _SalesInvoicePrintPreviewDialogState
                               child: ElevatedButton.icon(
                                 onPressed: _isSavingBankDetails ? null : _saveBankDetailsToCompany,
                                 icon: _isSavingBankDetails
-                                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                                    : const Icon(Icons.save_rounded, size: 14, color: Colors.white),
-                                label: const Text('Save to Company Profile', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white)),
+                                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.surface))
+                                    : const Icon(Icons.save_rounded, size: 14, color: AppColors.surface),
+                                label: const Text('Save to Company Profile', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.surface)),
                                 style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
                               ),
                             ),
@@ -1314,8 +1289,8 @@ class _SalesInvoicePrintPreviewDialogState
                                   child: OutlinedButton(
                                     onPressed: () => setState(() => _isLandscape = !_isLandscape),
                                     style: OutlinedButton.styleFrom(
-                                      backgroundColor: _isLandscape ? AppColors.primary.withValues(alpha: 0.1) : Colors.white,
-                                      side: BorderSide(color: _isLandscape ? AppColors.primary : const Color(0xFFCBD5E1)),
+                                      backgroundColor: _isLandscape ? AppColors.primary.withValues(alpha: 0.1) : AppColors.surface,
+                                      side: BorderSide(color: _isLandscape ? AppColors.primary : AppColors.borderMedium),
                                     ),
                                     child: Text(_isLandscape ? 'Landscape' : 'Portrait', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                                   ),
@@ -1325,8 +1300,8 @@ class _SalesInvoicePrintPreviewDialogState
                                   child: OutlinedButton(
                                     onPressed: () => setState(() => _isLegalPaper = !_isLegalPaper),
                                     style: OutlinedButton.styleFrom(
-                                      backgroundColor: _isLegalPaper ? AppColors.primary.withValues(alpha: 0.1) : Colors.white,
-                                      side: BorderSide(color: _isLegalPaper ? AppColors.primary : const Color(0xFFCBD5E1)),
+                                      backgroundColor: _isLegalPaper ? AppColors.primary.withValues(alpha: 0.1) : AppColors.surface,
+                                      side: BorderSide(color: _isLegalPaper ? AppColors.primary : AppColors.borderMedium),
                                     ),
                                     child: Text(_isLegalPaper ? 'Legal' : 'A4 Size', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                                   ),
@@ -1389,14 +1364,14 @@ class _SalesInvoicePrintPreviewDialogState
                       data: Theme.of(context).copyWith(
                         primaryColor: AppColors.primary,
                         colorScheme: Theme.of(context).colorScheme.copyWith(
-                          primary: Colors.white,
+                          primary: AppColors.surface,
                           onPrimary: AppColors.primary,
-                          surface: const Color(0xFFF1F5FB),
+                          surface: AppColors.background,
                         ),
                         iconTheme: const IconThemeData(color: AppColors.primary),
                         switchTheme: SwitchThemeData(
                           thumbColor: WidgetStateProperty.all(AppColors.primary),
-                          trackColor: WidgetStateProperty.all(const Color(0xFFD6E3F4)),
+                          trackColor: WidgetStateProperty.all(AppColors.borderFocus),
                         ),
                       ),
                       child: PdfPreview(

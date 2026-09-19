@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../constants/app_colors.dart';
 import '../../services/keyboard_shortcut_service.dart';
 
 class VoucherNavigationBar extends StatelessWidget {
@@ -25,7 +26,7 @@ class VoucherNavigationBar extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
-        color: isPrimary ? Colors.white : Colors.white.withValues(alpha: 0.15),
+        color: isPrimary ? AppColors.surface : AppColors.surface.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(5),
       ),
       child: Row(
@@ -36,7 +37,7 @@ class VoucherNavigationBar extends StatelessWidget {
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w900,
-              color: isPrimary ? const Color(0xFF0F62FE) : Colors.white,
+              color: isPrimary ? AppColors.primary : AppColors.surface,
             ),
           ),
           const SizedBox(width: 4),
@@ -45,7 +46,7 @@ class VoucherNavigationBar extends StatelessWidget {
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w700,
-              color: isPrimary ? const Color(0xFF0F62FE) : Colors.white,
+              color: isPrimary ? AppColors.primary : AppColors.surface,
             ),
           ),
         ],
@@ -60,26 +61,26 @@ class VoucherNavigationBar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         color: headerColor,
-        border: const Border(bottom: BorderSide(color: Color(0xFFE2EAF5), width: 1.2)),
+        border: const Border(bottom: BorderSide(color: AppColors.border, width: 1.2)),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
+              color: AppColors.surface.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Row(
               children: [
-                const Icon(Icons.receipt_long_rounded, size: 14, color: Colors.white),
+                const Icon(Icons.receipt_long_rounded, size: 14, color: AppColors.surface),
                 const SizedBox(width: 5),
                 Text(
                   'NEW ${voucherType.toUpperCase()}',
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w900,
-                    color: Colors.white,
+                    color: AppColors.surface,
                     letterSpacing: 0.5,
                   ),
                 ),
@@ -90,7 +91,7 @@ class VoucherNavigationBar extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppColors.surface,
               borderRadius: BorderRadius.circular(5),
             ),
             child: Text(
@@ -102,7 +103,7 @@ class VoucherNavigationBar extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
             decoration: BoxDecoration(
-              color: isInterState ? const Color(0xFFFAF5FF) : const Color(0xFFF0FDF4),
+              color: isInterState ? AppColors.purpleLight : AppColors.successLight,
               borderRadius: BorderRadius.circular(5),
             ),
             child: Row(
@@ -111,7 +112,7 @@ class VoucherNavigationBar extends StatelessWidget {
                 Icon(
                   isInterState ? Icons.alt_route_rounded : Icons.check_circle_outline_rounded,
                   size: 11,
-                  color: isInterState ? const Color(0xFF7E22CE) : const Color(0xFF15803D),
+                  color: isInterState ? AppColors.purple : AppColors.successDark,
                 ),
                 const SizedBox(width: 3),
                 Text(
@@ -119,7 +120,7 @@ class VoucherNavigationBar extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
-                    color: isInterState ? const Color(0xFF7E22CE) : const Color(0xFF15803D),
+                    color: isInterState ? AppColors.purple : AppColors.successDark,
                   ),
                 ),
               ],
@@ -138,7 +139,7 @@ class VoucherNavigationBar extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           IconButton(
-            icon: const Icon(Icons.close_rounded, size: 18, color: Colors.white),
+            icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.surface),
             onPressed: onClose,
           ),
         ],

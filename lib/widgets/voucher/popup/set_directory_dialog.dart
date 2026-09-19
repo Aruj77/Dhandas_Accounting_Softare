@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import '.././../../constants/app_colors.dart';
+import '../../../constants/app_colors.dart';
 import '../../../services/storage_service.dart';
 import '../../common/app_dialog_frame.dart';
 
@@ -71,8 +71,8 @@ class _SetDirectoryDialogState extends State<SetDirectoryDialog> {
       title: 'Set Data Directory',
       subtitle: 'Choose where your company databases will be saved and persisted',
       icon: Icons.folder_rounded,
-      iconColor: Colors.white,
-      iconBgColor: const Color(0xFFEB9500),
+      iconColor: AppColors.surface,
+      iconBgColor: AppColors.folderAmber,
       maxWidth: 620,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -104,7 +104,7 @@ class _SetDirectoryDialogState extends State<SetDirectoryDialog> {
                     ),
                     prefixIcon: const Icon(
                       Icons.folder_open_rounded,
-                      color: Color(0xFFEB9500),
+                      color: AppColors.folderAmber,
                       size: 20,
                     ),
                     filled: true,
@@ -116,7 +116,7 @@ class _SetDirectoryDialogState extends State<SetDirectoryDialog> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFEB9500), width: 1.5),
+                      borderSide: const BorderSide(color: AppColors.folderAmber, width: 1.5),
                     ),
                   ),
                 ),
@@ -125,14 +125,14 @@ class _SetDirectoryDialogState extends State<SetDirectoryDialog> {
               ElevatedButton.icon(
                 onPressed: _pickDirectory,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFEB9500),
+                  backgroundColor: AppColors.folderAmber,
                   padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                icon: const Icon(Icons.drive_file_move_rounded, color: Colors.white, size: 18),
+                icon: const Icon(Icons.drive_file_move_rounded, color: AppColors.surface, size: 18),
                 label: const Text(
                   'Browse',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
+                  style: TextStyle(color: AppColors.surface, fontWeight: FontWeight.w700, fontSize: 13),
                 ),
               ),
             ],
@@ -152,19 +152,19 @@ class _SetDirectoryDialogState extends State<SetDirectoryDialog> {
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: const Color(0xFFFFFBEF),
+              color: AppColors.warningLight,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFFFE8B2)),
+              border: Border.all(color: AppColors.warningBorder),
             ),
             child: const Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.info_outline_rounded, color: Color(0xFFD98200), size: 18),
+                Icon(Icons.info_outline_rounded, color: AppColors.warning, size: 18),
                 SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     'Dhandas will automatically save this path and remember it on all future app startups. Companies created will be written as secure JSON databases in this folder.',
-                    style: TextStyle(fontSize: 12, color: Color(0xFF7A5813), height: 1.4),
+                    style: TextStyle(fontSize: 12, color: AppColors.warningText, height: 1.4),
                   ),
                 ),
               ],
@@ -176,8 +176,8 @@ class _SetDirectoryDialogState extends State<SetDirectoryDialog> {
         OutlinedButton(
           onPressed: () => Navigator.of(context).pop(),
           style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFF475569),
-            side: const BorderSide(color: Color(0xFFCBD5E1)),
+            foregroundColor: AppColors.textSecondary,
+            side: const BorderSide(color: AppColors.borderMedium),
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
@@ -193,7 +193,7 @@ class _SetDirectoryDialogState extends State<SetDirectoryDialog> {
           ),
           child: const Text(
             'Save Directory',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white),
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.surface),
           ),
         ),
       ],

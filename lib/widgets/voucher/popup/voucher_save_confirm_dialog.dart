@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../constants/app_colors.dart';
 
 class VoucherSaveConfirmDialog extends StatefulWidget {
   final Map<String, dynamic> summaryData;
@@ -20,7 +21,6 @@ class _VoucherSaveConfirmDialogState extends State<VoucherSaveConfirmDialog> {
   @override
   void initState() {
     super.initState();
-    // Auto-focus the save button as soon as dialog opens
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _saveFocusNode.requestFocus();
     });
@@ -38,7 +38,7 @@ class _VoucherSaveConfirmDialogState extends State<VoucherSaveConfirmDialog> {
     final isInterState = s['isInterState'] == true;
 
     return Dialog(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
         width: 480,
@@ -47,17 +47,16 @@ class _VoucherSaveConfirmDialogState extends State<VoucherSaveConfirmDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
             Row(
               children: [
                 Container(
                   width: 38,
                   height: 38,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEFF6FE),
+                    color: AppColors.primaryLight,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.verified_outlined, color: Color(0xFF0F62FE), size: 22),
+                  child: const Icon(Icons.verified_outlined, color: AppColors.primary, size: 22),
                 ),
                 const SizedBox(width: 12),
                 Column(
@@ -65,17 +64,17 @@ class _VoucherSaveConfirmDialogState extends State<VoucherSaveConfirmDialog> {
                   children: [
                     Text(
                       'Confirm ${s['voucherType']}',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF101B3A)),
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                     ),
                     Text(
                       'Verify summary details before persisting',
-                      style: const TextStyle(fontSize: 11.5, color: Color(0xFF6B7B9B)),
+                      style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
                     ),
                   ],
                 ),
                 const Spacer(),
                 IconButton(
-                  icon: const Icon(Icons.close_rounded, size: 20, color: Color(0xFF90A1BA)),
+                  icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textMuted),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
@@ -86,9 +85,9 @@ class _VoucherSaveConfirmDialogState extends State<VoucherSaveConfirmDialog> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFD),
+                color: AppColors.cardBg,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFE2EAF5)),
+                border: Border.all(color: AppColors.border),
               ),
               child: Column(
                 children: [
@@ -101,7 +100,7 @@ class _VoucherSaveConfirmDialogState extends State<VoucherSaveConfirmDialog> {
                   _buildSummaryRow(
                     'GST Nature',
                     isInterState ? 'Inter-State (IGST)' : 'Intra-State (CGST+SGST)',
-                    valueColor: isInterState ? const Color(0xFF7E22CE) : const Color(0xFF15803D),
+                    valueColor: isInterState ? AppColors.purple : AppColors.successDark,
                   ),
                   const SizedBox(height: 6),
                   _buildSummaryRow('Total Items / Qty', '${s['itemCount']} items (${s['totalQty']} units)'),
@@ -114,9 +113,9 @@ class _VoucherSaveConfirmDialogState extends State<VoucherSaveConfirmDialog> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.surface,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFE2EAF5)),
+                border: Border.all(color: AppColors.border),
               ),
               child: Column(
                 children: [
@@ -137,17 +136,17 @@ class _VoucherSaveConfirmDialogState extends State<VoucherSaveConfirmDialog> {
                     const SizedBox(height: 6),
                     _buildSummaryRow('Round Off', '₹${(s['roundOff'] as double).toStringAsFixed(2)}'),
                   ],
-                  const Divider(height: 18, color: Color(0xFFE2EAF5)),
+                  const Divider(height: 18, color: AppColors.border),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
                         'Grand Total',
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF101B3A)),
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                       ),
                       Text(
                         '₹${(s['grandTotal'] as double).toStringAsFixed(2)}',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF0F62FE)),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AppColors.primary),
                       ),
                     ],
                   ),
@@ -156,7 +155,6 @@ class _VoucherSaveConfirmDialogState extends State<VoucherSaveConfirmDialog> {
             ),
             const SizedBox(height: 22),
 
-            // Actions (Save focused by default)
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
@@ -165,6 +163,8 @@ class _VoucherSaveConfirmDialogState extends State<VoucherSaveConfirmDialog> {
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    side: const BorderSide(color: AppColors.border),
+                    foregroundColor: AppColors.textPrimary,
                   ),
                   child: const Text('Cancel (Esc)'),
                 ),
@@ -179,13 +179,13 @@ class _VoucherSaveConfirmDialogState extends State<VoucherSaveConfirmDialog> {
                         widget.onConfirm();
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0F62FE),
-                        foregroundColor: Colors.white,
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.surface,
                         padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                           side: BorderSide(
-                            color: hasFocus ? const Color(0xFF101B3A) : Colors.transparent,
+                            color: hasFocus ? AppColors.primaryDark : Colors.transparent,
                             width: 2.0,
                           ),
                         ),
@@ -212,14 +212,14 @@ class _VoucherSaveConfirmDialogState extends State<VoucherSaveConfirmDialog> {
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6B7B9B)),
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
         ),
         Text(
           value,
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w700,
-            color: valueColor ?? const Color(0xFF101B3A),
+            color: valueColor ?? AppColors.primaryDark,
           ),
         ),
       ],

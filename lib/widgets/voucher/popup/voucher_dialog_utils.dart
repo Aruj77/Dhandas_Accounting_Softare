@@ -11,28 +11,28 @@ class VoucherDialogUtils {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: const Color(0xFFFEF3C7),
+                color: AppColors.badgeYellowBg,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 22),
+              child: const Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 22),
             ),
             const SizedBox(width: 10),
             const Text(
               'Warning',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
             ),
           ],
         ),
         content: const Text(
           'You are proceeding without entering voucher no. Do you want to continue?',
-          style: TextStyle(fontSize: 13, color: Color(0xFF475569), height: 1.4),
+          style: TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.4),
         ),
         actions: [
           OutlinedButton(
@@ -41,8 +41,8 @@ class VoucherDialogUtils {
               onCancel();
             },
             style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF475569),
-              side: const BorderSide(color: Color(0xFFCBD5E1)),
+              foregroundColor: AppColors.textSecondary,
+              side: const BorderSide(color: AppColors.borderMedium),
             ),
             child: const Text('No', style: TextStyle(fontWeight: FontWeight.w600)),
           ),
@@ -53,9 +53,10 @@ class VoucherDialogUtils {
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.surface,
               elevation: 0,
             ),
-            child: const Text('Yes', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+            child: const Text('Yes', style: TextStyle(fontWeight: FontWeight.w800)),
           ),
         ],
       ),
@@ -73,30 +74,30 @@ class VoucherDialogUtils {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: const Color(0xFFFEF3C7),
+                color: AppColors.badgeYellowBg,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 22),
+              child: const Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 22),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
               ),
             ),
           ],
         ),
         content: Text(
           message,
-          style: const TextStyle(fontSize: 13, color: Color(0xFF475569), height: 1.4),
+          style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.4),
         ),
         actions: [
           OutlinedButton(
@@ -105,8 +106,8 @@ class VoucherDialogUtils {
               onCancel();
             },
             style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF475569),
-              side: const BorderSide(color: Color(0xFFCBD5E1)),
+              foregroundColor: AppColors.textSecondary,
+              side: const BorderSide(color: AppColors.borderMedium),
             ),
             child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.w600)),
           ),
@@ -117,9 +118,10 @@ class VoucherDialogUtils {
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.surface,
               elevation: 0,
             ),
-            child: const Text('Add', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+            child: const Text('Add', style: TextStyle(fontWeight: FontWeight.w800)),
           ),
         ],
       ),
@@ -137,18 +139,18 @@ class VoucherDialogUtils {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Row(
           children: [
             Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 24),
             SizedBox(width: 8),
-            Text('Taxation Alert', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+            Text('Taxation Alert', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
           ],
         ),
         content: Text(
           'You are entering a $enteredType but party belongs to $partyBelongsToText.\n\nDo you want to adjust or continue as is?',
-          style: const TextStyle(fontSize: 13, color: Color(0xFF334155), height: 1.4),
+          style: const TextStyle(fontSize: 13, color: AppColors.textPrimary, height: 1.4),
         ),
         actions: [
           OutlinedButton(
@@ -156,6 +158,10 @@ class VoucherDialogUtils {
               Navigator.pop(ctx);
               onAdjust();
             },
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.textSecondary,
+              side: const BorderSide(color: AppColors.borderMedium),
+            ),
             child: const Text('Adjust Mode'),
           ),
           ElevatedButton(
@@ -163,8 +169,11 @@ class VoucherDialogUtils {
               Navigator.pop(ctx);
               onCancel();
             },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.warning),
-            child: const Text('Continue As Is', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.warning,
+              foregroundColor: AppColors.surface,
+            ),
+            child: const Text('Continue As Is', style: TextStyle(fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -175,7 +184,7 @@ class VoucherDialogUtils {
     final close = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
@@ -197,15 +206,22 @@ class VoucherDialogUtils {
         ),
         content: const Text(
           'You have unsaved changes in this voucher. Discard and return to workspace?',
-          style: TextStyle(fontSize: 13, color: Color(0xFF475569)),
+          style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
         ),
         actions: [
-          OutlinedButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep Editing')),
+          OutlinedButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.textSecondary,
+              side: const BorderSide(color: AppColors.borderMedium),
+            ),
+            child: const Text('Keep Editing'),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
+              foregroundColor: AppColors.surface,
             ),
             child: const Text('Discard & Exit', style: TextStyle(fontWeight: FontWeight.w800)),
           ),

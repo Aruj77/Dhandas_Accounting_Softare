@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../constants/app_colors.dart';
 
 class HomeHeader extends StatelessWidget {
   const HomeHeader({super.key});
@@ -17,7 +18,7 @@ class HomeHeader extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w900,
-                    color: Color(0xFF0F1B38),
+                    color: AppColors.textPrimary,
                     letterSpacing: -0.6,
                   ),
                   children: [
@@ -25,8 +26,8 @@ class HomeHeader extends StatelessWidget {
                     TextSpan(
                       text: 'Dhandas',
                       style: TextStyle(
-                        color: Color(0xFF0F62FE),
-                      ),
+                        color: AppColors.primary,
+                                             ),
                     ),
                   ],
                 ),
@@ -37,7 +38,7 @@ class HomeHeader extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: Color(0xFF637392),
+                  color: AppColors.textSecondary,
                 ),
               ),
             ],
@@ -51,7 +52,7 @@ class HomeHeader extends StatelessWidget {
               style: TextStyle(
                 fontSize: 26,
                 fontWeight: FontWeight.w900,
-                color: Color(0xFF4C5D7F),
+                color: AppColors.textPrimary,
                 height: 0.9,
               ),
             ),
@@ -61,7 +62,7 @@ class HomeHeader extends StatelessWidget {
                 fontSize: 13,
                 fontStyle: FontStyle.italic,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF5A6C8C),
+                color: AppColors.textSecondary,
                 height: 1.35,
               ),
             ),

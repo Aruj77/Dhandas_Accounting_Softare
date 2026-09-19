@@ -62,7 +62,7 @@ class RegisterDataCell extends StatelessWidget {
         style: TextStyle(
           fontSize: 11.5,
           fontWeight: isBold ? FontWeight.w800 : FontWeight.w600,
-          color: color ?? (isMuted ? AppColors.textMuted : const Color(0xFF1E293B)),
+          color: color ?? (isMuted ? AppColors.textMuted : AppColors.textPrimary),
         ),
         overflow: TextOverflow.ellipsis,
       ),
@@ -95,7 +95,7 @@ class RegisterFooterCell extends StatelessWidget {
         style: TextStyle(
           fontSize: 11.5,
           fontWeight: FontWeight.w900,
-          color: highlight ? AppColors.primary : const Color(0xFF0F172A),
+          color: highlight ? AppColors.primary : AppColors.textPrimary,
         ),
       ),
     );

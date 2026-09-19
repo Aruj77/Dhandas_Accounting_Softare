@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import '../../constants/app_colors.dart';
 
 class ModernGlassCard extends StatelessWidget {
   final List<Color> gradientColors;
@@ -28,8 +29,8 @@ class ModernGlassCard extends StatelessWidget {
             blurRadius: 28,
             offset: const Offset(0, 10),
           ),
-          const BoxShadow(
-            color: Color(0x0A0B1A3D),
+          BoxShadow(
+            color: AppColors.shadowColor,
             blurRadius: 10,
             offset: Offset(0, 3),
           ),
@@ -115,7 +116,7 @@ Widget build(BuildContext context) {
                   style: const TextStyle(
                     fontSize: 21,
                     fontWeight: FontWeight.w900,
-                    color: Color(0xFF0F1B38),
+                    color: AppColors.textPrimary, 
                     letterSpacing: -0.4,
                   ),
                 ),
@@ -127,7 +128,7 @@ Widget build(BuildContext context) {
                   style: const TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w500,
-                    color: Color(0xFF647494),
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ],

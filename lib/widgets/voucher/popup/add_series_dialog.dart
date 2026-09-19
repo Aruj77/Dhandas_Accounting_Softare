@@ -29,14 +29,14 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
   final TextEditingController _startNumController = TextEditingController(text: '1');
   final TextEditingController _endNumController = TextEditingController(text: '99999999');
 
-  String _numberingType = 'Automatic'; // 'Automatic', 'Manual'
-  String _renumberingFreq = 'Yearly'; // 'None', 'Yearly', 'Monthly', 'Daily'
-  String _yearFormat = 'YYYY-YY'; // 'YY-YY', 'YYYY-YY'
-  String _yearPosition = 'As Prefix'; // 'As Prefix', 'As Suffix'
-  String _monthFormat = 'MMM'; // 'MMM', 'M-full', 'M-digit'
-  String _monthPosition = 'As Prefix'; // 'As Prefix', 'As Suffix'
-  String _dateFormat = 'DD-MM-YYYY'; // 'DD-MM-YYYY', 'DD/MM/YY'
-  String _datePosition = 'As Prefix'; // 'As Prefix', 'As Suffix'
+  String _numberingType = 'Automatic';
+  String _renumberingFreq = 'Yearly';
+  String _yearFormat = 'YYYY-YY';
+  String _yearPosition = 'As Prefix';
+  String _monthFormat = 'MMM';
+  String _monthPosition = 'As Prefix';
+  String _dateFormat = 'DD-MM-YYYY';
+  String _datePosition = 'As Prefix';
 
   @override
   void initState() {
@@ -150,7 +150,7 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
     final isDaily = showAutomaticFields && _renumberingFreq == 'Daily';
 
     return Dialog(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
         width: math.min(MediaQuery.of(context).size.width * 0.9, 720),
@@ -179,18 +179,18 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
                       children: [
                         Text(
                           widget.isEdit ? 'Configure Voucher Series' : 'Create New Voucher Series',
-                          style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
+                          style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w900, color: AppColors.primaryDark),
                         ),
                         const SizedBox(height: 2),
                         const Text(
                           'Dynamic numbering structure, renumbering frequencies, and format rules',
-                          style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                          style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
                         ),
                       ],
                     ),
                     const Spacer(),
                     IconButton(
-                      icon: const Icon(Icons.close_rounded, size: 20, color: Color(0xFF64748B)),
+                      icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textSecondary),
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                   ],
@@ -202,9 +202,9 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
+                    color: AppColors.cardBg,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFCBD5E1)),
+                    border: Border.all(color: AppColors.borderMedium),
                   ),
                   child: Row(
                     children: [
@@ -212,11 +212,11 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
                       const SizedBox(width: 10),
                       const Text(
                         'Live Voucher No. Preview: ',
-                        style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFF475569)),
+                        style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.textSecondary),
                       ),
                       Text(
                         _generatePreview(),
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.textPrimary),
                       ),
                     ],
                   ),
@@ -249,7 +249,6 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
                 if (showAutomaticFields) ...[
                   const SizedBox(height: 14),
 
-                  // Renumbering Frequency
                   _buildDropdown(
                     label: 'Renumbering Frequency *',
                     value: _renumberingFreq,
@@ -330,7 +329,6 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
 
                   const SizedBox(height: 14),
 
-                  // Separator, Prefix & Suffix
                   Row(
                     children: [
                       Expanded(
@@ -360,7 +358,6 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
                   ),
                   const SizedBox(height: 14),
 
-                  // Start Number & End Number
                   Row(
                     children: [
                       Expanded(
@@ -384,7 +381,6 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
 
                 const SizedBox(height: 28),
 
-                // Actions
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
@@ -393,6 +389,8 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        side: const BorderSide(color: AppColors.border),
+                        foregroundColor: AppColors.textPrimary,
                       ),
                       child: const Text('Cancel'),
                     ),
@@ -401,7 +399,7 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
                       onPressed: _handleSubmit,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
+                        foregroundColor: AppColors.surface,
                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         elevation: 0,
@@ -430,7 +428,7 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF475569))),
+        Text(label, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.textSecondary)),
         const SizedBox(height: 4),
         SizedBox(
           height: 38,
@@ -443,9 +441,9 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
             decoration: InputDecoration(
               contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
               filled: true,
-              fillColor: const Color(0xFFF8FAFD),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+              fillColor: AppColors.cardBg,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.borderMedium)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.borderMedium)),
               focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.primary, width: 1.4)),
             ),
           ),
@@ -463,7 +461,7 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF475569))),
+        Text(label, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.textSecondary)),
         const SizedBox(height: 4),
         SizedBox(
           height: 38,
@@ -471,15 +469,15 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
             controller: controller,
             validator: validator,
             onChanged: (_) => setState(() {}),
-            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
             decoration: InputDecoration(
               hintText: hintText,
-              hintStyle: const TextStyle(fontSize: 11.5, color: Color(0xFF94A3B8)),
+              hintStyle: const TextStyle(fontSize: 11.5, color: AppColors.textMuted),
               contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               filled: true,
-              fillColor: const Color(0xFFF8FAFD),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+              fillColor: AppColors.cardBg,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.borderMedium)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.borderMedium)),
               focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.primary, width: 1.4)),
             ),
           ),
@@ -497,7 +495,7 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF475569))),
+        Text(label, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.textSecondary)),
         const SizedBox(height: 4),
         SizedBox(
           height: 38,
@@ -506,14 +504,15 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
             validator: validator,
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
             decoration: InputDecoration(
               hintText: hintText,
+              hintStyle: const TextStyle(fontSize: 11.5, color: AppColors.textMuted),
               contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               filled: true,
-              fillColor: const Color(0xFFF8FAFD),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+              fillColor: AppColors.cardBg,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.borderMedium)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.borderMedium)),
               focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.primary, width: 1.4)),
             ),
           ),

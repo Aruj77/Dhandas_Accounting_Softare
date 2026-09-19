@@ -53,4 +53,6 @@ class VoucherItemRow {
     amount.dispose();
     amountFocus.dispose();
   }
+
+  let(void Function(VoucherItemRow row) attachItemRowListeners) {}
 }

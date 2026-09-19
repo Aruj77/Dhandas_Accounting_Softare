@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../constants/app_colors.dart';
 
 class QuickTipsPanel extends StatelessWidget {
   const QuickTipsPanel({super.key});
@@ -8,12 +9,12 @@ class QuickTipsPanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE4EDF7)),
+        border: Border.all(color: AppColors.border),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x08092B60),
+            color: AppColors.shadowColor,
             blurRadius: 16,
             offset: Offset(0, 4),
           ),
@@ -25,11 +26,11 @@ class QuickTipsPanel extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: const [
+              const Row(
+                children: [
                   Icon(
                     Icons.lightbulb_outline_rounded,
-                    color: Color(0xFFE09B16),
+                    color: AppColors.warning,
                     size: 21,
                   ),
                   SizedBox(width: 10),
@@ -38,7 +39,7 @@ class QuickTipsPanel extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF101C3A),
+                      color: AppColors.textPrimary,
                     ),
                   ),
                 ],
@@ -47,21 +48,21 @@ class QuickTipsPanel extends StatelessWidget {
                 cursor: SystemMouseCursors.click,
                 child: GestureDetector(
                   onTap: () {},
-                  child: Row(
-                    children: const [
+                  child: const Row(
+                    children: [
                       Text(
                         'View All Tips',
                         style: TextStyle(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF0F62FE),
+                          color: AppColors.primary,
                         ),
                       ),
                       SizedBox(width: 4),
                       Icon(
                         Icons.arrow_forward_rounded,
                         size: 14,
-                        color: Color(0xFF0F62FE),
+                        color: AppColors.primary,
                       ),
                     ],
                   ),
@@ -90,7 +91,7 @@ class QuickTipsPanel extends StatelessWidget {
           width: 5,
           height: 5,
           decoration: const BoxDecoration(
-            color: Color(0xFF33415D),
+            color: AppColors.textPrimary,
             shape: BoxShape.circle,
           ),
         ),
@@ -103,7 +104,7 @@ class QuickTipsPanel extends StatelessWidget {
             style: const TextStyle(
               fontSize: 12.5,
               fontWeight: FontWeight.w500,
-              color: Color(0xFF4C5D7F),
+              color: AppColors.textSecondary,
             ),
           ),
         ),

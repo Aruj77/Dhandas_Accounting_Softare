@@ -18,4 +18,15 @@ class ItemMasterModel {
     required this.purchasePrice,
     required this.mrp,
   });
+  
+  factory ItemMasterModel.empty() => ItemMasterModel(
+    name: '',
+    hsn: '',
+    unit: 'Pcs',
+    taxCategory: 'GST 18%',
+    taxRate: 18.0,
+    salesPrice: 0.0,
+    purchasePrice: 0.0,
+    mrp: 0.0,
+  );
 }

@@ -108,13 +108,13 @@ class _DateRangeDialogState extends State<DateRangeDialog> {
         children: [
           const Text(
             'Voucher Series',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
           ),
           const SizedBox(height: 6),
           _isLoadingSeries
               ? const SizedBox(
                   height: 38,
-                  child: Center(child: LinearProgressIndicator(minHeight: 2)),
+                  child: Center(child: LinearProgressIndicator(minHeight: 2, color: AppColors.primary)),
                 )
               : DropdownButtonFormField<String>(
                   value: _selectedSeries,
@@ -133,7 +133,7 @@ class _DateRangeDialogState extends State<DateRangeDialog> {
                     fillColor: AppColors.cardBg,
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                      borderSide: const BorderSide(color: AppColors.borderMedium),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -162,7 +162,7 @@ class _DateRangeDialogState extends State<DateRangeDialog> {
             decoration: BoxDecoration(
               color: AppColors.primaryLight,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFD6E4FA)),
+              border: Border.all(color: AppColors.borderSubtle),
             ),
             child: Row(
               children: [
@@ -171,7 +171,7 @@ class _DateRangeDialogState extends State<DateRangeDialog> {
                 Expanded(
                   child: Text(
                     'Select a specific series or leave as "All" to view combined transactions for F.Y. ${widget.financialYear}.',
-                    style: const TextStyle(fontSize: 11, color: Color(0xFF274375), height: 1.3),
+                    style: const TextStyle(fontSize: 11, color: AppColors.primaryDark, height: 1.3),
                   ),
                 ),
               ],
@@ -189,7 +189,7 @@ class _DateRangeDialogState extends State<DateRangeDialog> {
           onPressed: _submit,
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
+            foregroundColor: AppColors.surface,
           ),
           icon: const Icon(Icons.table_view_rounded, size: 16),
           label: const Text('Show List (Enter)', style: TextStyle(fontWeight: FontWeight.w800)),
@@ -204,7 +204,7 @@ class _DateRangeDialogState extends State<DateRangeDialog> {
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
         ),
         const SizedBox(height: 6),
         TextField(
@@ -217,7 +217,7 @@ class _DateRangeDialogState extends State<DateRangeDialog> {
             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+              borderSide: const BorderSide(color: AppColors.borderMedium),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),

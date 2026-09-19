@@ -32,7 +32,7 @@ class SideBarState extends State<SideBar> {
     if (widget.activeCompany != null) {
       return const [
         _MenuItem(icon: Icons.receipt_long_rounded, title: 'Transactions'),
-        _MenuItem(icon: Icons.account_balance_wallet_outlined, title: 'Accounts & Ledgers'),
+        _MenuItem(icon: Icons.dataset_outlined, title: 'Masters'),
         _MenuItem(icon: Icons.inventory_2_outlined, title: 'Inventory & Stock'),
         _MenuItem(icon: Icons.bar_chart_rounded, title: 'Reports & GST'),
         _MenuItem(icon: Icons.admin_panel_settings_outlined, title: 'Administration'),
@@ -126,11 +126,7 @@ class SideBarState extends State<SideBar> {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF2C7BF6), AppColors.primary],
-                    ),
+                    gradient: AppColors.primaryGradient,
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
@@ -141,7 +137,7 @@ class SideBarState extends State<SideBar> {
                     ],
                   ),
                   child: const Center(
-                    child: Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 22),
+                    child: Icon(Icons.account_balance_wallet_rounded, color: AppColors.surface, size: 22),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -160,7 +156,7 @@ class SideBarState extends State<SideBar> {
                     SizedBox(height: 1),
                     Text(
                       'Accounts Made Simple',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: Color(0xFF7586A3)),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
                     ),
                   ],
                 ),
@@ -178,7 +174,7 @@ class SideBarState extends State<SideBar> {
                   decoration: BoxDecoration(
                     color: AppColors.primaryLight,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFD6E4FA)),
+                    border: Border.all(color: AppColors.borderSubtle),
                   ),
                   child: const Row(
                     children: [
@@ -252,12 +248,12 @@ class SideBarState extends State<SideBar> {
                         height: 46,
                         decoration: BoxDecoration(
                           gradient: isSelected
-                              ? const LinearGradient(colors: [Color(0xFFE9F2FE), Color(0xFFF3F7FF)])
+                              ? AppColors.navSelectedGradient
                               : (hasFocus || isHovered)
                                   ? LinearGradient(
                                       colors: [
-                                        const Color(0xFFF0F5FC),
-                                        const Color(0xFFF6F9FE).withValues(alpha: 0.8),
+                                        AppColors.navHover,
+                                        AppColors.navHoverLight.withValues(alpha: 0.8),
                                       ],
                                     )
                                   : null,
@@ -265,7 +261,7 @@ class SideBarState extends State<SideBar> {
                           border: Border.all(
                             color: hasFocus
                                 ? AppColors.primary
-                                : (isSelected ? const Color(0xFFD2E3FB) : Colors.transparent),
+                                : (isSelected ? AppColors.borderFocus : Colors.transparent),
                             width: hasFocus ? 2.5 : 1.1,
                           ),
                           boxShadow: hasFocus
@@ -313,7 +309,7 @@ class SideBarState extends State<SideBar> {
                                     size: 20,
                                     color: isSelected || hasFocus
                                         ? AppColors.primary
-                                        : (isHovered ? const Color(0xFF1E2F50) : const Color(0xFF6B7E9D)),
+                                        : (isHovered ? AppColors.primaryDark : AppColors.textSecondary),
                                   ),
                                   const SizedBox(width: 14),
                                   Text(
@@ -323,7 +319,7 @@ class SideBarState extends State<SideBar> {
                                       fontWeight: isSelected || hasFocus ? FontWeight.w800 : FontWeight.w600,
                                       color: isSelected || hasFocus
                                           ? AppColors.primary
-                                          : (isHovered ? const Color(0xFF101D38) : const Color(0xFF455573)),
+                                          : (isHovered ? AppColors.textPrimary : AppColors.textSecondary),
                                       letterSpacing: -0.1,
                                     ),
                                   ),
@@ -351,7 +347,7 @@ class SideBarState extends State<SideBar> {
                 SizedBox(height: 2),
                 Text(
                   '© 2026 Dhandas. All rights reserved.',
-                  style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w500, color: Color(0xFFA1B0C5)),
+                  style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w500, color: AppColors.textMuted),
                 ),
               ],
             ),

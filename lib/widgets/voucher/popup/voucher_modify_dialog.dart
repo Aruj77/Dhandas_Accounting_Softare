@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../constants/app_colors.dart';
 import '../../../services/keyboard_shortcut_service.dart';
 import '../../../services/storage_service.dart';
 import '../../../pages/company/voucher/voucher_entry_screen.dart';
@@ -81,18 +82,17 @@ class _VoucherModifyDialogState extends State<VoucherModifyDialog> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Voucher "$vchNo" not found.'),
-          backgroundColor: const Color(0xFFEE4343),
+          backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
         ),
       );
       return;
     }
 
-    // Capture parent navigator BEFORE popping dialog
     final navigator = Navigator.of(context);
     final onUpdatedCallback = widget.onVoucherUpdated;
 
-    navigator.pop(); // Close modify dialog
+    navigator.pop();
 
     navigator.push(
       MaterialPageRoute(
@@ -112,11 +112,10 @@ class _VoucherModifyDialogState extends State<VoucherModifyDialog> {
   }
 
   void _openManageList() {
-    // Capture parent navigator BEFORE popping dialog
     final navigator = Navigator.of(context);
     final onUpdatedCallback = widget.onVoucherUpdated;
 
-    navigator.pop(); // Close modify dialog
+    navigator.pop();
 
     navigator.push(
       MaterialPageRoute(
@@ -135,7 +134,7 @@ class _VoucherModifyDialogState extends State<VoucherModifyDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
         width: 360,
@@ -149,19 +148,19 @@ class _VoucherModifyDialogState extends State<VoucherModifyDialog> {
                 Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0F62FE).withValues(alpha: 0.1),
+                    color: AppColors.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.edit_note_rounded, color: Color(0xFF0F62FE), size: 20),
+                  child: const Icon(Icons.edit_note_rounded, color: AppColors.primary, size: 20),
                 ),
                 const SizedBox(width: 10),
                 Text(
                   'Modify ${widget.voucherType}',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF101C38)),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
                 ),
                 const Spacer(),
                 IconButton(
-                  icon: const Icon(Icons.close_rounded, size: 20, color: Color(0xFF64748B)),
+                  icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textSecondary),
                   onPressed: () => Navigator.pop(context),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
@@ -171,7 +170,7 @@ class _VoucherModifyDialogState extends State<VoucherModifyDialog> {
             const SizedBox(height: 18),
             const Text(
               'Voucher No.',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF475569)),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 6),
             _isLoading
@@ -184,15 +183,15 @@ class _VoucherModifyDialogState extends State<VoucherModifyDialog> {
                     decoration: InputDecoration(
                       hintText: 'Enter Voucher Number',
                       filled: true,
-                      fillColor: const Color(0xFFF8FAFD),
+                      fillColor: AppColors.cardBg,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: Color(0xFFE2EAF5)),
+                        borderSide: const BorderSide(color: AppColors.border),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.5),
+                        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
                       ),
                     ),
                     onSubmitted: (val) => _openEditForVoucherNumber(val),
@@ -206,8 +205,8 @@ class _VoucherModifyDialogState extends State<VoucherModifyDialog> {
                     icon: const Icon(Icons.list_alt_rounded, size: 16),
                     label: const Text('List', style: TextStyle(fontWeight: FontWeight.w700)),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF0F62FE),
-                      side: const BorderSide(color: Color(0xFF0F62FE)),
+                      foregroundColor: AppColors.primary,
+                      side: const BorderSide(color: AppColors.primary),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
@@ -218,8 +217,8 @@ class _VoucherModifyDialogState extends State<VoucherModifyDialog> {
                   child: ElevatedButton(
                     onPressed: () => _openEditForVoucherNumber(_vchNoCtrl.text),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0F62FE),
-                      foregroundColor: Colors.white,
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.surface,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),

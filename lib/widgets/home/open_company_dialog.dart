@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../constants/app_colors.dart';
 import '../../services/storage_service.dart';
 
 class OpenCompanyDialog extends StatefulWidget {
@@ -119,12 +120,12 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
           child: Container(
             width: 580,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppColors.surface,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              border: Border.all(color: AppColors.border),
               boxShadow: const [
                 BoxShadow(
-                  color: Color(0x1E0F172A),
+                  color: AppColors.shadowColor,
                   blurRadius: 32,
                   offset: Offset(0, 16),
                 ),
@@ -140,26 +141,26 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
                       decoration: const BoxDecoration(
-                        color: Color(0xFFF8FAFC),
-                        border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+                        color: AppColors.cardBg,
+                        border: Border(bottom: BorderSide(color: AppColors.border)),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.edit_note_rounded, color: Color(0xFF2563EB), size: 22),
+                          const Icon(Icons.edit_note_rounded, color: AppColors.primaryAccent, size: 22),
                           const SizedBox(width: 10),
                           const Text(
                             'Edit Company Details',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
-                              color: Color(0xFF0F172A),
+                              color: AppColors.textPrimary,
                             ),
                           ),
                           const Spacer(),
                           IconButton(
                             onPressed: () => Navigator.of(ctx).pop(false),
                             icon: const Icon(Icons.close_rounded, size: 20),
-                            color: const Color(0xFF64748B),
+                            color: AppColors.textSecondary,
                           ),
                         ],
                       ),
@@ -177,10 +178,10 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                               labelText: 'Company Name',
                               prefixIcon: const Icon(Icons.apartment_rounded, size: 19),
                               filled: true,
-                              fillColor: const Color(0xFFF8FAFC),
+                              fillColor: AppColors.cardBg,
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                                borderSide: const BorderSide(color: AppColors.border),
                               ),
                             ),
                           ),
@@ -192,10 +193,10 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                               labelText: 'GSTIN',
                               prefixIcon: const Icon(Icons.qr_code_scanner_rounded, size: 19),
                               filled: true,
-                              fillColor: const Color(0xFFF8FAFC),
+                              fillColor: AppColors.cardBg,
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                                borderSide: const BorderSide(color: AppColors.border),
                               ),
                             ),
                           ),
@@ -206,10 +207,10 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                               labelText: 'City',
                               prefixIcon: const Icon(Icons.location_city_rounded, size: 19),
                               filled: true,
-                              fillColor: const Color(0xFFF8FAFC),
+                              fillColor: AppColors.cardBg,
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                                borderSide: const BorderSide(color: AppColors.border),
                               ),
                             ),
                           ),
@@ -221,10 +222,10 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                               labelText: 'Address',
                               prefixIcon: const Icon(Icons.location_on_outlined, size: 19),
                               filled: true,
-                              fillColor: const Color(0xFFF8FAFC),
+                              fillColor: AppColors.cardBg,
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                                borderSide: const BorderSide(color: AppColors.border),
                               ),
                             ),
                           ),
@@ -234,8 +235,8 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                       decoration: const BoxDecoration(
-                        color: Color(0xFFF8FAFC),
-                        border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+                        color: AppColors.cardBg,
+                        border: Border(top: BorderSide(color: AppColors.border)),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.end,
@@ -243,8 +244,8 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                           OutlinedButton(
                             onPressed: () => Navigator.of(ctx).pop(false),
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: const Color(0xFF475569),
-                              side: const BorderSide(color: Color(0xFFCBD5E1)),
+                              foregroundColor: AppColors.textSecondary,
+                              side: const BorderSide(color: AppColors.borderMedium),
                             ),
                             child: const Text('Cancel'),
                           ),
@@ -263,9 +264,9 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                               }
                             },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF2563EB),
+                              backgroundColor: AppColors.primaryAccent,
                             ),
-                            child: const Text('Save Changes', style: TextStyle(color: Colors.white)),
+                            child: const Text('Save Changes', style: TextStyle(color: AppColors.surface)),
                           ),
                         ],
                       ),
@@ -296,7 +297,7 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           title: const Row(
             children: [
-              Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444), size: 24),
+              Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 24),
               SizedBox(width: 10),
               Text(
                 'Delete Company',
@@ -306,7 +307,7 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
           ),
           content: Text(
             'Are you sure you want to permanently delete "$companyName" ($folderLabel)?',
-            style: const TextStyle(fontSize: 13, color: Color(0xFF475569)),
+            style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
           ),
           actions: [
             OutlinedButton(
@@ -315,8 +316,8 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
             ),
             ElevatedButton(
               onPressed: () => Navigator.of(ctx).pop(true),
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
-              child: const Text('Delete', style: TextStyle(color: Colors.white)),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+              child: const Text('Delete', style: TextStyle(color: AppColors.surface)),
             ),
           ],
         );
@@ -341,20 +342,20 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: const Color(0xFFDCEAFE).withValues(alpha: 0.55),
+        color: AppColors.badgeBlueFill,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.check, size: 13, color: Color(0xFF2563EB)),
+          const Icon(Icons.check, size: 13, color: AppColors.primaryAccent),
           const SizedBox(width: 4),
           Text(
             label,
             style: const TextStyle(
               fontSize: 11.5,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF2563EB),
+              color: AppColors.primaryAccent,
             ),
           ),
         ],
@@ -391,16 +392,16 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
             constraints: const BoxConstraints(maxHeight: 720),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFFEBF2FD), Color(0xFFF7F9FD), Colors.white],
+                colors: [AppColors.dialogBgStart, AppColors.dialogBgMiddle, AppColors.surface],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 stops: [0.0, 0.35, 0.7],
               ),
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: Colors.white, width: 1.5),
+              border: Border.all(color: AppColors.surface, width: 1.5),
               boxShadow: const [
                 BoxShadow(
-                  color: Color(0x221E293B),
+                  color: AppColors.shadowColor,
                   blurRadius: 36,
                   offset: Offset(0, 16),
                 ),
@@ -425,7 +426,7 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                             child: Icon(
                               Icons.snippet_folder_rounded,
                               size: 130,
-                              color: const Color(0xFF2563EB).withValues(alpha: 0.5),
+                              color: AppColors.primaryAccent.withValues(alpha: 0.5),
                             ),
                           );
                         },
@@ -438,7 +439,7 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                     child: IconButton(
                       onPressed: () => Navigator.of(context).pop(),
                       icon: const Icon(Icons.close_rounded, size: 18),
-                      color: const Color(0xFF94A3B8),
+                      color: AppColors.textMuted,
                       splashRadius: 18,
                     ),
                   ),
@@ -455,22 +456,22 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                               height: 74,
                               decoration: BoxDecoration(
                                 gradient: const LinearGradient(
-                                  colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+                                  colors: [AppColors.primaryAccent, AppColors.primaryDark],
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                 ),
                                 borderRadius: BorderRadius.circular(19),
-                                boxShadow: const [
+                                boxShadow: [
                                   BoxShadow(
-                                    color: Color(0x352563EB),
+                                    color: AppColors.primaryAccent.withValues(alpha: 0.25),
                                     blurRadius: 10,
-                                    offset: Offset(0, 4),
+                                    offset: const Offset(0, 4),
                                   ),
                                 ],
                               ),
                               child: const Icon(
                                 Icons.folder_open_rounded,
-                                color: Colors.white,
+                                color: AppColors.surface,
                                 size: 38,
                               ),
                             ),
@@ -484,7 +485,7 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                                     style: TextStyle(
                                       fontSize: 20,
                                       fontWeight: FontWeight.w800,
-                                      color: Color(0xFF0F172A),
+                                      color: AppColors.textPrimary,
                                       letterSpacing: -0.4,
                                     ),
                                   ),
@@ -494,7 +495,7 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                                     style: TextStyle(
                                       fontSize: 12.5,
                                       fontWeight: FontWeight.w400,
-                                      color: Color(0xFF64748B),
+                                      color: AppColors.textSecondary,
                                     ),
                                   ),
                                   const SizedBox(height: 10),
@@ -519,12 +520,12 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                           margin: const EdgeInsets.fromLTRB(20, 0, 20, 0),
                           padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: AppColors.surface,
                             borderRadius: BorderRadius.circular(18),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                            border: Border.all(color: AppColors.border),
                             boxShadow: const [
                               BoxShadow(
-                                color: Color(0x0A0F172A),
+                                color: AppColors.shadowColor,
                                 blurRadius: 12,
                                 offset: Offset(0, 4),
                               ),
@@ -538,28 +539,28 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                                     child: Container(
                                       height: 42,
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFFF8FAFC),
+                                        color: AppColors.cardBg,
                                         borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                                        border: Border.all(color: AppColors.border),
                                       ),
                                       child: TextField(
                                         controller: _searchController,
                                         style: const TextStyle(
                                           fontSize: 13,
                                           fontWeight: FontWeight.w500,
-                                          color: Color(0xFF0F172A),
+                                          color: AppColors.textPrimary,
                                         ),
                                         decoration: const InputDecoration(
                                           hintText:
                                               'Search company by name, GSTIN, or folder ID...',
                                           hintStyle: TextStyle(
                                             fontSize: 12.5,
-                                            color: Color(0xFF94A3B8),
+                                            color: AppColors.textMuted,
                                           ),
                                           prefixIcon: Icon(
                                             Icons.search_rounded,
                                             size: 19,
-                                            color: Color(0xFF2563EB),
+                                            color: AppColors.primaryAccent,
                                           ),
                                           border: InputBorder.none,
                                           contentPadding:
@@ -573,25 +574,25 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                                     width: 42,
                                     height: 42,
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFFF8FAFC),
+                                      color: AppColors.cardBg,
                                       borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                                      border: Border.all(color: AppColors.border),
                                     ),
                                     child: const Icon(
                                       Icons.tune_rounded,
                                       size: 18,
-                                      color: Color(0xFF64748B),
+                                      color: AppColors.textSecondary,
                                     ),
                                   ),
                                 ],
                               ),
                               const SizedBox(height: 14),
 
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
+                              const Padding(
+                                padding: EdgeInsets.symmetric(
                                     horizontal: 16, vertical: 8),
                                 child: Row(
-                                  children: const [
+                                  children: [
                                     SizedBox(width: 44),
                                     Expanded(
                                       flex: 5,
@@ -600,7 +601,7 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                                         style: TextStyle(
                                           fontSize: 11.5,
                                           fontWeight: FontWeight.w700,
-                                          color: Color(0xFF64748B),
+                                          color: AppColors.textSecondary,
                                         ),
                                       ),
                                     ),
@@ -612,7 +613,7 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                                           style: TextStyle(
                                             fontSize: 11.5,
                                             fontWeight: FontWeight.w700,
-                                            color: Color(0xFF64748B),
+                                            color: AppColors.textSecondary,
                                           ),
                                         ),
                                       ),
@@ -625,7 +626,7 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                                           style: TextStyle(
                                             fontSize: 11.5,
                                             fontWeight: FontWeight.w700,
-                                            color: Color(0xFF64748B),
+                                            color: AppColors.textSecondary,
                                           ),
                                         ),
                                       ),
@@ -639,7 +640,7 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                                           style: TextStyle(
                                             fontSize: 11.5,
                                             fontWeight: FontWeight.w700,
-                                            color: Color(0xFF64748B),
+                                            color: AppColors.textSecondary,
                                           ),
                                         ),
                                       ),
@@ -652,7 +653,7 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                                 child: _isLoading
                                     ? const Center(
                                         child: CircularProgressIndicator(
-                                          color: Color(0xFF2563EB),
+                                          color: AppColors.primaryAccent,
                                         ),
                                       )
                                     : _filteredCompanies.isEmpty
@@ -662,7 +663,7 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                                               style: TextStyle(
                                                 fontSize: 13,
                                                 fontWeight: FontWeight.w500,
-                                                color: Color(0xFF94A3B8),
+                                                color: AppColors.textMuted,
                                               ),
                                             ),
                                           )
@@ -704,14 +705,14 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                                                           vertical: 12),
                                                   decoration: BoxDecoration(
                                                     color: isSelected
-                                                        ? const Color(0xFFF4F8FE)
+                                                        ? AppColors.primaryLight
                                                         : Colors.transparent,
                                                     borderRadius:
                                                         BorderRadius.circular(14),
                                                     border: Border.all(
                                                       color: isSelected
-                                                        ? const Color(0xFF2563EB)
-                                                        : const Color(0xFFE2E8F0),
+                                                          ? AppColors.primaryAccent
+                                                          : AppColors.border,
                                                       width: isSelected ? 1.4 : 1.0,
                                                     ),
                                                   ),
@@ -723,16 +724,12 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                                                         decoration: BoxDecoration(
                                                           shape: BoxShape.circle,
                                                           color: isSelected
-                                                              ? const Color(
-                                                                  0xFF2563EB)
-                                                              : Colors
-                                                                  .transparent,
+                                                              ? AppColors.primaryAccent
+                                                              : Colors.transparent,
                                                           border: Border.all(
                                                             color: isSelected
-                                                                ? const Color(
-                                                                    0xFF2563EB)
-                                                                : const Color(
-                                                                    0xFFCBD5E1),
+                                                                ? AppColors.primaryAccent
+                                                                : AppColors.borderMedium,
                                                             width: 1.5,
                                                           ),
                                                         ),
@@ -740,7 +737,7 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                                                             ? const Icon(
                                                                 Icons.check,
                                                                 size: 13,
-                                                                color: Colors.white,
+                                                                color: AppColors.surface,
                                                               )
                                                             : null,
                                                       ),
@@ -755,22 +752,18 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                                                               height: 36,
                                                               decoration:
                                                                   BoxDecoration(
-                                                                color: const Color(
-                                                                    0xFFEFF6FF),
+                                                                color: AppColors.primaryLight,
                                                                 borderRadius:
                                                                     BorderRadius
                                                                         .circular(8),
                                                               ),
                                                               child: const Icon(
-                                                                Icons
-                                                                    .apartment_rounded,
+                                                                Icons.apartment_rounded,
                                                                 size: 20,
-                                                                color: Color(
-                                                                    0xFF2563EB),
+                                                                color: AppColors.primaryAccent,
                                                               ),
                                                             ),
-                                                            const SizedBox(
-                                                                width: 10),
+                                                            const SizedBox(width: 10),
                                                             Expanded(
                                                               child: Column(
                                                                 crossAxisAlignment:
@@ -786,15 +779,13 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                                                                       fontWeight:
                                                                           FontWeight
                                                                               .w700,
-                                                                      color: Color(
-                                                                          0xFF0F172A),
+                                                                      color: AppColors.textPrimary,
                                                                     ),
                                                                     overflow:
                                                                         TextOverflow
                                                                             .ellipsis,
                                                                   ),
-                                                                  const SizedBox(
-                                                                      height: 2),
+                                                                  const SizedBox(height: 2),
                                                                   Text(
                                                                     hasGstin
                                                                         ? 'Primary Company'
@@ -805,12 +796,11 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                                                                       fontWeight:
                                                                           FontWeight
                                                                               .w400,
-                                                                      color: Color(
-                                                                          0xFF94A3B8),
+                                                                      color: AppColors.textMuted,
                                                                     ),
                                                                   ),
                                                                 ],
-                                                              ),
+                                                             ),
                                                             ),
                                                           ],
                                                         ),
@@ -831,8 +821,7 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                                                                             .w700,
                                                                     letterSpacing:
                                                                         0.5,
-                                                                    color: Color(
-                                                                        0xFF16A34A),
+                                                                    color: AppColors.success,
                                                                   ),
                                                                   overflow:
                                                                       TextOverflow
@@ -845,14 +834,12 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                                                                       vertical: 4),
                                                                   decoration:
                                                                       BoxDecoration(
-                                                                    color: const Color(
-                                                                        0xFFFEF3C7),
+                                                                    color: AppColors.badgeYellowBg,
                                                                     borderRadius:
                                                                         BorderRadius.circular(
                                                                             12),
                                                                     border: Border.all(
-                                                                      color: const Color(
-                                                                          0xFFFDE68A),
+                                                                      color: AppColors.badgeYellowBorder,
                                                                     ),
                                                                   ),
                                                                   child: const Row(
@@ -861,23 +848,17 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                                                                             .min,
                                                                     children: [
                                                                       Icon(
-                                                                        Icons
-                                                                            .warning_amber_rounded,
+                                                                        Icons.warning_amber_rounded,
                                                                         size: 13,
-                                                                        color: Color(
-                                                                            0xFFB45309),
+                                                                        color: AppColors.badgeYellowText,
                                                                       ),
-                                                                      SizedBox(
-                                                                          width: 4),
+                                                                      SizedBox(width: 4),
                                                                       Text(
                                                                         'No GSTIN',
                                                                         style: TextStyle(
-                                                                          fontSize:
-                                                                              11,
-                                                                          fontWeight:
-                                                                              FontWeight.w700,
-                                                                          color: Color(
-                                                                              0xFFB45309),
+                                                                          fontSize: 11,
+                                                                          fontWeight: FontWeight.w700,
+                                                                          color: AppColors.badgeYellowText,
                                                                         ),
                                                                       ),
                                                                     ],
@@ -890,17 +871,14 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                                                         flex: 3,
                                                         child: Row(
                                                           mainAxisAlignment:
-                                                              MainAxisAlignment
-                                                                  .center,
+                                                              MainAxisAlignment.center,
                                                           children: [
                                                             const Icon(
                                                               Icons.folder_outlined,
                                                               size: 15,
-                                                              color: Color(
-                                                                  0xFF64748B),
+                                                              color: AppColors.textSecondary,
                                                             ),
-                                                            const SizedBox(
-                                                                width: 6),
+                                                            const SizedBox(width: 6),
                                                             Text(
                                                               folderLabel,
                                                               style:
@@ -908,8 +886,7 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                                                                 fontSize: 12,
                                                                 fontWeight:
                                                                     FontWeight.w500,
-                                                                color: Color(
-                                                                    0xFF334155),
+                                                                color: AppColors.textPrimary,
                                                               ),
                                                             ),
                                                           ],
@@ -927,25 +904,21 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                                                               height: 30,
                                                               decoration:
                                                                   BoxDecoration(
-                                                                color: const Color(
-                                                                    0xFFEFF6FF),
+                                                                color: AppColors.primaryLight,
                                                                 borderRadius:
                                                                     BorderRadius
                                                                         .circular(6),
                                                               ),
                                                               child: IconButton(
-                                                                padding:
-                                                                    EdgeInsets.zero,
+                                                                padding: EdgeInsets.zero,
                                                                 tooltip: 'Edit',
                                                                 icon: const Icon(
                                                                   Icons.edit_outlined,
                                                                   size: 15,
-                                                                  color: Color(
-                                                                      0xFF2563EB),
+                                                                  color: AppColors.primaryAccent,
                                                                 ),
                                                                 onPressed: () =>
-                                                                    _openEditModal(
-                                                                        company),
+                                                                    _openEditModal(company),
                                                               ),
                                                             ),
                                                             const SizedBox(width: 8),
@@ -954,26 +927,21 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                                                               height: 30,
                                                               decoration:
                                                                   BoxDecoration(
-                                                                color: const Color(
-                                                                    0xFFFEE2E2),
+                                                                color: AppColors.errorLight,
                                                                 borderRadius:
                                                                     BorderRadius
                                                                         .circular(6),
                                                               ),
                                                               child: IconButton(
-                                                                padding:
-                                                                    EdgeInsets.zero,
+                                                                padding: EdgeInsets.zero,
                                                                 tooltip: 'Delete',
                                                                 icon: const Icon(
-                                                                  Icons
-                                                                      .delete_outline_rounded,
+                                                                  Icons.delete_outline_rounded,
                                                                   size: 15,
-                                                                  color: Color(
-                                                                      0xFFEF4444),
+                                                                  color: AppColors.errorDark,
                                                                 ),
                                                                 onPressed: () =>
-                                                                    _confirmDelete(
-                                                                        company),
+                                                                    _confirmDelete(company),
                                                               ),
                                                             ),
                                                           ],
@@ -998,14 +966,14 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                               width: 36,
                               height: 36,
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: AppColors.surface,
                                 borderRadius: BorderRadius.circular(9),
-                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                                border: Border.all(color: AppColors.border),
                               ),
                               child: const Icon(
                                 Icons.storage_rounded,
                                 size: 18,
-                                color: Color(0xFF64748B),
+                                color: AppColors.textSecondary,
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -1017,7 +985,7 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                                   style: const TextStyle(
                                     fontSize: 12.5,
                                     fontWeight: FontWeight.w700,
-                                    color: Color(0xFF0F172A),
+                                    color: AppColors.textPrimary,
                                   ),
                                 ),
                                 const Text(
@@ -1025,7 +993,7 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                                   style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w400,
-                                    color: Color(0xFF64748B),
+                                    color: AppColors.textSecondary,
                                   ),
                                 ),
                               ],
@@ -1034,9 +1002,9 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                             OutlinedButton(
                               onPressed: () => Navigator.of(context).pop(),
                               style: OutlinedButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                foregroundColor: const Color(0xFF0F172A),
-                                side: const BorderSide(color: Color(0xFFCBD5E1)),
+                                backgroundColor: AppColors.surface,
+                                foregroundColor: AppColors.textPrimary,
+                                side: const BorderSide(color: AppColors.borderMedium),
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 22, vertical: 14),
                                 shape: RoundedRectangleBorder(
@@ -1055,11 +1023,11 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                                   ? null
                                   : _confirmSelection,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF2563EB),
+                                backgroundColor: AppColors.primaryAccent,
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 22, vertical: 14),
                                 elevation: 4,
-                                shadowColor: const Color(0x552563EB),
+                                shadowColor: AppColors.primaryAccent.withValues(alpha: 0.35),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -1068,14 +1036,14 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(Icons.arrow_forward_rounded,
-                                      size: 16, color: Colors.white),
+                                      size: 16, color: AppColors.surface),
                                   SizedBox(width: 6),
                                   Text(
                                     'Open Company',
                                     style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w700,
-                                      color: Colors.white,
+                                      color: AppColors.surface,
                                     ),
                                   ),
                                 ],

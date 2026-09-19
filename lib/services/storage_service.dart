@@ -4,41 +4,20 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class StorageService {
   static const String _prefDirectoryKey = 'dhandas_data_directory_path';
-  
+
   static const Map<String, dynamic> defaultCompanyMasters = {
     'debtors': [
-      {'name': 'Cash', 'gstin': '', 'group': 'Cash-in-Hand'},
+      {'name': 'Cash', 'gstin': '', 'group': 'Cash-in-hand'},
     ],
     'creditors': [
-      {'name': 'Cash', 'gstin': '', 'group': 'Cash-in-Hand'},
+      {'name': 'Cash', 'gstin': '', 'group': 'Cash-in-hand'},
     ],
-    'items': [
-      {
-        'name': '3304 18% Pcs',
-        'hsn': '3304',
-        'unit': 'Pcs',
-        'taxCategory': 'GST 18%',
-        'taxRate': 18.0,
-        'salesPrice': 250.0,
-        'purchasePrice': 200.0,
-        'mrp': 300.0,
-      },
-      {
-        'name': '8471 18% Nos',
-        'hsn': '8471',
-        'unit': 'Nos',
-        'taxCategory': 'GST 18%',
-        'taxRate': 18.0,
-        'salesPrice': 45000.0,
-        'purchasePrice': 40000.0,
-        'mrp': 52000.0,
-      },
-    ],
+    'items': [],
     'series': ['Main'],
     'seriesSettings': {
       'Main': {
         'name': 'Main',
-        'numberingType': 'Manual', // Main set to Manual by default
+        'numberingType': 'Manual',
         'renumberingFreq': 'None',
         'yearFormat': 'YY-YY',
         'yearPosition': 'As Prefix',
@@ -49,6 +28,63 @@ class StorageService {
         'endNumber': 99999999,
       }
     },
+    'saleTypes': [
+      'Local Itemwise',
+      'InterState Itemwise',
+      'Local Multirate',
+      'InterState Multirate',
+      'Local Exempt',
+      'InterState Exempt',
+    ],
+    'units': [
+      'BAG', 'BAL', 'BDL', 'BOX', 'BTL', 'BUN', 'CAN', 'CBM', 'CCM', 'CMS',
+      'CTN', 'DOZ', 'DRM', 'GGK', 'GMS', 'GRS', 'GYD', 'KGS', 'KLR', 'KME',
+      'MLT', 'MTR', 'MTS', 'NOS', 'PAC', 'PCS', 'PRS', 'QTL', 'ROL', 'SET',
+      'SQF', 'SQM', 'SQY', 'TBS', 'TGM', 'THD', 'TON', 'TUB', 'UGS', 'UNT', 'YDS',
+    ],
+    'accountGroups': [
+      'Sundry Debtors',
+      'Sundry Creditors',
+      'Bank Accounts',
+      'Cash-in-hand',
+      'Direct Expenses',
+      'Indirect Expenses',
+      'Sales Accounts',
+      'Purchase Accounts',
+    ],
+    'materialCenters': [
+      'Main Store',
+      'Warehouse',
+      'Godown',
+    ],
+    'billSundries': [
+      'Add. Cess on GST',
+      'Add. Cess on GST (ITC-None)',
+      'Cess on GST',
+      'Cess on GST (ITC-None)',
+      'CGST',
+      'CGST (ITC-None)',
+      'Discount',
+      'Freight & Forwarding Charges',
+      'IGST',
+      'IGST (Export / SEZ Unit)',
+      'IGST (ITC-None)',
+      'Round Off-',
+      'Round Off+',
+      'SGST',
+      'SGST (ITC-None)',
+      'TCS (Tax Collected at Source)',
+      'TDS on Pymt./Purc. of Goods',
+    ],
+    'taxCategories': [
+      '0% Exempt',
+      'GST 3%',
+      'GST 5%',
+      'GST 12%',
+      'GST 18%',
+      'GST 28%',
+      'GST 40%',
+    ],
   };
 
   static Future<String?> getSavedDirectory() async {
@@ -171,7 +207,6 @@ class StorageService {
       await file.writeAsString(
         const JsonEncoder.withIndent('  ').convert(companyData),
       );
-      return;
     }
   }
 
@@ -183,7 +218,6 @@ class StorageService {
       final dir = Directory(folderPath);
       if (await dir.exists()) {
         await dir.delete(recursive: true);
-        return;
       }
     }
   }
@@ -197,14 +231,31 @@ class StorageService {
         final content = await file.readAsString();
         final data = jsonDecode(content);
         if (data is Map<String, dynamic>) {
-          data['series'] ??= ['Main'];
-          data['seriesSettings'] ??= {'Main': defaultCompanyMasters['seriesSettings']['Main']};
+          bool needsResave = false;
+
+          // Migrate missing keys for previously created companies
+          defaultCompanyMasters.forEach((key, value) {
+            if (!data.containsKey(key) || data[key] == null) {
+              data[key] = value;
+              needsResave = true;
+            }
+          });
+
+          if (needsResave) {
+            await saveCompanyMasters(folderPath: folderPath, mastersData: data);
+          }
+
           return data;
         }
       } catch (_) {}
     }
 
-    return Map<String, dynamic>.from(defaultCompanyMasters);
+    final initialMasters = Map<String, dynamic>.from(defaultCompanyMasters);
+    await saveCompanyMasters(
+      folderPath: folderPath,
+      mastersData: initialMasters,
+    );
+    return initialMasters;
   }
 
   static Future<void> saveCompanyMasters({
@@ -217,20 +268,32 @@ class StorageService {
     );
   }
 
-  /// Resolves file name based on voucher type and series name (e.g., sales.json vs sales_aetyv.json)
   static String resolveVoucherFileName(String voucherType, [String? seriesName]) {
     final vch = voucherType.toLowerCase().trim();
     String base = 'sales';
-    if (vch.contains('sale')) base = 'sales';
-    else if (vch.contains('purchase')) base = 'purchase';
-    else if (vch.contains('payment')) base = 'payment';
-    else if (vch.contains('receipt')) base = 'receipt';
-    else if (vch.contains('journal')) base = 'journal';
-    else if (vch.contains('contra')) base = 'contra';
-    else base = vch.replaceAll(RegExp(r'[^a-z0-9]'), '_');
+    if (vch.contains('sale')) {
+      base = 'sales';
+    } else if (vch.contains('purchase')) {
+      base = 'purchase';
+    } else if (vch.contains('payment')) {
+      base = 'payment';
+    } else if (vch.contains('receipt')) {
+      base = 'receipt';
+    } else if (vch.contains('journal')) {
+      base = 'journal';
+    } else if (vch.contains('contra')) {
+      base = 'contra';
+    } else {
+      base = vch.replaceAll(RegExp(r'[^a-z0-9]'), '_');
+    }
 
-    if (seriesName != null && seriesName.trim().isNotEmpty && seriesName.toLowerCase() != 'main') {
-      final cleanSeries = seriesName.trim().replaceAll(RegExp(r'[^a-z0-9]'), '_').toLowerCase();
+    if (seriesName != null &&
+        seriesName.trim().isNotEmpty &&
+        seriesName.toLowerCase() != 'main') {
+      final cleanSeries = seriesName
+          .trim()
+          .replaceAll(RegExp(r'[^a-z0-9]'), '_')
+          .toLowerCase();
       return '${base}_$cleanSeries.json';
     }
     return '$base.json';
@@ -250,7 +313,8 @@ class StorageService {
     }
 
     final seriesName = voucherData['series']?.toString();
-    final targetFileName = resolveVoucherFileName(voucherData['voucherType'] ?? 'voucher', seriesName);
+    final targetFileName =
+        resolveVoucherFileName(voucherData['voucherType'] ?? 'voucher', seriesName);
     final file = File('${vouchersDir.path}${Platform.pathSeparator}$targetFileName');
 
     List<dynamic> voucherList = [];

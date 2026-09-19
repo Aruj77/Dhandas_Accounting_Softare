@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../constants/app_colors.dart';
+import '../../../services/storage_service.dart';
 import 'voucher_sundry_row.dart';
 
 class VoucherSundryCard extends StatelessWidget {
   final List<VoucherSundryRow> sundries;
+  final List<String>? availableSundries;
   final bool autoRoundOff;
   final double roundOff;
   final VoidCallback onAddSundry;
@@ -14,6 +17,7 @@ class VoucherSundryCard extends StatelessWidget {
   const VoucherSundryCard({
     super.key,
     required this.sundries,
+    this.availableSundries,
     required this.autoRoundOff,
     required this.roundOff,
     required this.onAddSundry,
@@ -22,30 +26,17 @@ class VoucherSundryCard extends StatelessWidget {
     required this.onTabToSave,
   });
 
-  static const List<String> fixedSundryOptions = [
-    'Add. Cess on GST',
-    'Add. Cess on GST (ITC-None)',
-    'Cess on GST',
-    'Cess on GST (ITC-None)',
-    'CGST',
-    'CGST (ITC-None)',
-    'Discount',
-    'Freight & Forwarding Charges',
-    'IGST',
-    'IGST (Export / SEZ Unit)',
-    'IGST (ITC-None)',
-    'Round Off-',
-    'Round Off+',
-    'SGST',
-    'SGST (ITC-None)',
-    'TCS (Tax Collected at Source)',
-    'TDS on Pymt./Purc. of Goods',
-  ];
+  List<String> get _sundryOptions {
+    if (availableSundries != null && availableSundries!.isNotEmpty) {
+      return availableSundries!;
+    }
+    return (StorageService.defaultCompanyMasters['billSundries'] as List? ?? [])
+        .map((e) => e.toString())
+        .toList();
+  }
 
   @override
   Widget build(BuildContext context) {
-    const customCellBorderColor = Color.fromARGB(255, 186, 202, 226);
-
     return Focus(
       onKeyEvent: (node, event) {
         if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.tab) {
@@ -57,11 +48,11 @@ class VoucherSundryCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: customCellBorderColor, width: 1.2),
-          boxShadow: const [
-            BoxShadow(color: Color(0x04092B60), blurRadius: 8, offset: Offset(0, 2)),
+          border: Border.all(color: AppColors.border, width: 1.2),
+          boxShadow: [
+            BoxShadow(color: AppColors.shadowColor, blurRadius: 8, offset: Offset(0, 2)),
           ],
         ),
         child: Column(
@@ -72,11 +63,11 @@ class VoucherSundryCard extends StatelessWidget {
               children: [
                 const Row(
                   children: [
-                    Icon(Icons.tune_rounded, size: 15, color: Color(0xFF0F62FE)),
+                    Icon(Icons.tune_rounded, size: 15, color: AppColors.primary),
                     SizedBox(width: 6),
                     Text(
                       'Bill Sundry & Expenses',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF101B3A)),
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                     ),
                   ],
                 ),
@@ -106,12 +97,13 @@ class VoucherSundryCard extends StatelessWidget {
                           child: Autocomplete<String>(
                             initialValue: TextEditingValue(text: s.name.text),
                             optionsBuilder: (TextEditingValue textEditingValue) {
-                              if (textEditingValue.text == '') return fixedSundryOptions;
-                              return fixedSundryOptions.where((opt) => opt.toLowerCase().contains(textEditingValue.text.toLowerCase()));
+                              final options = _sundryOptions;
+                              if (textEditingValue.text == '') return options;
+                              return options.where((opt) => opt.toLowerCase().contains(textEditingValue.text.toLowerCase()));
                             },
                             onSelected: (selection) {
                               s.name.text = selection;
-                              if (selection == 'Round Off-' || selection == 'Discount') {
+                              if (selection == 'Round Off-' || selection.toLowerCase().contains('discount')) {
                                 s.isNegative = true;
                               } else {
                                 s.isNegative = false;
@@ -128,17 +120,17 @@ class VoucherSundryCard extends StatelessWidget {
                                   onFieldSubmitted();
                                   onRowEnter(idx, 'name');
                                 },
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF101B3A)),
+                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
                                 decoration: InputDecoration(
                                   hintText: 'Select sundry...',
-                                  hintStyle: const TextStyle(fontSize: 10, color: Color(0xFF90A1BA)),
+                                  hintStyle: const TextStyle(fontSize: 10, color: AppColors.textMuted),
                                   contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
                                   filled: true,
-                                  fillColor: const Color(0xFFFAFBFD),
-                                  suffixIcon: const Icon(Icons.keyboard_arrow_down_rounded, size: 15, color: Color(0xFF64748B)),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: customCellBorderColor)),
-                                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: customCellBorderColor)),
-                                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.4)),
+                                  fillColor: AppColors.cardBg,
+                                  suffixIcon: const Icon(Icons.keyboard_arrow_down_rounded, size: 15, color: AppColors.textSecondary),
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.border)),
+                                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.border)),
+                                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.primary, width: 1.4)),
                                 ),
                               );
                             },
@@ -161,16 +153,16 @@ class VoucherSundryCard extends StatelessWidget {
                             ],
                             textInputAction: TextInputAction.next,
                             onSubmitted: (_) => onRowEnter(idx, 'percent'),
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF101B3A)),
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
                             decoration: InputDecoration(
                               hintText: '%',
-                              hintStyle: const TextStyle(fontSize: 10, color: Color(0xFF90A1BA)),
+                              hintStyle: const TextStyle(fontSize: 10, color: AppColors.textMuted),
                               contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
                               filled: true,
-                              fillColor: const Color(0xFFFAFBFD),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: customCellBorderColor)),
-                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: customCellBorderColor)),
-                              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.4)),
+                              fillColor: AppColors.cardBg,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.border)),
+                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.border)),
+                              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.primary, width: 1.4)),
                             ),
                           ),
                         ),
@@ -191,16 +183,16 @@ class VoucherSundryCard extends StatelessWidget {
                             ],
                             textInputAction: TextInputAction.next,
                             onSubmitted: (_) => onRowEnter(idx, 'amount'),
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF101B3A)),
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
                             decoration: InputDecoration(
                               hintText: 'Amount',
-                              hintStyle: const TextStyle(fontSize: 10, color: Color(0xFF90A1BA)),
+                              hintStyle: const TextStyle(fontSize: 10, color: AppColors.textMuted),
                               contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
                               filled: true,
-                              fillColor: const Color(0xFFFAFBFD),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: customCellBorderColor)),
-                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: customCellBorderColor)),
-                              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.4)),
+                              fillColor: AppColors.cardBg,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.border)),
+                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.border)),
+                              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.primary, width: 1.4)),
                             ),
                           ),
                         ),
@@ -211,11 +203,10 @@ class VoucherSundryCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 6),
-            // Auto Round-off Container (border removed)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFD),
+                color: AppColors.cardBg,
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Row(
@@ -225,14 +216,14 @@ class VoucherSundryCard extends StatelessWidget {
                     width: 18,
                     child: Checkbox(
                       value: autoRoundOff,
-                      activeColor: const Color(0xFF0F62FE),
+                      activeColor: AppColors.primary,
                       onChanged: (_) => onToggleRoundOff(),
                     ),
                   ),
                   const SizedBox(width: 6),
                   const Text(
                     'Auto Round-off',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                   ),
                   const Spacer(),
                   Text(
@@ -240,7 +231,7 @@ class VoucherSundryCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
-                      color: roundOff == 0 ? const Color(0xFF64748B) : const Color(0xFF0F62FE),
+                      color: roundOff == 0 ? AppColors.textSecondary : AppColors.primary,
                     ),
                   ),
                 ],

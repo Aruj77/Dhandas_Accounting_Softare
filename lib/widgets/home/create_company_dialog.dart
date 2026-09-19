@@ -149,12 +149,12 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
         width: 820,
         constraints: const BoxConstraints(maxHeight: 820),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
+          border: Border.all(color: AppColors.border),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF0F172A).withValues(alpha: 0.12),
+              color: AppColors.primaryDark.withValues(alpha: 0.12),
               blurRadius: 50,
               offset: const Offset(0, 20),
             ),
@@ -197,7 +197,7 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
       padding: const EdgeInsets.fromLTRB(36, 24, 24, 24),
       decoration: const BoxDecoration(
         color: AppColors.cardBg,
-        border: Border(bottom: BorderSide(color: Color(0xFFEDF2F7))),
+        border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
       child: Row(
         children: [
@@ -208,7 +208,7 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+                colors: [AppColors.primaryAccent, AppColors.primaryDark],
               ),
               borderRadius: BorderRadius.circular(14),
               boxShadow: [
@@ -219,7 +219,7 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
                 ),
               ],
             ),
-            child: const Icon(Icons.domain_add_rounded, color: Colors.white, size: 24),
+            child: const Icon(Icons.domain_add_rounded, color: AppColors.surface, size: 24),
           ),
           const SizedBox(width: 16),
           const Expanded(
@@ -231,7 +231,7 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
                   style: TextStyle(
                     fontSize: 19,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF0F172A),
+                    color: AppColors.textPrimary,
                     letterSpacing: -0.4,
                   ),
                 ),
@@ -267,9 +267,9 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
             width: 116,
             height: 116,
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
+              color: AppColors.cardBg,
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFFCBD5E1)),
+              border: Border.all(color: AppColors.borderMedium),
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -285,7 +285,7 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
                 const SizedBox(height: 8),
                 const Text(
                   'Upload Logo',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
                 ),
                 const Text('PNG or JPG', style: TextStyle(fontSize: 10, color: AppColors.textMuted)),
               ],
@@ -311,10 +311,10 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: AppColors.cardBg,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: _isGstValid ? const Color(0xFF86EFAC) : const Color(0xFFE2E8F0),
+          color: _isGstValid ? AppColors.successBorder : AppColors.border,
         ),
       ),
       child: Column(
@@ -324,14 +324,14 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
             children: [
               const Text(
                 'Tax Identification (GSTIN)',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1E293B)),
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
               ),
               const SizedBox(width: 8),
               if (_isGstValid)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFDCFCE7),
+                    color: AppColors.successLight,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Row(
@@ -350,27 +350,27 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
           const SizedBox(height: 10),
           Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppColors.surface,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
                 color: _gstError != null
                     ? AppColors.error
                     : _isGstValid
-                        ? const Color(0xFF22C55E)
-                        : const Color(0xFFCBD5E1),
+                        ? AppColors.success
+                        : AppColors.borderMedium,
                 width: 1.2,
               ),
             ),
             padding: const EdgeInsets.only(left: 14, right: 6),
             child: Row(
               children: [
-                const Icon(Icons.qr_code_scanner_rounded, color: Color(0xFF3B82F6), size: 20),
+                const Icon(Icons.qr_code_scanner_rounded, color: AppColors.primaryAccent, size: 20),
                 const SizedBox(width: 12),
                 Expanded(
                   child: TextFormField(
                     controller: _gstinController,
                     textCapitalization: TextCapitalization.characters,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, letterSpacing: 1.1, color: Color(0xFF0F172A)),
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, letterSpacing: 1.1, color: AppColors.textPrimary),
                     decoration: const InputDecoration(
                       hintText: '22AAAAA0000A1Z5',
                       hintStyle: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w400, letterSpacing: 0, color: AppColors.textMuted),
@@ -391,7 +391,7 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
                       ? const SizedBox(
                           width: 14,
                           height: 14,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.surface),
                         )
                       : const Icon(Icons.auto_awesome, size: 16),
                   label: Text(_isValidatingGst ? 'Verifying...' : 'Fetch Details', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
@@ -482,7 +482,7 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
           children: [
             Text(
               label,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
             ),
             if (isRequired) const Text(' *', style: TextStyle(color: AppColors.error, fontSize: 13)),
           ],
@@ -492,17 +492,17 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
           controller: controller,
           maxLines: maxLines,
           validator: validator,
-          style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+          style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: const TextStyle(fontSize: 13, color: AppColors.textMuted, fontWeight: FontWeight.w400),
             prefixIcon: Icon(prefixIcon, color: AppColors.textSecondary, size: 19),
             filled: true,
-            fillColor: Colors.white,
+            fillColor: AppColors.surface,
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+              borderSide: const BorderSide(color: AppColors.borderMedium),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -535,24 +535,24 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
         ),
         const SizedBox(height: 7),
         DropdownButtonFormField<String>(
           value: items.contains(value) ? value : null,
           icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.textSecondary),
           isExpanded: true,
-          style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+          style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: const TextStyle(fontSize: 13, color: AppColors.textMuted, fontWeight: FontWeight.w400),
             prefixIcon: Icon(prefixIcon, color: AppColors.textSecondary, size: 19),
             filled: true,
-            fillColor: Colors.white,
+            fillColor: AppColors.surface,
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+              borderSide: const BorderSide(color: AppColors.borderMedium),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -565,7 +565,7 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
               child: Text(
                 item,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w500),
+                style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w500),
               ),
             );
           }).toList(),
@@ -580,7 +580,7 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
       padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 20),
       decoration: const BoxDecoration(
         color: AppColors.cardBg,
-        border: Border(top: BorderSide(color: Color(0xFFEDF2F7))),
+        border: Border(top: BorderSide(color: AppColors.border)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
@@ -588,8 +588,8 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
           OutlinedButton(
             onPressed: () => Navigator.of(context).pop(),
             style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF475569),
-              side: const BorderSide(color: Color(0xFFCBD5E1)),
+              foregroundColor: AppColors.textSecondary,
+              side: const BorderSide(color: AppColors.borderMedium),
               padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
@@ -609,7 +609,7 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
                 ? const SizedBox(
                     width: 16,
                     height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.surface),
                   )
                 : const Icon(Icons.arrow_forward_rounded, size: 18),
             label: Text(

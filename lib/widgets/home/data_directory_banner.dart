@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../constants/app_colors.dart';
 
 class DataDirectoryBanner extends StatefulWidget {
   final String? currentDirectory;
@@ -72,27 +73,27 @@ class _DataDirectoryBannerState extends State<DataDirectoryBanner> {
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
                 colors: [
-                  Color(0xFFFFFDF8),
-                  Color(0xFFFFF8EA),
+                  AppColors.bannerYellowStart,
+                  AppColors.bannerYellowEnd,
                 ],
               ),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: _isFocused ? const Color(0xFF0F62FE) : const Color(0xFFFFE39E),
+                color: _isFocused ? AppColors.primary : AppColors.bannerYellowBorder,
                 width: _isFocused ? 2.5 : 1.2,
               ),
               boxShadow: _isFocused
-                  ? const [
+                  ? [
                       BoxShadow(
-                        color: Color(0x330F62FE),
+                        color: AppColors.primary.withValues(alpha: 0.2),
                         blurRadius: 16,
                         spreadRadius: 2,
-                        offset: Offset(0, 4),
+                        offset: const Offset(0, 4),
                       ),
                     ]
                   : const [
                       BoxShadow(
-                        color: Color(0x10E69800),
+                        color: AppColors.bannerYellowShadow,
                         blurRadius: 18,
                         offset: Offset(0, 6),
                       ),
@@ -104,13 +105,11 @@ class _DataDirectoryBannerState extends State<DataDirectoryBanner> {
                   width: 56,
                   height: 56,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFFBB323), Color(0xFFEB9500)],
-                    ),
+                    gradient: AppColors.folderGradient,
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: const [
                       BoxShadow(
-                        color: Color(0x3DF39E00),
+                        color: AppColors.folderShadow,
                         blurRadius: 12,
                         offset: Offset(0, 5),
                       ),
@@ -118,7 +117,7 @@ class _DataDirectoryBannerState extends State<DataDirectoryBanner> {
                   ),
                   child: const Icon(
                     Icons.folder_rounded,
-                    color: Colors.white,
+                    color: AppColors.surface,
                     size: 30,
                   ),
                 ),
@@ -134,7 +133,7 @@ class _DataDirectoryBannerState extends State<DataDirectoryBanner> {
                             style: TextStyle(
                               fontSize: 16.5,
                               fontWeight: FontWeight.w900,
-                              color: Color(0xFF101B3A),
+                              color: AppColors.textPrimary,
                             ),
                           ),
                           if (hasDirectory) ...[
@@ -142,7 +141,7 @@ class _DataDirectoryBannerState extends State<DataDirectoryBanner> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFDCFCE7),
+                                color: AppColors.successLight,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: const Text(
@@ -150,7 +149,7 @@ class _DataDirectoryBannerState extends State<DataDirectoryBanner> {
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w800,
-                                  color: Color(0xFF15803D),
+                                  color: AppColors.successDark,
                                 ),
                               ),
                             ),
@@ -169,7 +168,7 @@ class _DataDirectoryBannerState extends State<DataDirectoryBanner> {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: hasDirectory ? FontWeight.w700 : FontWeight.w500,
-                          color: hasDirectory ? const Color(0xFF15803D) : const Color(0xFF6B7B9B),
+                          color: hasDirectory ? AppColors.successDark : AppColors.textSecondary,
                         ),
                       ),
                     ],
@@ -183,7 +182,7 @@ class _DataDirectoryBannerState extends State<DataDirectoryBanner> {
                 const SizedBox(width: 16),
                 const Icon(
                   Icons.chevron_right_rounded,
-                  color: Color(0xFF3B4A6A),
+                  color: AppColors.bannerChevron,
                   size: 26,
                 ),
               ],

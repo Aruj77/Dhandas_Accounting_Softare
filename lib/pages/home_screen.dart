@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../constants/app_colors.dart';
 import '../services/keyboard_shortcut_service.dart';
 import '../services/storage_service.dart';
 import '../services/loading_service.dart';
@@ -21,6 +22,7 @@ import 'company/administration_screen.dart';
 import 'company/reports_dashboard_screen.dart';
 import 'company/voucher/voucher_entry_screen.dart';
 import 'company/voucher/voucher_list_screen.dart';
+import 'company/masters_dashboard_screen.dart';
 
 class _ListParams {
   final String voucherType;
@@ -127,7 +129,7 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Set Directory Dialog',
-      barrierColor: const Color(0x60091834),
+      barrierColor: AppColors.primaryDark.withValues(alpha: 0.38),
       transitionDuration: const Duration(milliseconds: 240),
       pageBuilder: (context, anim1, anim2) => const SizedBox.shrink(),
       transitionBuilder: (context, anim1, anim2, child) {
@@ -165,7 +167,7 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Open Company Dialog',
-      barrierColor: const Color(0x60091834),
+      barrierColor: AppColors.primaryDark.withValues(alpha: 0.38),
       transitionDuration: const Duration(milliseconds: 260),
       pageBuilder: (context, anim1, anim2) => const SizedBox.shrink(),
       transitionBuilder: (context, anim1, anim2, child) {
@@ -196,7 +198,7 @@ class _HomeScreenState extends State<HomeScreen> {
             content: Text(
               'Opened workspace for: ${selectedCompany['companyName']}',
             ),
-            backgroundColor: const Color(0xFF0F62FE),
+            backgroundColor: AppColors.primary,
           ),
         );
       }
@@ -213,7 +215,7 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Create Company Dialog',
-      barrierColor: const Color(0x60091834),
+      barrierColor: AppColors.primaryDark.withValues(alpha: 0.38),
       transitionDuration: const Duration(milliseconds: 260),
       pageBuilder: (context, anim1, anim2) => const SizedBox.shrink(),
       transitionBuilder: (context, anim1, anim2, child) {
@@ -237,7 +239,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const SnackBar(
                 content:
                     Text('Company database created and saved successfully!'),
-                backgroundColor: Color(0xFF11A25B),
+                backgroundColor: AppColors.success,
               ),
             );
           }
@@ -250,10 +252,10 @@ class _HomeScreenState extends State<HomeScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Please configure a Data Directory first.'),
-        backgroundColor: const Color(0xFFF39E00),
+        backgroundColor: AppColors.warning,
         action: SnackBarAction(
           label: 'Set Now',
-          textColor: Colors.white,
+          textColor: AppColors.surface,
           onPressed: _showSetDirectoryModal,
         ),
       ),
@@ -447,7 +449,7 @@ class _HomeScreenState extends State<HomeScreen> {
       autofocus: true,
       onKeyEvent: _handleKeyboardEvent,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF1F5FB),
+        backgroundColor: AppColors.background,
         body: Column(
           children: [
             Expanded(child: content),
@@ -495,11 +497,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
 
         // 1: ACCOUNTS & LEDGERS
-        _buildPlaceholderView(
-          icon: Icons.account_balance_wallet_outlined,
-          title: 'Accounts & Ledgers',
-          subtitle: 'Manage charts of accounts, sundry debtors, and creditors.',
-        ),
+        MastersDashboardScreen(company: _activeCompany!),
 
         // 2: INVENTORY & ITEMS
         _buildPlaceholderView(
@@ -584,7 +582,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Starting automated database backup...'),
-                        backgroundColor: Color(0xFF7034E6),
+                        backgroundColor: AppColors.purple,
                       ),
                     );
                   },
@@ -592,7 +590,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Open restore snapshot chooser...'),
-                        backgroundColor: Color(0xFFB439D1),
+                        backgroundColor: AppColors.purple,
                       ),
                     );
                   },
@@ -638,11 +636,11 @@ class _HomeScreenState extends State<HomeScreen> {
             width: 64,
             height: 64,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppColors.surface,
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFFDCE6F5)),
+              border: Border.all(color: AppColors.border),
             ),
-            child: Icon(icon, color: const Color(0xFF0F62FE), size: 30),
+            child: Icon(icon, color: AppColors.primary, size: 30),
           ),
           const SizedBox(height: 16),
           Text(
@@ -650,13 +648,13 @@ class _HomeScreenState extends State<HomeScreen> {
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF101B3A),
+              color: AppColors.primaryDark,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             subtitle,
-            style: const TextStyle(fontSize: 13, color: Color(0xFF637392)),
+            style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
           ),
         ],
       ),

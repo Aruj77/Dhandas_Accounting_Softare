@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../constants/app_colors.dart';
 import '../../../models/party_master_model.dart';
 import '../../../services/gstin_service.dart';
 
@@ -126,7 +127,7 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
         width: 720,
@@ -137,20 +138,19 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
               Row(
                 children: [
                   Container(
                     width: 36,
                     height: 36,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEBF3FE),
+                      color: AppColors.primaryLight,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(
                       widget.isEdit ? Icons.edit_note_rounded : Icons.person_add_rounded,
                       size: 20,
-                      color: const Color(0xFF0F62FE),
+                      color: AppColors.primary,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -161,26 +161,25 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
                         widget.isEdit
                             ? 'Edit Party (${_groupController.text})'
                             : 'Add New Party (${_groupController.text})',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF101B3A)),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
                       ),
                       Text(
                         widget.isEdit
                             ? 'Update Master Account Ledger Entry'
                             : 'Master Account Ledger Entry for ${widget.voucherType}',
-                        style: const TextStyle(fontSize: 11.5, color: Color(0xFF6B7B9B)),
+                        style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
                       ),
                     ],
                   ),
                   const Spacer(),
                   IconButton(
-                    icon: const Icon(Icons.close_rounded, size: 20, color: Color(0xFF6B7B9B)),
+                    icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textSecondary),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
               ),
               const SizedBox(height: 18),
 
-              // GSTIN & Validation Button
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -199,8 +198,8 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
                     child: ElevatedButton.icon(
                       onPressed: _validateGstin,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0F62FE),
-                        foregroundColor: Colors.white,
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.surface,
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
@@ -217,13 +216,12 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: _isGstinValid ? const Color(0xFF15803D) : const Color(0xFFDC2626),
+                    color: _isGstinValid ? AppColors.successDark : AppColors.errorDark,
                   ),
                 ),
               ],
               const SizedBox(height: 14),
 
-              // Name and Group
               Row(
                 children: [
                   Expanded(
@@ -248,7 +246,6 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
               ),
               const SizedBox(height: 14),
 
-              // PAN, Aadhaar and Mobile
               Row(
                 children: [
                   Expanded(
@@ -279,7 +276,6 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
               ),
               const SizedBox(height: 14),
 
-              // Address Details
               _buildTextField(
                 controller: _addressController,
                 label: 'Street Address',
@@ -316,7 +312,6 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
               ),
               const SizedBox(height: 24),
 
-              // Actions
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
@@ -325,6 +320,8 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      side: const BorderSide(color: AppColors.border),
+                      foregroundColor: AppColors.textPrimary,
                     ),
                     child: const Text('Cancel'),
                   ),
@@ -332,8 +329,8 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
                   ElevatedButton(
                     onPressed: _handleSubmit,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0F62FE),
-                      foregroundColor: Colors.white,
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.surface,
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
@@ -362,7 +359,7 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF64748B))),
+        Text(label, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.textSecondary)),
         const SizedBox(height: 4),
         SizedBox(
           height: 38,
@@ -371,16 +368,16 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
             readOnly: readOnly,
             validator: validator,
             textCapitalization: textCapitalization,
-            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFF101B3A)),
+            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
             decoration: InputDecoration(
               hintText: hintText,
-              hintStyle: const TextStyle(fontSize: 11.5, color: Color(0xFF90A1BA)),
+              hintStyle: const TextStyle(fontSize: 11.5, color: AppColors.textMuted),
               contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               filled: true,
-              fillColor: readOnly ? const Color(0xFFF1F5FB) : const Color(0xFFFAFBFD),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE5EDF7))),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE5EDF7))),
-              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.4)),
+              fillColor: readOnly ? AppColors.background : AppColors.cardBg,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.border)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.border)),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.primary, width: 1.4)),
             ),
           ),
         ),

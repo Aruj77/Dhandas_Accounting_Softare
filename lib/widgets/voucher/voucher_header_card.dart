@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../constants/app_colors.dart';
 import '../../constants/app_shortcuts.dart';
 import '../../models/party_master_model.dart';
 
@@ -64,11 +65,11 @@ class VoucherHeaderCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color.fromARGB(255, 186, 202, 226), width: 1.2),
-        boxShadow: const [
-          BoxShadow(color: Color(0x04092B60), blurRadius: 8, offset: Offset(0, 2)),
+        border: Border.all(color: AppColors.border, width: 1.2),
+        boxShadow: [
+          BoxShadow(color: AppColors.shadowColor, blurRadius: 8, offset: Offset(0, 2)),
         ],
       ),
       child: Column(
@@ -174,36 +175,36 @@ class VoucherHeaderCard extends StatelessWidget {
               child: Material(
                 elevation: 8,
                 borderRadius: BorderRadius.circular(10),
-                color: Colors.white,
+                color: AppColors.surface,
                 child: Container(
                   width: 180,
                   constraints: const BoxConstraints(maxHeight: 200),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFD6E4F5), width: 1.2),
+                    border: Border.all(color: AppColors.border, width: 1.2),
                   ),
                   child: ListView.separated(
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     shrinkWrap: true,
                     itemCount: options.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5FB)),
+                    separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.background),
                     itemBuilder: (BuildContext context, int index) {
                       final String option = options.elementAt(index);
                       return InkWell(
                         onTap: () => onSelected(option),
-                        hoverColor: const Color(0xFFF4F8FE),
+                        hoverColor: AppColors.primaryLight,
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           child: Row(
                             children: [
-                              const Icon(Icons.tag_rounded, size: 14, color: Color(0xFF0F62FE)),
+                              const Icon(Icons.tag_rounded, size: 14, color: AppColors.primary),
                               const SizedBox(width: 8),
                               Text(
                                 option,
                                 style: const TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
-                                  color: Color(0xFF101C38),
+                                  color: AppColors.textPrimary,
                                 ),
                               ),
                             ],
@@ -231,12 +232,12 @@ class VoucherHeaderCard extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF101B3A),
+                    color: AppColors.primaryDark,
                   ),
                   decoration: InputDecoration(
                     labelText: 'Series',
-                    labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6B7B9B)),
-                    prefixIcon: const Icon(Icons.tag_rounded, size: 14, color: Color(0xFF0F62FE)),
+                    labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+                    prefixIcon: const Icon(Icons.tag_rounded, size: 14, color: AppColors.primary),
                     suffixIcon: focusNode.hasFocus
                         ? Focus(
                             canRequestFocus: false,
@@ -244,20 +245,20 @@ class VoucherHeaderCard extends StatelessWidget {
                             child: Container(
                               margin: const EdgeInsets.only(right: 6),
                               child: IconButton(
-                                icon: const Icon(Icons.add_circle, size: 18, color: Color(0xFF0F62FE)),
+                                icon: const Icon(Icons.add_circle, size: 18, color: AppColors.primary),
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(maxWidth: 24, maxHeight: 24),
                                 onPressed: () => onQuickAdd('Series'),
                               ),
                             ),
                           )
-                        : const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF64748B)),
+                        : const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppColors.textSecondary),
                     suffixIconConstraints: const BoxConstraints(minWidth: 32, minHeight: 24),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     filled: true,
-                    fillColor: const Color(0xFFF8FAFD),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color.fromARGB(255, 186, 202, 226))),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.3)),
+                    fillColor: AppColors.cardBg,
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.border)),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.primary, width: 1.3)),
                   ),
                 );
               },
@@ -297,25 +298,25 @@ class VoucherHeaderCard extends StatelessWidget {
               child: Material(
                 elevation: 8,
                 borderRadius: BorderRadius.circular(10),
-                color: Colors.white,
+                color: AppColors.surface,
                 child: Container(
                   width: 280,
                   constraints: const BoxConstraints(maxHeight: 250),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFD6E4F5), width: 1.2),
+                    border: Border.all(color: AppColors.border, width: 1.2),
                   ),
                   child: ListView.separated(
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     shrinkWrap: true,
                     itemCount: options.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5FB)),
+                    separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.background),
                     itemBuilder: (BuildContext context, int index) {
                       final String option = options.elementAt(index);
                       final isInterState = option.contains('InterState');
                       return InkWell(
                         onTap: () => onSelected(option),
-                        hoverColor: const Color(0xFFF4F8FE),
+                        hoverColor: AppColors.primaryLight,
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           child: Row(
@@ -323,7 +324,7 @@ class VoucherHeaderCard extends StatelessWidget {
                               Icon(
                                 isInterState ? Icons.alt_route_rounded : Icons.sync_alt_rounded,
                                 size: 15,
-                                color: isInterState ? const Color(0xFF7E22CE) : const Color(0xFF0F62FE),
+                                color: isInterState ? AppColors.purple : AppColors.primary,
                               ),
                               const SizedBox(width: 8),
                               Text(
@@ -331,7 +332,7 @@ class VoucherHeaderCard extends StatelessWidget {
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
-                                  color: isInterState ? const Color(0xFF7E22CE) : const Color(0xFF101C38),
+                                  color: isInterState ? AppColors.purple : AppColors.textPrimary,
                                 ),
                               ),
                             ],
@@ -359,12 +360,12 @@ class VoucherHeaderCard extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF101B3A),
+                    color: AppColors.primaryDark,
                   ),
                   decoration: InputDecoration(
                     labelText: 'Taxation / Sale Type',
-                    labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6B7B9B)),
-                    prefixIcon: const Icon(Icons.account_tree_outlined, size: 14, color: Color(0xFF0F62FE)),
+                    labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+                    prefixIcon: const Icon(Icons.account_tree_outlined, size: 14, color: AppColors.primary),
                     suffixIcon: focusNode.hasFocus
                         ? Focus(
                             canRequestFocus: false,
@@ -372,20 +373,20 @@ class VoucherHeaderCard extends StatelessWidget {
                             child: Container(
                               margin: const EdgeInsets.only(right: 6),
                               child: IconButton(
-                                icon: const Icon(Icons.add_circle, size: 18, color: Color(0xFF0F62FE)),
+                                icon: const Icon(Icons.add_circle, size: 18, color: AppColors.primary),
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(maxWidth: 24, maxHeight: 24),
                                 onPressed: () => onQuickAdd('Sale Type'),
                               ),
                             ),
                           )
-                        : const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF64748B)),
+                        : const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppColors.textSecondary),
                     suffixIconConstraints: const BoxConstraints(minWidth: 32, minHeight: 24),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     filled: true,
-                    fillColor: const Color(0xFFF8FAFD),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color.fromARGB(255, 186, 202, 226))),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.3)),
+                    fillColor: AppColors.cardBg,
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.border)),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.primary, width: 1.3)),
                   ),
                 );
               },
@@ -430,24 +431,24 @@ class VoucherHeaderCard extends StatelessWidget {
               child: Material(
                 elevation: 8,
                 borderRadius: BorderRadius.circular(10),
-                color: Colors.white,
+                color: AppColors.surface,
                 child: Container(
                   width: 420,
                   constraints: const BoxConstraints(maxHeight: 250),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFD6E4F5), width: 1.2),
+                    border: Border.all(color: AppColors.border, width: 1.2),
                   ),
                   child: ListView.separated(
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     shrinkWrap: true,
                     itemCount: options.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5FB)),
+                    separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.background),
                     itemBuilder: (BuildContext context, int index) {
                       final PartyMasterModel option = options.elementAt(index);
                       return InkWell(
                         onTap: () => onSelected(option),
-                        hoverColor: const Color(0xFFF4F8FE),
+                        hoverColor: AppColors.primaryLight,
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           child: Row(
@@ -456,10 +457,10 @@ class VoucherHeaderCard extends StatelessWidget {
                                 width: 28,
                                 height: 28,
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFEFF6FE),
+                                  color: AppColors.primaryLight,
                                   borderRadius: BorderRadius.circular(6),
                                 ),
-                                child: const Icon(Icons.business_rounded, size: 15, color: Color(0xFF0F62FE)),
+                                child: const Icon(Icons.business_rounded, size: 15, color: AppColors.primary),
                               ),
                               const SizedBox(width: 10),
                               Expanded(
@@ -468,7 +469,7 @@ class VoucherHeaderCard extends StatelessWidget {
                                   children: [
                                     Text(
                                       option.name,
-                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF101C38)),
+                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
@@ -478,13 +479,13 @@ class VoucherHeaderCard extends StatelessWidget {
                                         if (option.gstin.isNotEmpty) ...[
                                           Text(
                                             option.gstin,
-                                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF15803D)),
+                                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.successDark),
                                           ),
                                           const SizedBox(width: 8),
                                         ],
                                         Text(
                                           option.group,
-                                          style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+                                          style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
                                         ),
                                       ],
                                     ),
@@ -516,12 +517,12 @@ class VoucherHeaderCard extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF101B3A),
+                    color: AppColors.primaryDark,
                   ),
                   decoration: InputDecoration(
                     labelText: 'Party / Account Ledger',
-                    labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6B7B9B)),
-                    prefixIcon: const Icon(Icons.person_outline_rounded, size: 14, color: Color(0xFF0F62FE)),
+                    labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+                    prefixIcon: const Icon(Icons.person_outline_rounded, size: 14, color: AppColors.primary),
                     suffixIcon: focusNode.hasFocus
                         ? Focus(
                             canRequestFocus: false,
@@ -529,7 +530,7 @@ class VoucherHeaderCard extends StatelessWidget {
                             child: Container(
                               margin: const EdgeInsets.only(right: 6),
                               child: IconButton(
-                                icon: const Icon(Icons.add_circle, size: 18, color: Color(0xFF0F62FE)),
+                                icon: const Icon(Icons.add_circle, size: 18, color: AppColors.primary),
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(maxWidth: 24, maxHeight: 24),
                                 onPressed: onAddParty,
@@ -540,9 +541,9 @@ class VoucherHeaderCard extends StatelessWidget {
                     suffixIconConstraints: const BoxConstraints(minWidth: 32, minHeight: 24),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     filled: true,
-                    fillColor: const Color(0xFFF8FAFD),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color.fromARGB(255, 186, 202, 226))),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.3)),
+                    fillColor: AppColors.cardBg,
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.border)),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.primary, width: 1.3)),
                   ),
                 );
               },
@@ -580,11 +581,11 @@ class VoucherHeaderCard extends StatelessWidget {
               focusNode: focusNode,
               textInputAction: TextInputAction.next,
               onSubmitted: (_) => onSubmitted?.call(),
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF101B3A)),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
               decoration: InputDecoration(
                 labelText: label,
-                labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6B7B9B)),
-                prefixIcon: Icon(icon, size: 14, color: const Color(0xFF0F62FE)),
+                labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+                prefixIcon: Icon(icon, size: 14, color: AppColors.primary),
                 suffixIcon: focusNode.hasFocus
                     ? Focus(
                         canRequestFocus: false,
@@ -592,7 +593,7 @@ class VoucherHeaderCard extends StatelessWidget {
                         child: Container(
                           margin: const EdgeInsets.only(right: 6),
                           child: IconButton(
-                            icon: const Icon(Icons.add_circle, size: 18, color: Color(0xFF0F62FE)),
+                            icon: const Icon(Icons.add_circle, size: 18, color: AppColors.primary),
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(maxWidth: 24, maxHeight: 24),
                             onPressed: onAdd,
@@ -603,9 +604,9 @@ class VoucherHeaderCard extends StatelessWidget {
                 suffixIconConstraints: const BoxConstraints(minWidth: 32, minHeight: 24),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 filled: true,
-                fillColor: const Color(0xFFF8FAFD),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color.fromARGB(255, 186, 202, 226))),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.3)),
+                fillColor: AppColors.cardBg,
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.border)),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.primary, width: 1.3)),
               ),
             ),
           );
@@ -631,21 +632,21 @@ class VoucherHeaderCard extends StatelessWidget {
         focusNode: focusNode,
         textInputAction: TextInputAction.next,
         onSubmitted: (_) => onSubmitted(),
-        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF101B3A)),
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6B7B9B)),
-          prefixIcon: const Icon(Icons.calendar_today_rounded, size: 14, color: Color(0xFF0F62FE)),
+          labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+          prefixIcon: const Icon(Icons.calendar_today_rounded, size: 14, color: AppColors.primary),
           contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           filled: true,
-          fillColor: const Color(0xFFF8FAFD),
+          fillColor: AppColors.cardBg,
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: errorText != null ? const Color(0xFFEE4343) : const Color.fromARGB(255, 186, 202, 226)),
+            borderSide: BorderSide(color: errorText != null ? AppColors.error : AppColors.border),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: errorText != null ? const Color(0xFFEE4343) : const Color(0xFF0F62FE), width: 1.3),
+            borderSide: BorderSide(color: errorText != null ? AppColors.error : AppColors.primary, width: 1.3),
           ),
         ),
       ),
@@ -662,7 +663,7 @@ class VoucherHeaderCard extends StatelessWidget {
               width: width ?? 145,
               child: Text(
                 errorText,
-                style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: Color(0xFFEE4343)),
+                style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: AppColors.error),
                 maxLines: 1,
               ),
             ),
@@ -686,16 +687,16 @@ class VoucherHeaderCard extends StatelessWidget {
         focusNode: focusNode,
         textInputAction: TextInputAction.next,
         onSubmitted: (_) => onSubmitted?.call(),
-        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF101B3A)),
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6B7B9B)),
-          prefixIcon: Icon(icon, size: 14, color: const Color(0xFF0F62FE)),
+          labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+          prefixIcon: Icon(icon, size: 14, color: AppColors.primary),
           contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           filled: true,
-          fillColor: const Color(0xFFF8FAFD),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color.fromARGB(255, 204, 219, 241))),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.3)),
+          fillColor: AppColors.cardBg,
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.border)),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.primary, width: 1.3)),
         ),
       ),
     );

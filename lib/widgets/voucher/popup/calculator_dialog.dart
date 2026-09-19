@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../../constants/app_colors.dart';
 
 class CalculatorDialog extends StatefulWidget {
   final String initialValue;
@@ -39,7 +40,6 @@ class _CalculatorDialogState extends State<CalculatorDialog> {
       String sanitized = input.replaceAll('×', '*').replaceAll('÷', '/').replaceAll(' ', '');
       if (sanitized.isEmpty) return 0.0;
 
-      // Handle percentage conversion inline if present (e.g., "50%")
       if (sanitized.endsWith('%')) {
         sanitized = sanitized.substring(0, sanitized.length - 1);
         final base = double.tryParse(sanitized) ?? 0.0;
@@ -197,35 +197,34 @@ class _CalculatorDialogState extends State<CalculatorDialog> {
                   width: 280,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF101B3A).withValues(alpha: 0.96),
+                    color: AppColors.calcKeypadBg.withValues(alpha: 0.96),
                     borderRadius: BorderRadius.circular(22),
                     boxShadow: const [
-                      BoxShadow(color: Color(0x33092B60), blurRadius: 24, offset: Offset(0, 10)),
+                      BoxShadow(color: AppColors.dialogShadowLight, blurRadius: 24, offset: Offset(0, 10)),
                     ],
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.12), width: 1.2),
+                    border: Border.all(color: AppColors.surface.withValues(alpha: 0.12), width: 1.2),
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Draggable Titlebar
                       Row(
                         children: [
                           Container(
                             padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF0F62FE).withValues(alpha: 0.2),
+                              color: AppColors.primary.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(6),
                             ),
-                            child: const Icon(Icons.calculate_rounded, color: Color(0xFF0F62FE), size: 15),
+                            child: const Icon(Icons.calculate_rounded, color: AppColors.primary, size: 15),
                           ),
                           const SizedBox(width: 8),
                           const Text(
                             'Quick Calc (F4)',
-                            style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Colors.white),
+                            style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: AppColors.surface),
                           ),
                           const Spacer(),
                           IconButton(
-                            icon: const Icon(Icons.close_rounded, size: 16, color: Color(0xFF94A3B8)),
+                            icon: const Icon(Icons.close_rounded, size: 16, color: AppColors.textMuted),
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
                             onPressed: () => Navigator.pop(context),
@@ -233,19 +232,18 @@ class _CalculatorDialogState extends State<CalculatorDialog> {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      // Display Screen
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF1E293B),
+                          color: AppColors.calcDisplayBg,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                          border: Border.all(color: AppColors.surface.withValues(alpha: 0.06)),
                         ),
                         child: TextField(
                           controller: _displayCtrl,
                           readOnly: true,
                           textAlign: TextAlign.right,
-                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.surface),
                           decoration: const InputDecoration(
                             isDense: true,
                             contentPadding: EdgeInsets.zero,
@@ -254,7 +252,6 @@ class _CalculatorDialogState extends State<CalculatorDialog> {
                         ),
                       ),
                       const SizedBox(height: 14),
-                      // Keypad Grid
                       GridView.count(
                         crossAxisCount: 4,
                         shrinkWrap: true,
@@ -271,20 +268,19 @@ class _CalculatorDialogState extends State<CalculatorDialog> {
                           final isOperator = ['÷', '×', '-', '+', '='].contains(btn);
                           final isAction = ['C', '⌫', '%', '(%'].contains(btn);
 
-                          Color bg = const Color(0xFF1E293B);
-                          Color fg = Colors.white;
+                          Color bg = AppColors.calcKeyNumBg;
+                          Color fg = AppColors.surface;
 
                           if (btn == '=') {
-                            bg = const Color(0xFF0F62FE);
+                            bg = AppColors.primary;
                           } else if (isAction) {
-                            bg = const Color(0xFF27354F);
-                            fg = const Color(0xFF94A3B8);
+                            bg = AppColors.calcKeyActionBg;
+                            fg = AppColors.textMuted;
                           } else if (isOperator) {
-                            bg = const Color(0xFF2C3E5D);
-                            fg = const Color(0xFF60A5FA);
+                            bg = AppColors.calcKeyOpBg;
+                            fg = AppColors.calcKeyOpFg;
                           }
 
-                          // Clean up button label representation
                           final label = btn == '(%' ? '%' : btn;
 
                           return ElevatedButton(

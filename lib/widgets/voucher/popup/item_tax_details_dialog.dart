@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../constants/app_colors.dart';
 import '../voucher_item_row.dart';
 
 class ItemTaxDetailsDialog extends StatefulWidget {
@@ -65,7 +66,7 @@ class _ItemTaxDetailsDialogState extends State<ItemTaxDetailsDialog> {
     final itemName = widget.row.item.text.isNotEmpty ? widget.row.item.text : 'Item Line';
 
     return Dialog(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
         width: 420,
@@ -80,10 +81,10 @@ class _ItemTaxDetailsDialogState extends State<ItemTaxDetailsDialog> {
                   width: 32,
                   height: 32,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEFF6FE),
+                    color: AppColors.primaryLight,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.calculate_outlined, color: Color(0xFF0F62FE), size: 18),
+                  child: const Icon(Icons.calculate_outlined, color: AppColors.primary, size: 18),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -92,19 +93,19 @@ class _ItemTaxDetailsDialogState extends State<ItemTaxDetailsDialog> {
                     children: [
                       Text(
                         'Tax Details: $itemName',
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF101B3A)),
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       Text(
                         widget.isInterState ? 'Inter-State Transaction (IGST)' : 'Intra-State Transaction (CGST + SGST)',
-                        style: const TextStyle(fontSize: 11, color: Color(0xFF6B7B9B)),
+                        style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
                       ),
                     ],
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close_rounded, size: 18, color: Color(0xFF94A3B8)),
+                  icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.textMuted),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
@@ -138,14 +139,18 @@ class _ItemTaxDetailsDialogState extends State<ItemTaxDetailsDialog> {
               children: [
                 OutlinedButton(
                   onPressed: () => Navigator.of(context).pop(),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: AppColors.border),
+                    foregroundColor: AppColors.textPrimary,
+                  ),
                   child: const Text('Cancel'),
                 ),
                 const SizedBox(width: 10),
                 ElevatedButton(
                   onPressed: _applyChanges,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0F62FE),
-                    foregroundColor: Colors.white,
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.surface,
                   ),
                   child: const Text('Apply Details', style: TextStyle(fontWeight: FontWeight.w700)),
                 ),
@@ -165,7 +170,7 @@ class _ItemTaxDetailsDialogState extends State<ItemTaxDetailsDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF475569))),
+        Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textSecondary)),
         const SizedBox(height: 4),
         SizedBox(
           height: 36,
@@ -177,14 +182,14 @@ class _ItemTaxDetailsDialogState extends State<ItemTaxDetailsDialog> {
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
             ],
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF101B3A)),
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
             decoration: InputDecoration(
               contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               filled: true,
-              fillColor: const Color(0xFFF8FAFD),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2EAF5))),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2EAF5))),
-              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.3)),
+              fillColor: AppColors.cardBg,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.border)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.border)),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.primary, width: 1.3)),
             ),
           ),
         ),

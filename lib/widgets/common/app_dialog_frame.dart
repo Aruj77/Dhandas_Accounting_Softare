@@ -37,7 +37,7 @@ class AppDialogFrame extends StatelessWidget {
             border: Border.all(color: AppColors.border, width: 1.2),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x200A1838),
+                color: AppColors.shadowColor,
                 blurRadius: 36,
                 offset: Offset(0, 14),
               ),

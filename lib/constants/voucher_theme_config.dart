@@ -1,5 +1,6 @@
 // lib/constants/voucher_theme_config.dart
 import 'package:flutter/material.dart';
+import 'app_colors.dart';
 
 class VoucherThemeTokens {
   final Color primary;
@@ -28,80 +29,80 @@ class VoucherThemeTokens {
     final vch = voucherType.toLowerCase();
     if (vch.contains('sale')) {
       return const VoucherThemeTokens(
-        primary: Color(0xFF2563EB), // Indigo-Blue
-        primaryContainer: Color(0xFFEFF6FF),
-        background: Color(0xFFF8FAFC),
-        surface: Colors.white,
-        border: Color(0xFFE2E8F0),
-        onPrimary: Colors.white,
-        onSurface: Color(0xFF0F172A),
-        onSurfaceVariant: Color(0xFF64748B),
+        primary: AppColors.primaryAccent,
+        primaryContainer: AppColors.primaryLight,
+        background: AppColors.background,
+        surface: AppColors.surface,
+        border: AppColors.border,
+        onPrimary: AppColors.surface,
+        onSurface: AppColors.primaryDark,
+        onSurfaceVariant: AppColors.textSecondary,
         headerGradient: LinearGradient(
-          colors: [Color(0xFF1E40AF), Color(0xFF3B82F6)],
+          colors: [AppColors.primaryDark, AppColors.primary],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
       );
     } else if (vch.contains('purchase')) {
       return const VoucherThemeTokens(
-        primary: Color(0xFF7C3AED), // Purple-Violet
-        primaryContainer: Color(0xFFF5F3FF),
-        background: Color(0xFFFAF5FF),
-        surface: Colors.white,
-        border: Color(0xFFE9D5FF),
-        onPrimary: Colors.white,
-        onSurface: Color(0xFF1E1B4B),
-        onSurfaceVariant: Color(0xFF6B7280),
+        primary: AppColors.purple,
+        primaryContainer: AppColors.purpleLight,
+        background: AppColors.purpleLight,
+        surface: AppColors.surface,
+        border: AppColors.border,
+        onPrimary: AppColors.surface,
+        onSurface: AppColors.textPrimary,
+        onSurfaceVariant: AppColors.textSecondary,
         headerGradient: LinearGradient(
-          colors: [Color(0xFF5B21B6), Color(0xFF8B5CF6)],
+          colors: [AppColors.purple, AppColors.primary],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
       );
     } else if (vch.contains('payment')) {
       return const VoucherThemeTokens(
-        primary: Color(0xFFDC2626), // Amber-Red Outflow
-        primaryContainer: Color(0xFFFEF2F2),
-        background: Color(0xFFFFF7ED),
-        surface: Colors.white,
-        border: Color(0xFFFED7AA),
-        onPrimary: Colors.white,
-        onSurface: Color(0xFF451A03),
-        onSurfaceVariant: Color(0xFF78716C),
+        primary: AppColors.errorDark,
+        primaryContainer: AppColors.errorLight,
+        background: AppColors.errorLight,
+        surface: AppColors.surface,
+        border: AppColors.border,
+        onPrimary: AppColors.surface,
+        onSurface: AppColors.textPrimary,
+        onSurfaceVariant: AppColors.textSecondary,
         headerGradient: LinearGradient(
-          colors: [Color(0xFF991B1B), Color(0xFFEF4444)],
+          colors: [AppColors.errorDark, AppColors.error],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
       );
     } else if (vch.contains('receipt')) {
       return const VoucherThemeTokens(
-        primary: Color(0xFF059669), // Emerald Inflow
-        primaryContainer: Color(0xFFECFDF5),
-        background: Color(0xFFF0FDF4),
-        surface: Colors.white,
-        border: Color(0xFFA7F3D0),
-        onPrimary: Colors.white,
-        onSurface: Color(0xFF064E3B),
-        onSurfaceVariant: Color(0xFF065F46),
+        primary: AppColors.success,
+        primaryContainer: AppColors.successLight,
+        background: AppColors.successLight,
+        surface: AppColors.surface,
+        border: AppColors.successBorder,
+        onPrimary: AppColors.surface,
+        onSurface: AppColors.successDark,
+        onSurfaceVariant: AppColors.textSecondary,
         headerGradient: LinearGradient(
-          colors: [Color(0xFF065F46), Color(0xFF10B981)],
+          colors: [AppColors.successDark, AppColors.success],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
       );
     } else if (vch.contains('contra')) {
       return const VoucherThemeTokens(
-        primary: Color(0xFF0284C7), // Sky Blue
-        primaryContainer: Color(0xFFF0F9FF),
-        background: Color(0xFFF8FAFC),
-        surface: Colors.white,
-        border: Color(0xFFBAE6FD),
-        onPrimary: Colors.white,
-        onSurface: Color(0xFF0C4A6E),
-        onSurfaceVariant: Color(0xFF64748B),
+        primary: AppColors.primary,
+        primaryContainer: AppColors.primaryLight,
+        background: AppColors.background,
+        surface: AppColors.surface,
+        border: AppColors.border,
+        onPrimary: AppColors.surface,
+        onSurface: AppColors.primaryDark,
+        onSurfaceVariant: AppColors.textSecondary,
         headerGradient: LinearGradient(
-          colors: [Color(0xFF0369A1), Color(0xFF38BDF8)],
+          colors: [AppColors.primary, AppColors.primaryAccent],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -109,16 +110,16 @@ class VoucherThemeTokens {
     } else {
       // Default / Journal
       return const VoucherThemeTokens(
-        primary: Color(0xFF4B5563), // Neutral Slate
-        primaryContainer: Color(0xFFF3F4F6),
-        background: Color(0xFFF9FAFB),
-        surface: Colors.white,
-        border: Color(0xFFE5E7EB),
-        onPrimary: Colors.white,
-        onSurface: Color(0xFF111827),
-        onSurfaceVariant: Color(0xFF4B5563),
+        primary: AppColors.textSecondary,
+        primaryContainer: AppColors.cardBg,
+        background: AppColors.background,
+        surface: AppColors.surface,
+        border: AppColors.border,
+        onPrimary: AppColors.surface,
+        onSurface: AppColors.textPrimary,
+        onSurfaceVariant: AppColors.textMuted,
         headerGradient: LinearGradient(
-          colors: [Color(0xFF374151), Color(0xFF6B7280)],
+          colors: [AppColors.textSecondary, AppColors.textMuted],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),

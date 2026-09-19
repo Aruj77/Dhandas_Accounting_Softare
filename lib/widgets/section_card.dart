@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../constants/app_colors.dart';
 
 class SectionCard extends StatelessWidget {
   final Widget child;
@@ -33,7 +34,7 @@ class SectionCard extends StatelessWidget {
         ),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x0C0D2F64),
+            color: AppColors.shadowColor,
             blurRadius: 18,
             offset: Offset(0, 6),
           ),

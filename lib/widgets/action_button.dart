@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../constants/app_colors.dart';
 
 class ActionButton extends StatefulWidget {
   final IconData icon;
@@ -13,8 +14,8 @@ class ActionButton extends StatefulWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
-    this.iconColor = const Color(0xFF1769E0),
-    this.iconBackground = const Color(0xFFE8F2FF),
+    this.iconColor = AppColors.primary,
+    this.iconBackground = AppColors.primaryLight,
     this.onTap,
   });
 
@@ -51,7 +52,7 @@ class _ActionButtonState extends State<ActionButton> {
                 border: Border.all(
                   color: hovering
                       ? widget.iconColor.withValues(alpha: 0.35)
-                      : const Color(0xFFE5ECF6),
+                      : AppColors.border,
                   width: 1.4,
                 ),
                 boxShadow: hovering
@@ -61,15 +62,15 @@ class _ActionButtonState extends State<ActionButton> {
                           blurRadius: 18,
                           offset: const Offset(0, 8),
                         ),
-                        const BoxShadow(
-                          color: Color(0x08092B60),
+                        BoxShadow(
+                          color: AppColors.shadowColor,
                           blurRadius: 6,
                           offset: Offset(0, 2),
                         ),
                       ]
                     : const [
                         BoxShadow(
-                          color: Color(0x06092B60),
+                          color: AppColors.shadowColor,
                           blurRadius: 8,
                           offset: Offset(0, 3),
                         ),
@@ -103,7 +104,7 @@ class _ActionButtonState extends State<ActionButton> {
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
                             letterSpacing: -0.2,
-                            color: Color(0xFF101B37),
+                            color: AppColors.textPrimary,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -117,7 +118,7 @@ class _ActionButtonState extends State<ActionButton> {
                             fontSize: 11,
                             height: 1.2,
                             fontWeight: FontWeight.w400,
-                            color: Color(0xFF667694),
+                            color: AppColors.textSecondary,
                           ),
                         ),
                       ],

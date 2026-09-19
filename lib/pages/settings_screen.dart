@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../constants/app_colors.dart';
 import '../services/keyboard_shortcut_service.dart';
 import '../services/loading_service.dart';
 
@@ -7,7 +8,7 @@ class SettingsScreen extends StatefulWidget {
   final VoidCallback? onChangeDirectory;
   final KeyboardShortcutSettings keyboardSettings;
   final Future<void> Function(KeyboardShortcutSettings settings)?
-  onKeyboardSettingsChanged;
+      onKeyboardSettingsChanged;
 
   const SettingsScreen({
     super.key,
@@ -43,7 +44,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _checkForUpdates() async {
     await LoadingService.wrap(() async {
-      // Simulate remote update check latency
       await Future.delayed(const Duration(milliseconds: 900));
 
       if (mounted) {
@@ -59,7 +59,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SnackBar(
             content: Row(
               children: [
-                Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                Icon(Icons.check_circle_rounded, color: AppColors.surface, size: 20),
                 SizedBox(width: 10),
                 Text(
                   'Dhandas is up to date! (v1.0.0 is the latest build)',
@@ -67,7 +67,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ],
             ),
-            backgroundColor: Color(0xFF11A25B),
+            backgroundColor: AppColors.success,
             behavior: SnackBarBehavior.floating,
             duration: Duration(seconds: 3),
           ),
@@ -118,13 +118,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // HEADER
           const Text(
             'Settings & Preferences',
             style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.w900,
-              color: Color(0xFF0F1B38),
+              color: AppColors.primaryDark,
               letterSpacing: -0.6,
             ),
           ),
@@ -134,24 +133,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: Color(0xFF637392),
+              color: AppColors.textSecondary,
             ),
           ),
           const SizedBox(height: 28),
 
-          // CHECK FOR UPDATES CARD
           _buildSettingsCard(
             icon: Icons.system_update_rounded,
-            badgeColor: const Color(0xFF11A25B),
+            badgeColor: AppColors.success,
             title: 'Application Updates',
-            subtitle:
-                'Check for software upgrades, bug fixes, and feature releases',
+            subtitle: 'Check for software upgrades, bug fixes, and feature releases',
             child: Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFD),
+                color: AppColors.cardBg,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFE2EAF4)),
+                border: Border.all(color: AppColors.border),
               ),
               child: Column(
                 children: [
@@ -161,12 +158,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         width: 44,
                         height: 44,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE5F8EE),
+                          color: AppColors.successLight,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(
                           Icons.verified_rounded,
-                          color: Color(0xFF11A25B),
+                          color: AppColors.success,
                           size: 22,
                         ),
                       ),
@@ -182,17 +179,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   style: const TextStyle(
                                     fontSize: 14.5,
                                     fontWeight: FontWeight.w800,
-                                    color: Color(0xFF101B39),
+                                    color: AppColors.primaryDark,
                                   ),
                                 ),
                                 const SizedBox(width: 8),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 2,
-                                  ),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFDCFCE7),
+                                    color: AppColors.successBorder,
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: const Text(
@@ -200,7 +194,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     style: TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w800,
-                                      color: Color(0xFF15803D),
+                                      color: AppColors.successDark,
                                     ),
                                   ),
                                 ),
@@ -211,7 +205,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               'Last verified: $_lastCheckedTime',
                               style: const TextStyle(
                                 fontSize: 12,
-                                color: Color(0xFF6B7B9B),
+                                color: AppColors.textSecondary,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -221,33 +215,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ElevatedButton.icon(
                         onPressed: _checkForUpdates,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF0F62FE),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 18,
-                            vertical: 13,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
+                          backgroundColor: AppColors.primary,
+                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           elevation: 0,
                         ),
-                        icon: const Icon(
-                          Icons.refresh_rounded,
-                          size: 16,
-                          color: Colors.white,
-                        ),
+                        icon: const Icon(Icons.refresh_rounded, size: 16, color: AppColors.surface),
                         label: const Text(
                           'Check for Updates',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                          ),
+                          style: TextStyle(color: AppColors.surface, fontWeight: FontWeight.w700, fontSize: 13),
                         ),
                       ),
                     ],
                   ),
-                  const Divider(color: Color(0xFFE5EDF7), height: 26),
+                  const Divider(color: AppColors.border, height: 26),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -256,58 +237,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         children: [
                           Text(
                             'Release Channel',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF101C38),
-                            ),
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                           ),
                           SizedBox(height: 2),
                           Text(
                             'Receive verified production releases or early previews',
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              color: Color(0xFF6B7B9B),
-                              fontWeight: FontWeight.w500,
-                            ),
+                            style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
                           ),
                         ],
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 4,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: AppColors.surface,
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFFD6E3F2)),
+                          border: Border.all(color: AppColors.border),
                         ),
                         child: DropdownButtonHideUnderline(
                           child: DropdownButton<String>(
                             value: _selectedChannel,
-                            icon: const Icon(
-                              Icons.keyboard_arrow_down_rounded,
-                              size: 18,
-                              color: Color(0xFF677793),
-                            ),
-                            style: const TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF101C38),
-                            ),
+                            icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppColors.textSecondary),
+                            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                             items: ['Stable', 'Beta (Preview)']
-                                .map(
-                                  (channel) => DropdownMenuItem(
-                                    value: channel,
-                                    child: Text(channel),
-                                  ),
-                                )
+                                .map((channel) => DropdownMenuItem(value: channel, child: Text(channel)))
                                 .toList(),
                             onChanged: (val) {
-                              if (val != null) {
-                                setState(() => _selectedChannel = val);
-                              }
+                              if (val != null) setState(() => _selectedChannel = val);
                             },
                           ),
                         ),
@@ -320,27 +275,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 20),
 
-          // STORAGE CONFIGURATION CARD
           _buildSettingsCard(
             icon: Icons.folder_shared_rounded,
-            badgeColor: const Color(0xFF0F62FE),
+            badgeColor: AppColors.primary,
             title: 'Storage & Database Location',
-            subtitle:
-                'Configure the root path where all organization data is saved',
+            subtitle: 'Configure the root path where all organization data is saved',
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFD),
+                color: AppColors.cardBg,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFE2EAF4)),
+                border: Border.all(color: AppColors.border),
               ),
               child: Row(
                 children: [
-                  const Icon(
-                    Icons.dns_rounded,
-                    color: Color(0xFF0F62FE),
-                    size: 20,
-                  ),
+                  const Icon(Icons.dns_rounded, color: AppColors.primary, size: 20),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(
@@ -348,23 +297,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       children: [
                         const Text(
                           'Current Database Directory',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF6B7B9B),
-                          ),
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          hasDir
-                              ? widget.currentDirectory!
-                              : 'No directory configured',
+                          hasDir ? widget.currentDirectory! : 'No directory configured',
                           style: TextStyle(
                             fontSize: 13.5,
                             fontWeight: FontWeight.w700,
-                            color: hasDir
-                                ? const Color(0xFF101B39)
-                                : const Color(0xFFEE4343),
+                            color: hasDir ? AppColors.primaryDark : AppColors.error,
                           ),
                         ),
                       ],
@@ -373,28 +314,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ElevatedButton.icon(
                     onPressed: widget.onChangeDirectory,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0F62FE),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
+                      backgroundColor: AppColors.primary,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       elevation: 0,
                     ),
-                    icon: const Icon(
-                      Icons.edit_location_alt_rounded,
-                      size: 16,
-                      color: Colors.white,
-                    ),
+                    icon: const Icon(Icons.edit_location_alt_rounded, size: 16, color: AppColors.surface),
                     label: const Text(
                       'Change',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
-                      ),
+                      style: TextStyle(color: AppColors.surface, fontWeight: FontWeight.w700, fontSize: 13),
                     ),
                   ),
                 ],
@@ -405,10 +333,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           _buildSettingsCard(
             icon: Icons.keyboard_alt_rounded,
-            badgeColor: const Color(0xFF0F62FE),
+            badgeColor: AppColors.primary,
             title: 'Keyboard & Shortcuts',
-            subtitle:
-                'Navigate faster with arrow keys, numpad keys, Enter, Esc, and accounting-style shortcut actions.',
+            subtitle: 'Navigate faster with arrow keys, numpad keys, Enter, Esc, and accounting-style shortcut actions.',
             child: Column(
               children: [
                 Row(
@@ -416,8 +343,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Expanded(
                       child: _buildKeyboardToggleTile(
                         title: 'Keyboard Intensive Mode',
-                        description:
-                            'Keeps navigation optimized for keyboard-heavy workflow across the app.',
+                        description: 'Keeps navigation optimized for keyboard-heavy workflow across the app.',
                         value: _keyboardSettings.keyboardIntensiveMode,
                         onChanged: _updateKeyboardMode,
                       ),
@@ -426,8 +352,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Expanded(
                       child: _buildKeyboardToggleTile(
                         title: 'Use Numeric Keypad Navigation',
-                        description:
-                            'Treat NumPad 8 / 2 and NumPad Enter like arrow navigation and select.',
+                        description: 'Treat NumPad 8 / 2 and NumPad Enter like arrow navigation and select.',
                         value: _keyboardSettings.useNumpadNavigation,
                         onChanged: _updateNumpadMode,
                       ),
@@ -438,9 +363,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFD),
+                    color: AppColors.cardBg,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFE2EAF4)),
+                    border: Border.all(color: AppColors.border),
                   ),
                   child: Column(
                     children: [
@@ -452,20 +377,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               children: [
                                 Text(
                                   'Shortcut Mapping',
-                                  style: TextStyle(
-                                    fontSize: 13.5,
-                                    fontWeight: FontWeight.w800,
-                                    color: Color(0xFF101C38),
-                                  ),
+                                  style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
                                 ),
                                 SizedBox(height: 2),
                                 Text(
                                   'Choose the primary key for each action. Changes apply immediately.',
-                                  style: TextStyle(
-                                    fontSize: 11.5,
-                                    color: Color(0xFF6B7B9B),
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                                  style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
                                 ),
                               ],
                             ),
@@ -473,13 +390,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           OutlinedButton.icon(
                             onPressed: _resetShortcuts,
                             icon: const Icon(Icons.restart_alt_rounded, size: 16),
-                            label: const Text(
-                              'Reset',
-                              style: TextStyle(fontWeight: FontWeight.w700),
-                            ),
+                            label: const Text('Reset', style: TextStyle(fontWeight: FontWeight.w700)),
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: const Color(0xFF475569),
-                              side: const BorderSide(color: Color(0xFFCBD5E1)),
+                              foregroundColor: AppColors.textSecondary,
+                              side: const BorderSide(color: AppColors.border),
                             ),
                           ),
                         ],
@@ -495,12 +409,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Align(
+                const Align(
                   alignment: Alignment.centerLeft,
                   child: Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: const [
+                    children: [
                       _KeyboardHintChip(label: 'Enter', description: 'Next Field'),
                       _KeyboardHintChip(label: 'Tab', description: 'Forward'),
                       _KeyboardHintChip(label: 'Shift+Tab', description: 'Back'),
@@ -513,27 +427,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 20),
 
-          // APPLICATION INFORMATION
           _buildSettingsCard(
             icon: Icons.info_outline_rounded,
-            badgeColor: const Color(0xFF7034E6),
+            badgeColor: AppColors.purple,
             title: 'Application Information',
             subtitle: 'Dhandas build details, licensing, and dependencies',
             child: Column(
               children: [
                 _buildInfoRow('Product Name', 'Dhandas Desktop Accounting'),
-                const Divider(color: Color(0xFFEBF0F7), height: 16),
+                const Divider(color: AppColors.border, height: 16),
                 _buildInfoRow('Current Version', '$_currentVersion (Release)'),
-                const Divider(color: Color(0xFFEBF0F7), height: 16),
-                _buildInfoRow(
-                  'Engine Architecture',
-                  'Windows x64 Native / Flutter Desktop',
-                ),
-                const Divider(color: Color(0xFFEBF0F7), height: 16),
-                _buildInfoRow(
-                  'Storage Driver',
-                  'Local File JSON / Sequential FIN-Index',
-                ),
+                const Divider(color: AppColors.border, height: 16),
+                _buildInfoRow('Engine Architecture', 'Windows x64 Native / Flutter Desktop'),
+                const Divider(color: AppColors.border, height: 16),
+                _buildInfoRow('Storage Driver', 'Local File JSON / Sequential FIN-Index'),
               ],
             ),
           ),
@@ -552,15 +459,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE4EDF7), width: 1.2),
+        border: Border.all(color: AppColors.border, width: 1.2),
         boxShadow: const [
-          BoxShadow(
-            color: Color(0x06092B60),
-            blurRadius: 16,
-            offset: Offset(0, 4),
-          ),
+          BoxShadow(color: AppColors.shadowColor, blurRadius: 16, offset: Offset(0, 4)),
         ],
       ),
       child: Column(
@@ -571,33 +474,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Container(
                 width: 38,
                 height: 38,
-                decoration: BoxDecoration(
-                  color: badgeColor,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, color: Colors.white, size: 20),
+                decoration: BoxDecoration(color: badgeColor, borderRadius: BorderRadius.circular(10)),
+                child: Icon(icon, color: AppColors.surface, size: 20),
               ),
               const SizedBox(width: 14),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF101B3A),
-                    ),
-                  ),
+                  Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
                   const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF6B7B9B),
-                    ),
-                  ),
+                  Text(subtitle, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: AppColors.textSecondary)),
                 ],
               ),
             ],
@@ -613,22 +499,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF637392),
-          ),
-        ),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF101B3A),
-          ),
-        ),
+        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+        Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryDark)),
       ],
     );
   }
@@ -642,9 +514,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFD),
+        color: AppColors.cardBg,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2EAF4)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
@@ -652,23 +524,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF101C38),
-                  ),
-                ),
+                Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
                 const SizedBox(height: 3),
                 Text(
                   description,
-                  style: const TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF6B7B9B),
-                    height: 1.35,
-                  ),
+                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500, color: AppColors.textSecondary, height: 1.35),
                 ),
               ],
             ),
@@ -676,7 +536,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(width: 12),
           Switch.adaptive(
             value: value,
-            activeThumbColor: const Color(0xFF0F62FE),
+            activeColor: AppColors.primary,
+            activeTrackColor: AppColors.primaryLight,
             onChanged: onChanged,
           ),
         ],
@@ -685,17 +546,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildShortcutSelectorRow(KeyboardShortcutDefinition definition) {
-    final selectedKey = KeyboardShortcutService.shortcutFor(
-      _keyboardSettings,
-      definition.actionId,
-    );
+    final selectedKey = KeyboardShortcutService.shortcutFor(_keyboardSettings, definition.actionId);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5EDF7)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
@@ -703,23 +561,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  definition.title,
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF101B3A),
-                  ),
-                ),
+                Text(definition.title, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
                 const SizedBox(height: 2),
-                Text(
-                  definition.description,
-                  style: const TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF6B7B9B),
-                  ),
-                ),
+                Text(definition.description, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500, color: AppColors.textSecondary)),
               ],
             ),
           ),
@@ -729,50 +573,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: DropdownButtonFormField<String>(
               initialValue: selectedKey,
               isExpanded: true,
-              icon: const Icon(
-                Icons.keyboard_arrow_down_rounded,
-                size: 18,
-                color: Color(0xFF677793),
-              ),
+              icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppColors.textSecondary),
               decoration: InputDecoration(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
-                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 filled: true,
-                fillColor: const Color(0xFFF8FAFD),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Color(0xFFD6E3F2)),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF0F62FE),
-                    width: 1.3,
-                  ),
-                ),
+                fillColor: AppColors.cardBg,
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.border)),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.primary, width: 1.3)),
               ),
               items: definition.options
-                  .map(
-                    (option) => DropdownMenuItem<String>(
-                      value: option.id,
-                      child: Text(
-                        option.label,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF101C38),
+                  .map((option) => DropdownMenuItem<String>(
+                        value: option.id,
+                        child: Text(
+                          option.label,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                         ),
-                      ),
-                    ),
-                  )
+                      ))
                   .toList(),
               onChanged: (value) {
-                if (value != null) {
-                  _updateShortcut(definition.actionId, value);
-                }
+                if (value != null) _updateShortcut(definition.actionId, value);
               },
             ),
           ),
@@ -786,40 +606,23 @@ class _KeyboardHintChip extends StatelessWidget {
   final String label;
   final String description;
 
-  const _KeyboardHintChip({
-    required this.label,
-    required this.description,
-  });
+  const _KeyboardHintChip({required this.label, required this.description});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFD),
+        color: AppColors.cardBg,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFE2EAF4)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w900,
-              color: Color(0xFF0F62FE),
-            ),
-          ),
+          Text(label, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w900, color: AppColors.primary)),
           const SizedBox(width: 6),
-          Text(
-            description,
-            style: const TextStyle(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF64748B),
-            ),
-          ),
+          Text(description, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
         ],
       ),
     );

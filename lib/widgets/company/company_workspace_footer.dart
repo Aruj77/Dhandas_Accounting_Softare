@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../constants/app_colors.dart';
 
 class CompanyWorkspaceFooter extends StatelessWidget {
   final Map<String, dynamic> company;
@@ -23,30 +24,26 @@ class CompanyWorkspaceFooter extends StatelessWidget {
       height: 64,
       padding: const EdgeInsets.symmetric(horizontal: 24),
       decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Color(0xFFE2EAF5), width: 1.2)),
+        color: AppColors.surface,
+        border: Border(top: BorderSide(color: AppColors.border, width: 1.2)),
         boxShadow: [
-          BoxShadow(color: Color(0x06092B60), blurRadius: 10, offset: Offset(0, -3)),
+          BoxShadow(color: AppColors.shadowColor, blurRadius: 10, offset: Offset(0, -3)),
         ],
       ),
       child: Row(
         children: [
-          // LOGO / BUILDING ICON
           Container(
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFEFF5FF), Color(0xFFDBE9FE)],
-              ),
+              gradient: AppColors.brandBadgeGradient,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFBFDBFE), width: 1.2),
+              border: Border.all(color: AppColors.borderFocus, width: 1.2),
             ),
-            child: const Icon(Icons.apartment_rounded, color: Color(0xFF0F62FE), size: 22),
+            child: const Icon(Icons.apartment_rounded, color: AppColors.primary, size: 22),
           ),
           const SizedBox(width: 14),
 
-          // COMPANY NAME & FOLDER ID
           Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -55,15 +52,15 @@ class CompanyWorkspaceFooter extends StatelessWidget {
                 children: [
                   Text(
                     companyName,
-                    style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: Color(0xFF101C38)),
+                    style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
                   ),
                   const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5FB),
+                      color: AppColors.background,
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: const Color(0xFFDCE5F2)),
+                      border: Border.all(color: AppColors.border),
                     ),
                     child: Text(
                       folderId,
@@ -71,7 +68,7 @@ class CompanyWorkspaceFooter extends StatelessWidget {
                         fontSize: 11,
                         fontFamily: 'monospace',
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF475569),
+                        color: AppColors.textSecondary,
                       ),
                     ),
                   ),
@@ -80,14 +77,14 @@ class CompanyWorkspaceFooter extends StatelessWidget {
               const SizedBox(height: 2),
               Row(
                 children: [
-                  const Text('GSTIN: ', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF6B7B9A))),
+                  const Text('GSTIN: ', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
                   Text(
                     gstin,
                     style: TextStyle(
                       fontSize: 11.5,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.5,
-                      color: gstin == 'Unregistered' ? const Color(0xFF94A3B8) : const Color(0xFF0F62FE),
+                      color: gstin == 'Unregistered' ? AppColors.textMuted : AppColors.primary,
                     ),
                   ),
                 ],
@@ -97,27 +94,26 @@ class CompanyWorkspaceFooter extends StatelessWidget {
 
           const SizedBox(width: 24),
 
-          // FINANCIAL YEAR BADGE
           InkWell(
             onTap: onChangeFy,
             borderRadius: BorderRadius.circular(10),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFFF0FDF4),
+                color: AppColors.successLight,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFBBF7D0)),
+                border: Border.all(color: AppColors.successBorder),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.date_range_rounded, size: 16, color: Color(0xFF15803D)),
+                  const Icon(Icons.date_range_rounded, size: 16, color: AppColors.successDark),
                   const SizedBox(width: 6),
                   Text(
                     'F.Y. $activeFy',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF15803D)),
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.successDark),
                   ),
                   const SizedBox(width: 4),
-                  const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: Color(0xFF15803D)),
+                  const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: AppColors.successDark),
                 ],
               ),
             ),
@@ -125,21 +121,20 @@ class CompanyWorkspaceFooter extends StatelessWidget {
 
           const Spacer(),
 
-          // BRANDING
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFD),
+              color: AppColors.cardBg,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFE2ECF8)),
+              border: Border.all(color: AppColors.border),
             ),
             child: const Row(
               children: [
-                Icon(Icons.shield_outlined, size: 15, color: Color(0xFF0FA75D)),
+                Icon(Icons.shield_outlined, size: 15, color: AppColors.success),
                 SizedBox(width: 6),
                 Text(
                   'Dhandas Accounting Engine Active',
-                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                 ),
               ],
             ),

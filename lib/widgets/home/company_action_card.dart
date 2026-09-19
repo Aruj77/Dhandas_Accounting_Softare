@@ -45,9 +45,9 @@ class _CompanyActionCardState extends State<CompanyActionCard> {
   @override
   Widget build(BuildContext context) {
     return ModernGlassCard(
-      gradientColors: const [Color(0xFFEFF5FF), Color(0xFFDCEBFF)],
-      borderColor: const Color(0xFFC3DCFF),
-      glowColor: const Color(0x180F62FE),
+      gradientColors: AppColors.companyGlassGradient.colors,
+      borderColor: AppColors.borderSubtle,
+      glowColor: AppColors.primary.withValues(alpha: 0.1),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -56,7 +56,7 @@ class _CompanyActionCardState extends State<CompanyActionCard> {
             icon: Icons.apartment_rounded,
             title: 'Company',
             subtitle: 'Create a new business or access an existing one',
-            badgeGradient: [Color(0xFF4C93F5), AppColors.primary],
+            badgeGradient: [AppColors.primaryAccent, AppColors.primary],
             illustrationAsset: 'assets/images/company_illustration.png',
           ),
           const SizedBox(height: 20),
@@ -99,7 +99,7 @@ class _CompanyActionCardState extends State<CompanyActionCard> {
                                 blurRadius: 10,
                                 spreadRadius: 1,
                                 offset: const Offset(0, 2),
-                              )
+                              ),
                             ]
                           : null,
                     ),
@@ -108,7 +108,7 @@ class _CompanyActionCardState extends State<CompanyActionCard> {
                       title: 'Open Company',
                       subtitle: 'Open an existing workspace',
                       iconColor: AppColors.primary,
-                      iconBackground: const Color(0xFFE5EFFF),
+                      iconBackground: AppColors.primaryLight,
                       onTap: widget.onOpenCompany,
                     ),
                   ),
@@ -142,17 +142,17 @@ class _CompanyActionCardState extends State<CompanyActionCard> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: _isCreateFocused ? const Color(0xFF0FA75D) : Colors.transparent,
+                        color: _isCreateFocused ? AppColors.success : Colors.transparent,
                         width: 2.5,
                       ),
                       boxShadow: _isCreateFocused
-                          ? const [
+                          ? [
                               BoxShadow(
-                                color: Color(0x330FA75D),
+                                color: AppColors.success.withValues(alpha: 0.2),
                                 blurRadius: 10,
                                 spreadRadius: 1,
-                                offset: Offset(0, 2),
-                              )
+                                offset: const Offset(0, 2),
+                              ),
                             ]
                           : null,
                     ),
@@ -160,8 +160,8 @@ class _CompanyActionCardState extends State<CompanyActionCard> {
                       icon: Icons.add_circle_outline_rounded,
                       title: 'Create Company',
                       subtitle: 'Set up a new organization',
-                      iconColor: const Color(0xFF0FA75D),
-                      iconBackground: const Color(0xFFE2F8ED),
+                      iconColor: AppColors.success,
+                      iconBackground: AppColors.successLight,
                       onTap: widget.onCreateCompany,
                     ),
                   ),
