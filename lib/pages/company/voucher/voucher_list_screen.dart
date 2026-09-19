@@ -23,6 +23,7 @@ class VoucherListScreen extends StatefulWidget {
   final String voucherType;
   final DateTime fromDate;
   final DateTime toDate;
+  final String initialSeries;
   final VoidCallback onClose;
 
   const VoucherListScreen({
@@ -31,6 +32,7 @@ class VoucherListScreen extends StatefulWidget {
     required this.voucherType,
     required this.fromDate,
     required this.toDate,
+    this.initialSeries = 'All',
     required this.onClose,
   });
 
@@ -49,6 +51,8 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
   bool _isLoading = true;
   int _focusedIndex = -1;
   List<FocusNode> _rowFocusNodes = [];
+  late String _selectedSeries;
+  List<String> _availableSeries = ['All', 'Main'];
 
   final Map<String, String> _columnLabels = {
     'sno': 'S.No.',
@@ -84,6 +88,8 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
   @override
   void initState() {
     super.initState();
+    _selectedSeries = widget.initialSeries.trim().isEmpty ? 'All' : widget.initialSeries.trim();
+    _loadAvailableSeries();
     _loadVouchers();
     _searchCtrl.addListener(_onSearch);
     _horizontalBodyCtrl.addListener(() {
@@ -93,6 +99,30 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
         }
       }
     });
+  }
+
+  Future<void> _loadAvailableSeries() async {
+    final folderPath = widget.company['folderPath']?.toString();
+    final seriesSet = <String>{'All', 'Main'};
+    if (_selectedSeries != 'All') {
+      seriesSet.add(_selectedSeries);
+    }
+    if (folderPath != null) {
+      try {
+        final rawMasters = await StorageService.loadCompanyMasters(folderPath: folderPath);
+        final loaded = rawMasters['series'] as List? ?? [];
+        for (final s in loaded) {
+          if (s != null && s.toString().trim().isNotEmpty) {
+            seriesSet.add(s.toString().trim());
+          }
+        }
+      } catch (_) {}
+    }
+    if (mounted) {
+      setState(() {
+        _availableSeries = seriesSet.toList();
+      });
+    }
   }
 
   @override
@@ -121,16 +151,45 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
       final allVouchers = await StorageService.loadVouchers(
         folderPath: folderPath,
         financialYear: fy,
-        voucherType: widget.voucherType,
       );
-      final matching = allVouchers.where((v) {
-        if ((v['voucherType'] ?? '').toString().toLowerCase() != widget.voucherType.toLowerCase()) {
-          return false;
+
+      final targetType = widget.voucherType.toLowerCase().trim();
+
+      // Collect all series dynamically present in the vouchers
+      for (final v in allVouchers) {
+        final s = (v['series'] ?? v['seriesName'] ?? '').toString().trim();
+        if (s.isNotEmpty && !_availableSeries.contains(s)) {
+          _availableSeries.add(s);
         }
+      }
+
+      final matching = allVouchers.where((v) {
+        // 1. Voucher Type Matching
+        final vchType = (v['voucherType'] ?? '').toString().toLowerCase().trim();
+        bool typeMatches = vchType.isEmpty ||
+            vchType == targetType ||
+            vchType.contains(targetType) ||
+            targetType.contains(vchType);
+        if (!typeMatches) return false;
+
+        // 2. Strict Series Filter
+        if (_selectedSeries.toLowerCase() != 'all') {
+          final rawSeries = (v['series'] ?? v['seriesName'] ?? '').toString().trim();
+          final voucherSeries = rawSeries.isEmpty ? 'Main' : rawSeries;
+          if (voucherSeries.toLowerCase() != _selectedSeries.toLowerCase()) {
+            return false;
+          }
+        }
+
+        // 3. Date Range Filter
         final dt = AppDateUtils.parseDate(v['date']?.toString());
-        return dt == null ||
-            (dt.isAfter(widget.fromDate.subtract(const Duration(seconds: 1))) &&
-                dt.isBefore(widget.toDate.add(const Duration(days: 1))));
+        if (dt == null) return true; // Failsafe include if date parsing yields null
+
+        final start = DateTime(widget.fromDate.year, widget.fromDate.month, widget.fromDate.day);
+        final end = DateTime(widget.toDate.year, widget.toDate.month, widget.toDate.day, 23, 59, 59);
+
+        return (dt.isAtSameMomentAs(start) || dt.isAfter(start)) &&
+            (dt.isAtSameMomentAs(end) || dt.isBefore(end));
       }).toList();
 
       if (mounted) {
@@ -261,6 +320,7 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
       final data = _filtered.map((v) => {
         'voucherNumber': v['voucherNumber'],
         'date': v['date'],
+        'series': v['series'],
         'party': GstPartyUtils.extractPartyName((v['party'] ?? '').toString()),
         'gstin': GstPartyUtils.extractPartyGstin((v['party'] ?? '').toString()),
         'grandTotal': v['grandTotal'],
@@ -618,6 +678,40 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
                   decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(6), border: Border.all(color: const Color(0xFFD6E3F4))),
                   child: Text('F.Y. $fy (${AppDateUtils.formatDate(widget.fromDate)} to ${AppDateUtils.formatDate(widget.toDate)})', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF101C38))),
                 ),
+                const SizedBox(width: 10),
+
+                // Interactive Series Selector Dropdown
+                Container(
+                  height: 32,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.4), width: 1.2),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _availableSeries.contains(_selectedSeries) ? _selectedSeries : 'All',
+                      icon: const Icon(Icons.arrow_drop_down_rounded, size: 18, color: AppColors.primary),
+                      items: _availableSeries.map((s) => DropdownMenuItem(
+                        value: s,
+                        child: Text(
+                          s == 'All' ? 'Series: All' : 'Series: $s',
+                          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: AppColors.primary),
+                        ),
+                      )).toList(),
+                      onChanged: (val) {
+                        if (val != null && val != _selectedSeries) {
+                          setState(() {
+                            _selectedSeries = val;
+                            _isLoading = true;
+                          });
+                          _loadVouchers();
+                        }
+                      },
+                    ),
+                  ),
+                ),
                 const Spacer(),
                 TextButton.icon(onPressed: _openColumnSettingsDialog, icon: const Icon(Icons.view_column_rounded, size: 16, color: Color(0xFF0284C7)), label: const Text('Columns', style: TextStyle(color: Color(0xFF0284C7), fontWeight: FontWeight.bold))),
                 TextButton.icon(onPressed: _handleExcelExport, icon: const Icon(Icons.table_view_rounded, size: 16, color: AppColors.success), label: const Text('Excel', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold))),
@@ -735,7 +829,7 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
                                                     if (idx + 1 < _rowFocusNodes.length) {
                                                       _rowFocusNodes[idx + 1].requestFocus();
                                                     } else if (_rowFocusNodes.isNotEmpty) {
-                                                      _rowFocusNodes[0].requestFocus(); // Loop to top
+                                                      _rowFocusNodes[0].requestFocus();
                                                     }
                                                     return KeyEventResult.handled;
                                                   }
@@ -743,7 +837,7 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
                                                     if (idx - 1 >= 0) {
                                                       _rowFocusNodes[idx - 1].requestFocus();
                                                     } else if (_rowFocusNodes.isNotEmpty) {
-                                                      _rowFocusNodes[_rowFocusNodes.length - 1].requestFocus(); // Loop to bottom
+                                                      _rowFocusNodes[_rowFocusNodes.length - 1].requestFocus();
                                                     }
                                                     return KeyEventResult.handled;
                                                   }

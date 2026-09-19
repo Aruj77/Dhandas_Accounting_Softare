@@ -29,12 +29,14 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
   final TextEditingController _startNumController = TextEditingController(text: '1');
   final TextEditingController _endNumController = TextEditingController(text: '99999999');
 
-  String _numberingType = 'Automatic';
-  String _renumberingFreq = 'None';
-  String _yearFormat = 'YY-YY';
-  String _yearPosition = 'As Prefix';
-  String _monthFormat = 'MMM';
-  String _dateFormat = 'DD-MM-YYYY';
+  String _numberingType = 'Automatic'; // 'Automatic', 'Manual'
+  String _renumberingFreq = 'Yearly'; // 'None', 'Yearly', 'Monthly', 'Daily'
+  String _yearFormat = 'YYYY-YY'; // 'YY-YY', 'YYYY-YY'
+  String _yearPosition = 'As Prefix'; // 'As Prefix', 'As Suffix'
+  String _monthFormat = 'MMM'; // 'MMM', 'M-full', 'M-digit'
+  String _monthPosition = 'As Prefix'; // 'As Prefix', 'As Suffix'
+  String _dateFormat = 'DD-MM-YYYY'; // 'DD-MM-YYYY', 'DD/MM/YY'
+  String _datePosition = 'As Prefix'; // 'As Prefix', 'As Suffix'
 
   @override
   void initState() {
@@ -43,12 +45,14 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
       final s = widget.initialSeries!;
       _nameController.text = s['name']?.toString() ?? 'Main';
       _numberingType = s['numberingType']?.toString() ?? 'Automatic';
-      _renumberingFreq = s['renumberingFreq']?.toString() ?? 'None';
-      _yearFormat = s['yearFormat']?.toString() ?? 'YY-YY';
+      _renumberingFreq = s['renumberingFreq']?.toString() ?? 'Yearly';
+      _yearFormat = s['yearFormat']?.toString() ?? 'YYYY-YY';
       _yearPosition = s['yearPosition']?.toString() ?? 'As Prefix';
       _monthFormat = s['monthFormat']?.toString() ?? 'MMM';
+      _monthPosition = s['monthPosition']?.toString() ?? 'As Prefix';
       _dateFormat = s['dateFormat']?.toString() ?? 'DD-MM-YYYY';
-      _separatorController.text = s['separator']?.toString() ?? '-';
+      _datePosition = s['datePosition']?.toString() ?? 'As Prefix';
+      _separatorController.text = s['separator']?.toString() ?? '/';
       _prefixController.text = s['prefix']?.toString() ?? '';
       _suffixController.text = s['suffix']?.toString() ?? '';
       _startNumController.text = s['startNumber']?.toString() ?? '1';
@@ -78,26 +82,37 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
     final suffix = _suffixController.text.trim();
 
     List<String> parts = [];
-    String dateComponent = '';
+    String periodComponent = '';
+
     if (_renumberingFreq == 'Yearly') {
-      dateComponent = (_yearFormat == 'YY-YY') ? '26-27' : '2026-27';
+      periodComponent = (_yearFormat == 'YY-YY') ? '26-27' : '2026-27';
     } else if (_renumberingFreq == 'Monthly') {
-      if (_monthFormat == 'MMM') dateComponent = 'Sep';
-      if (_monthFormat == 'M-full') dateComponent = 'September';
-      if (_monthFormat == 'M-digit') dateComponent = '09';
+      if (_monthFormat == 'MMM') periodComponent = 'Sep';
+      if (_monthFormat == 'M-full') periodComponent = 'September';
+      if (_monthFormat == 'M-digit') periodComponent = '09';
     } else if (_renumberingFreq == 'Daily') {
-      if (_dateFormat == 'DD-MM-YYYY') dateComponent = '19-09-2026';
-      if (_dateFormat == 'DD/MM/YY') dateComponent = '19/09/26';
+      if (_dateFormat == 'DD-MM-YYYY') periodComponent = '19-09-2026';
+      if (_dateFormat == 'DD/MM/YY') periodComponent = '19/09/26';
     }
 
+    final activePosition = _renumberingFreq == 'Yearly'
+        ? _yearPosition
+        : _renumberingFreq == 'Monthly'
+            ? _monthPosition
+            : _datePosition;
+
     if (prefix.isNotEmpty) parts.add(prefix);
-    if (_renumberingFreq == 'Yearly' && _yearPosition == 'As Prefix' && dateComponent.isNotEmpty) {
-      parts.add(dateComponent);
+
+    if (_renumberingFreq != 'None' && activePosition == 'As Prefix' && periodComponent.isNotEmpty) {
+      parts.add(periodComponent);
     }
+
     parts.add(startNum);
-    if (_renumberingFreq == 'Yearly' && _yearPosition == 'As Suffix' && dateComponent.isNotEmpty) {
-      parts.add(dateComponent);
+
+    if (_renumberingFreq != 'None' && activePosition == 'As Suffix' && periodComponent.isNotEmpty) {
+      parts.add(periodComponent);
     }
+
     if (suffix.isNotEmpty) parts.add(suffix);
 
     return parts.join(sep);
@@ -113,7 +128,9 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
       'yearFormat': _yearFormat,
       'yearPosition': _yearPosition,
       'monthFormat': _monthFormat,
+      'monthPosition': _monthPosition,
       'dateFormat': _dateFormat,
+      'datePosition': _datePosition,
       'separator': _separatorController.text.trim(),
       'prefix': _prefixController.text.trim(),
       'suffix': _suffixController.text.trim(),
@@ -179,6 +196,8 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
                   ],
                 ),
                 const SizedBox(height: 20),
+
+                // Live Preview Box
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(14),
@@ -203,6 +222,8 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
                   ),
                 ),
                 const SizedBox(height: 20),
+
+                // Series Name & Numbering Type
                 Row(
                   children: [
                     Expanded(
@@ -224,14 +245,18 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
                     ),
                   ],
                 ),
+
                 if (showAutomaticFields) ...[
                   const SizedBox(height: 14),
+
+                  // Renumbering Frequency
                   _buildDropdown(
                     label: 'Renumbering Frequency *',
                     value: _renumberingFreq,
                     items: const ['None', 'Yearly', 'Monthly', 'Daily'],
                     onChanged: (val) => setState(() => _renumberingFreq = val ?? 'None'),
                   ),
+
                   if (isYearly) ...[
                     const SizedBox(height: 14),
                     Row(
@@ -241,7 +266,7 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
                             label: 'Year Format *',
                             value: _yearFormat,
                             items: const ['YY-YY', 'YYYY-YY'],
-                            onChanged: (val) => setState(() => _yearFormat = val ?? 'YY-YY'),
+                            onChanged: (val) => setState(() => _yearFormat = val ?? 'YYYY-YY'),
                           ),
                         ),
                         const SizedBox(width: 14),
@@ -257,36 +282,69 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
                     ),
                   ] else if (isMonthly) ...[
                     const SizedBox(height: 14),
-                    _buildDropdown(
-                      label: 'Add Month in Voucher No. *',
-                      value: _monthFormat,
-                      items: const ['None', 'MMM', 'M-full', 'M-digit'],
-                      onChanged: (val) => setState(() => _monthFormat = val ?? 'MMM'),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildDropdown(
+                            label: 'Month Format *',
+                            value: _monthFormat,
+                            items: const ['MMM', 'M-full', 'M-digit'],
+                            onChanged: (val) => setState(() => _monthFormat = val ?? 'MMM'),
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: _buildDropdown(
+                            label: 'Month Position *',
+                            value: _monthPosition,
+                            items: const ['As Prefix', 'As Suffix'],
+                            onChanged: (val) => setState(() => _monthPosition = val ?? 'As Prefix'),
+                          ),
+                        ),
+                      ],
                     ),
                   ] else if (isDaily) ...[
                     const SizedBox(height: 14),
-                    _buildDropdown(
-                      label: 'Add Date Format in Voucher No. *',
-                      value: _dateFormat,
-                      items: const ['None', 'DD-MM-YYYY', 'DD/MM/YY'],
-                      onChanged: (val) => setState(() => _dateFormat = val ?? 'DD-MM-YYYY'),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildDropdown(
+                            label: 'Date Format *',
+                            value: _dateFormat,
+                            items: const ['DD-MM-YYYY', 'DD/MM/YY'],
+                            onChanged: (val) => setState(() => _dateFormat = val ?? 'DD-MM-YYYY'),
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: _buildDropdown(
+                            label: 'Date Position *',
+                            value: _datePosition,
+                            items: const ['As Prefix', 'As Suffix'],
+                            onChanged: (val) => setState(() => _datePosition = val ?? 'As Prefix'),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
+
                   const SizedBox(height: 14),
+
+                  // Separator, Prefix & Suffix
                   Row(
                     children: [
                       Expanded(
                         child: _buildTextField(
                           controller: _separatorController,
                           label: 'Separator',
-                          hintText: 'e.g. - or / (Leave blank for none)',
+                          hintText: 'e.g. / or -',
                         ),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
                         child: _buildTextField(
                           controller: _prefixController,
-                          label: 'Prefix',
+                          label: 'Custom Prefix',
                           hintText: 'e.g. INV',
                         ),
                       ),
@@ -294,13 +352,15 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
                       Expanded(
                         child: _buildTextField(
                           controller: _suffixController,
-                          label: 'Suffix',
+                          label: 'Custom Suffix',
                           hintText: 'e.g. EXP',
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 14),
+
+                  // Start Number & End Number
                   Row(
                     children: [
                       Expanded(
@@ -321,7 +381,10 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
                     ],
                   ),
                 ],
+
                 const SizedBox(height: 28),
+
+                // Actions
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [

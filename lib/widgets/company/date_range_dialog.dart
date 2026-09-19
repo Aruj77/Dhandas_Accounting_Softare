@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
+import '../../services/storage_service.dart';
 import '../../utils/app_date_utils.dart';
 import '../common/app_dialog_frame.dart';
 
 class DateRangeDialog extends StatefulWidget {
+  final Map<String, dynamic> company;
   final String financialYear;
   final String voucherType;
 
   const DateRangeDialog({
     super.key,
+    required this.company,
     required this.financialYear,
     required this.voucherType,
   });
@@ -22,12 +25,47 @@ class _DateRangeDialogState extends State<DateRangeDialog> {
   late final TextEditingController _toCtrl;
   String? _errorMessage;
 
+  List<String> _availableSeries = ['All'];
+  String _selectedSeries = 'All';
+  bool _isLoadingSeries = true;
+
   @override
   void initState() {
     super.initState();
     final bounds = AppDateUtils.parseFinancialYearBounds(widget.financialYear);
     _fromCtrl = TextEditingController(text: AppDateUtils.formatDate(bounds.startDate));
     _toCtrl = TextEditingController(text: AppDateUtils.formatDate(bounds.endDate));
+    _loadSeries();
+  }
+
+  Future<void> _loadSeries() async {
+    try {
+      final folderPath = widget.company['folderPath']?.toString();
+      final seriesList = <String>['All'];
+      if (folderPath != null) {
+        final rawMasters = await StorageService.loadCompanyMasters(folderPath: folderPath);
+        final loadedSeries = rawMasters['series'] as List? ?? ['Main'];
+        for (final s in loadedSeries) {
+          if (s != null && s.toString().trim().isNotEmpty) {
+            final name = s.toString().trim();
+            if (!seriesList.contains(name)) {
+              seriesList.add(name);
+            }
+          }
+        }
+      }
+      if (!seriesList.contains('Main')) {
+        seriesList.add('Main');
+      }
+      if (mounted) {
+        setState(() {
+          _availableSeries = seriesList;
+          _isLoadingSeries = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingSeries = false);
+    }
   }
 
   @override
@@ -51,19 +89,59 @@ class _DateRangeDialogState extends State<DateRangeDialog> {
       return;
     }
 
-    Navigator.of(context).pop({'from': from, 'to': to});
+    Navigator.of(context).pop({
+      'from': from,
+      'to': to,
+      'series': _selectedSeries,
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return AppDialogFrame(
-      title: 'Select Date Range',
+      title: 'Select Register Options',
       subtitle: '${widget.voucherType} Register • F.Y. ${widget.financialYear}',
       icon: Icons.date_range_rounded,
-      maxWidth: 460,
+      maxWidth: 480,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Text(
+            'Voucher Series',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+          ),
+          const SizedBox(height: 6),
+          _isLoadingSeries
+              ? const SizedBox(
+                  height: 38,
+                  child: Center(child: LinearProgressIndicator(minHeight: 2)),
+                )
+              : DropdownButtonFormField<String>(
+                  value: _selectedSeries,
+                  items: _availableSeries
+                      .map((s) => DropdownMenuItem(
+                            value: s,
+                            child: Text(s, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                          ))
+                      .toList(),
+                  onChanged: (val) {
+                    if (val != null) setState(() => _selectedSeries = val);
+                  },
+                  decoration: InputDecoration(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    filled: true,
+                    fillColor: AppColors.cardBg,
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: AppColors.primary, width: 1.3),
+                    ),
+                  ),
+                ),
+          const SizedBox(height: 16),
           Row(
             children: [
               Expanded(child: _buildDateField('Starting Date', _fromCtrl)),
@@ -92,7 +170,7 @@ class _DateRangeDialogState extends State<DateRangeDialog> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Pre-filled with F.Y. ${widget.financialYear} period. You can narrow this range to view specific monthly or quarterly registers.',
+                    'Select a specific series or leave as "All" to view combined transactions for F.Y. ${widget.financialYear}.',
                     style: const TextStyle(fontSize: 11, color: Color(0xFF274375), height: 1.3),
                   ),
                 ),

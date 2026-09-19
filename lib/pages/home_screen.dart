@@ -26,11 +26,13 @@ class _ListParams {
   final String voucherType;
   final DateTime fromDate;
   final DateTime toDate;
+  final String series;
 
   _ListParams({
     required this.voucherType,
     required this.fromDate,
     required this.toDate,
+    this.series = 'All',
   });
 }
 
@@ -57,7 +59,6 @@ class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<TransactionsDashboardState> _dashboardKey =
       GlobalKey<TransactionsDashboardState>();
 
-  // Home Screen Right-Pane Focus Nodes
   final FocusNode _openCompanyBtnFocus = FocusNode();
   final FocusNode _createCompanyBtnFocus = FocusNode();
   final FocusNode _backupDataFocus = FocusNode();
@@ -70,7 +71,6 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadStoredDirectoryAndData();
     _loadKeyboardSettings();
 
-    // Default focus: Highlights Home on initial startup
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _sidebarKey.currentState?.focusActiveItem();
     });
@@ -187,7 +187,6 @@ class _HomeScreenState extends State<HomeScreen> {
           _activeListQuery = null;
         });
 
-        // Default focus: Highlights Transactions in the sidebar upon opening workspace
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _sidebarKey.currentState?.focusActiveItem();
         });
@@ -277,7 +276,6 @@ class _HomeScreenState extends State<HomeScreen> {
       _activeListQuery = null;
     });
 
-    // Reset default focus to Home in sidebar
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _sidebarKey.currentState?.focusActiveItem();
     });
@@ -412,6 +410,7 @@ class _HomeScreenState extends State<HomeScreen> {
         voucherType: _activeListQuery!.voucherType,
         fromDate: _activeListQuery!.fromDate,
         toDate: _activeListQuery!.toDate,
+        initialSeries: _activeListQuery!.series,
         onClose: () => setState(() => _activeListQuery = null),
       );
     } else {
@@ -482,12 +481,13 @@ class _HomeScreenState extends State<HomeScreen> {
               _activeListQuery = null;
             });
           },
-          onShowList: (vchType, from, to) {
+          onShowList: (vchType, from, to, series) {
             setState(() {
               _activeListQuery = _ListParams(
                 voucherType: vchType,
                 fromDate: from,
                 toDate: to,
+                series: series,
               );
               _activeVoucherType = null;
             });
@@ -650,7 +650,7 @@ class _HomeScreenState extends State<HomeScreen> {
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF101B38),
+              color: Color(0xFF101B3A),
             ),
           ),
           const SizedBox(height: 4),

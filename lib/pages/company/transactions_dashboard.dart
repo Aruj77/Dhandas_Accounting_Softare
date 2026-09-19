@@ -9,7 +9,7 @@ class TransactionsDashboard extends StatefulWidget {
   final Map<String, dynamic> company;
   final VoidCallback? onMoveToSidebar;
   final void Function(String voucherType)? onAddTransaction;
-  final void Function(String voucherType, DateTime from, DateTime to)? onShowList;
+  final void Function(String voucherType, DateTime from, DateTime to, String series)? onShowList;
   final VoidCallback? onVouchersChanged;
 
   const TransactionsDashboard({
@@ -122,19 +122,25 @@ class TransactionsDashboardState extends State<TransactionsDashboard> {
       return;
     }
 
-    // 3. LIST (Opens Date Range Filter before list)
+    // 3. LIST (Opens Date Range & Series Filter before list)
     if (action == TransactionAction.list) {
       final fy = (widget.company['activeFinancialYear'] ?? '2026-27').toString();
-      final result = await showDialog<Map<String, DateTime>>(
+      final result = await showDialog<Map<String, dynamic>>(
         context: context,
         builder: (ctx) => DateRangeDialog(
+          company: widget.company,
           financialYear: fy,
           voucherType: voucherType,
         ),
       );
 
       if (result != null) {
-        widget.onShowList?.call(voucherType, result['from']!, result['to']!);
+        widget.onShowList?.call(
+          voucherType,
+          result['from'] as DateTime,
+          result['to'] as DateTime,
+          result['series']?.toString() ?? 'All',
+        );
       }
       return;
     }
@@ -184,7 +190,7 @@ class TransactionsDashboardState extends State<TransactionsDashboard> {
           const SizedBox(height: 4),
           const Text(
             'Use [Arrow Keys / NumPad 2, 4, 6, 8] to navigate continuously across blocks, [Enter] for actions.',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13.5,
               fontWeight: FontWeight.w500,
               color: Color(0xFF637392),

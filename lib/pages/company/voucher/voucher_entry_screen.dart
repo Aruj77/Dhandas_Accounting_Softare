@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../constants/app_colors.dart';
@@ -8,6 +9,7 @@ import '../../../models/party_master_model.dart';
 import '../../../services/keyboard_shortcut_service.dart';
 import '../../../services/storage_service.dart';
 import '../../../services/voucher_calculation_service.dart';
+import '../../../services/voucher_numbering_service.dart';
 import '../../../utils/app_date_utils.dart';
 import '../../../utils/gst_party_utils.dart';
 import '../../../widgets/voucher/popup/add_item_dialog.dart';
@@ -17,12 +19,14 @@ import '../../../widgets/voucher/popup/calculator_dialog.dart';
 import '../../../widgets/voucher/popup/item_tax_details_dialog.dart';
 import '../../../widgets/voucher/popup/sales_invoice_print_preview_dialog.dart';
 import '../../../widgets/voucher/popup/voucher_save_confirm_dialog.dart';
+import '../../../widgets/voucher/popup/voucher_dialog_utils.dart';
 import '../../../widgets/voucher/voucher_header_card.dart';
 import '../../../widgets/voucher/voucher_item_row.dart';
 import '../../../widgets/voucher/voucher_items_table.dart';
 import '../../../widgets/voucher/voucher_summary_card.dart';
 import '../../../widgets/voucher/voucher_sundry_card.dart';
 import '../../../widgets/voucher/voucher_sundry_row.dart';
+import '../../../utils/voucher_master_actions.dart';
 
 class VoucherEntryScreen extends StatefulWidget {
   final Map<String, dynamic> company;
@@ -247,88 +251,14 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   }
 
   Future<void> _autogenerateVoucherNumber(String seriesName) async {
-    if (seriesName.toLowerCase() == 'main') return;
-    
-    final settings = _seriesSettings[seriesName];
-    if (settings != null && settings['numberingType']?.toString() == 'Manual') {
-      return;
-    }
-
-    final folderPath = widget.company['folderPath'];
-    final fy = widget.company['activeFinancialYear']?.toString() ?? AppDateUtils.defaultFinancialYear;
-    if (folderPath == null) return;
-
-    final vouchers = await StorageService.loadVouchers(
-      folderPath: folderPath,
-      financialYear: fy,
+    final nextNo = await VoucherNumberingService.autogenerate(
+      company: widget.company,
       voucherType: widget.voucherType,
       seriesName: seriesName,
+      seriesSettings: _seriesSettings[seriesName] ?? {},
     );
-
-    final yearPosition = settings?['yearPosition']?.toString() ?? 'As Prefix';
-    final searchFirst = (yearPosition == 'As Suffix');
-
-    if (vouchers.isNotEmpty) {
-      final lastVchNo = vouchers.last['voucherNumber']?.toString() ?? '';
-      if (lastVchNo.isNotEmpty) {
-        final regex = searchFirst ? RegExp(r'^[^0-9]*(\d+)') : RegExp(r'(\d+)(?!.*\d)');
-        final match = regex.firstMatch(lastVchNo);
-        if (match != null) {
-          final numStr = match.group(1)!;
-          final number = int.tryParse(numStr) ?? 0;
-          final nextNum = number + 1;
-          final paddedNum = nextNum.toString().padLeft(numStr.length, '0');
-          final nextVchNo = lastVchNo.replaceRange(match.start, match.end, paddedNum);
-          setState(() {
-            _vchNoController.text = nextVchNo;
-          });
-          return;
-        }
-      }
-    }
-
-    if (settings != null) {
-      final sep = settings['separator']?.toString() ?? '';
-      final startNum = settings['startNumber']?.toString() ?? '1';
-      final prefix = settings['prefix']?.toString() ?? '';
-      final suffix = settings['suffix']?.toString() ?? '';
-      final renumberingFreq = settings['renumberingFreq']?.toString() ?? 'None';
-      final yearFormat = settings['yearFormat']?.toString() ?? 'YY-YY';
-      final monthFormat = settings['monthFormat']?.toString() ?? 'MMM';
-      final dateFormat = settings['dateFormat']?.toString() ?? 'DD-MM-YYYY';
-
-      List<String> parts = [];
-      String dateComponent = '';
-
-      if (renumberingFreq == 'Yearly') {
-        dateComponent = (yearFormat == 'YYYY-YY') ? '2026-27' : '26-27';
-      } else if (renumberingFreq == 'Monthly') {
-        if (monthFormat == 'MMM') dateComponent = 'Sep';
-        if (monthFormat == 'M-full') dateComponent = 'September';
-        if (monthFormat == 'M-digit') dateComponent = '09';
-      } else if (renumberingFreq == 'Daily') {
-        if (dateFormat == 'DD-MM-YYYY') dateComponent = '19-09-2026';
-        if (dateFormat == 'DD/MM/YY') dateComponent = '19/09/26';
-      }
-
-      if (prefix.isNotEmpty) parts.add(prefix);
-      if (renumberingFreq == 'Yearly' && yearPosition == 'As Prefix' && dateComponent.isNotEmpty) {
-        parts.add(dateComponent);
-      } else if (renumberingFreq != 'Yearly' && dateComponent.isNotEmpty) {
-        parts.add(dateComponent);
-      }
-
-      parts.add(startNum);
-
-      if (renumberingFreq == 'Yearly' && yearPosition == 'As Suffix' && dateComponent.isNotEmpty) {
-        parts.add(dateComponent);
-      }
-
-      if (suffix.isNotEmpty) parts.add(suffix);
-
-      setState(() {
-        _vchNoController.text = parts.join(sep);
-      });
+    if (nextNo != null && mounted) {
+      setState(() => _vchNoController.text = nextNo);
     }
   }
 
@@ -342,7 +272,8 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
           );
           if (!exists) {
             _isHandlingMasterNotFound = true;
-            _showMasterNotFoundDialog(
+            VoucherDialogUtils.showMasterNotFoundDialog(
+              context: context,
               title: 'Item not added in Master',
               message: '"$text" does not exist in your item master list. Would you like to add it now?',
               onAdd: () async {
@@ -449,7 +380,19 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
         final text = _vchNoController.text.trim();
         if (text.isEmpty) {
           _isHandlingVchNoWarning = true;
-          _showMissingVchNoWarning();
+          VoucherDialogUtils.showMissingVchNoWarning(
+            context: context,
+            onConfirm: () {
+              _allowEmptyVchNo = true;
+              _isHandlingVchNoWarning = false;
+              _partyFocus.requestFocus();
+            },
+            onCancel: () {
+              _allowEmptyVchNo = false;
+              _isHandlingVchNoWarning = false;
+              _vchNoFocus.requestFocus();
+            },
+          );
         }
       }
     });
@@ -463,7 +406,8 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
               p.name.trim().toLowerCase() == text.toLowerCase());
           if (!exists) {
             _isHandlingMasterNotFound = true;
-            _showMasterNotFoundDialog(
+            VoucherDialogUtils.showMasterNotFoundDialog(
+              context: context,
               title: 'Party not added in Master',
               message: '"$text" does not exist in your account ledger masters. Would you like to add it now?',
               onAdd: () async {
@@ -500,134 +444,10 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     });
   }
 
-  void _showMissingVchNoWarning() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFEF3C7),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 22),
-            ),
-            const SizedBox(width: 10),
-            const Text(
-              'Warning',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
-            ),
-          ],
-        ),
-        content: const Text(
-          'You are proceeding without entering voucher no. Do you want to continue?',
-          style: TextStyle(fontSize: 13, color: Color(0xFF475569), height: 1.4),
-        ),
-        actions: [
-          OutlinedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _allowEmptyVchNo = false;
-              _isHandlingVchNoWarning = false;
-              _vchNoFocus.requestFocus();
-            },
-            style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF475569),
-              side: const BorderSide(color: Color(0xFFCBD5E1)),
-            ),
-            child: const Text('No', style: TextStyle(fontWeight: FontWeight.w600)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _allowEmptyVchNo = true;
-              _isHandlingVchNoWarning = false;
-              _partyFocus.requestFocus();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              elevation: 0,
-            ),
-            child: const Text('Yes', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showMasterNotFoundDialog({
-    required String title,
-    required String message,
-    required VoidCallback onAdd,
-    required VoidCallback onCancel,
-  }) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFEF3C7),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 22),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
-              ),
-            ),
-          ],
-        ),
-        content: Text(
-          message,
-          style: const TextStyle(fontSize: 13, color: Color(0xFF475569), height: 1.4),
-        ),
-        actions: [
-          OutlinedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              onCancel();
-            },
-            style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF475569),
-              side: const BorderSide(color: Color(0xFFCBD5E1)),
-            ),
-            child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.w600)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              onAdd();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              elevation: 0,
-            ),
-            child: const Text('Add', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _handleManualSaleTypeChange() {
     if (_isHandlingTaxMismatch) return;
     
     final currentSaleType = _saleTypeController.text.trim();
-    // Only check if it matches a complete valid taxation sale type to avoid triggering mid-typing
     const validTypes = [
       'Local Itemwise', 'InterState Itemwise',
       'Local Multirate', 'InterState Multirate',
@@ -644,33 +464,45 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
       final partyIsInterstate = compState != partyState;
       if (partyIsInterstate && isExplicitLocal) {
         _isHandlingTaxMismatch = true;
-        _showTaxMismatchWarning('Local transaction', 'interstate (State code: $partyState)', () {
-          _isAutoAdjustingSaleType = true;
-          _saleTypeController.text = currentSaleType.replaceFirst('Local', 'InterState');
-          _isAutoAdjustingSaleType = false;
-          _isHandlingTaxMismatch = false;
-          setState(() {
-            _isInterState = true;
-            _refreshTaxesOnAllRows();
-          });
-        }, onCancel: () {
-          _isHandlingTaxMismatch = false;
-        });
+        VoucherDialogUtils.showTaxMismatchWarning(
+          context: context,
+          enteredType: 'Local transaction',
+          partyBelongsToText: 'interstate (State code: $partyState)',
+          onAdjust: () {
+            _isAutoAdjustingSaleType = true;
+            _saleTypeController.text = currentSaleType.replaceFirst('Local', 'InterState');
+            _isAutoAdjustingSaleType = false;
+            _isHandlingTaxMismatch = false;
+            setState(() {
+              _isInterState = true;
+              _refreshTaxesOnAllRows();
+            });
+          },
+          onCancel: () {
+            _isHandlingTaxMismatch = false;
+          },
+        );
         return;
       } else if (!partyIsInterstate && isExplicitInterState) {
         _isHandlingTaxMismatch = true;
-        _showTaxMismatchWarning('Interstate transaction', 'local / intra-state (State code: $partyState)', () {
-          _isAutoAdjustingSaleType = true;
-          _saleTypeController.text = currentSaleType.replaceFirst('InterState', 'Local');
-          _isAutoAdjustingSaleType = false;
-          _isHandlingTaxMismatch = false;
-          setState(() {
-            _isInterState = false;
-            _refreshTaxesOnAllRows();
-          });
-        }, onCancel: () {
-          _isHandlingTaxMismatch = false;
-        });
+        VoucherDialogUtils.showTaxMismatchWarning(
+          context: context,
+          enteredType: 'Interstate transaction',
+          partyBelongsToText: 'local / intra-state (State code: $partyState)',
+          onAdjust: () {
+            _isAutoAdjustingSaleType = true;
+            _saleTypeController.text = currentSaleType.replaceFirst('InterState', 'Local');
+            _isAutoAdjustingSaleType = false;
+            _isHandlingTaxMismatch = false;
+            setState(() {
+              _isInterState = false;
+              _refreshTaxesOnAllRows();
+            });
+          },
+          onCancel: () {
+            _isHandlingTaxMismatch = false;
+          },
+        );
         return;
       }
     }
@@ -678,45 +510,6 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
       _isInterState = isExplicitInterState;
       _refreshTaxesOnAllRows();
     });
-  }
-
-  void _showTaxMismatchWarning(String enteredType, String partyBelongsToText, VoidCallback onAdjust, {required VoidCallback onCancel}) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 24),
-            SizedBox(width: 8),
-            Text('Taxation Alert', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
-          ],
-        ),
-        content: Text(
-          'You are entering a $enteredType but party belongs to $partyBelongsToText.\n\nDo you want to adjust or continue as is?',
-          style: const TextStyle(fontSize: 13, color: Color(0xFF334155), height: 1.4),
-        ),
-        actions: [
-          OutlinedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              onAdjust();
-            },
-            child: const Text('Adjust Mode'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              onCancel();
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.warning),
-            child: const Text('Continue As Is', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-          ),
-        ],
-      ),
-    );
   }
 
   bool _parseAndValidateDate() {
@@ -1052,135 +845,48 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   }
 
   bool _handleAltE() {
-    if (_isHandlingMasterNotFound) return false;
-    if (_partyFocus.hasFocus) {
-      final text = _partyController.text.trim();
-      if (text.isEmpty) return false;
+    return VoucherMasterActions.handleAltE(
+      context: context,
+      partyFocus: _partyFocus,
+      partyController: _partyController,
+      availableParties: _currentAvailableParties,
+      voucherType: widget.voucherType,
+      items: _items,
+      itemsMasterList: _itemsMasterList,
+      onPartyUpdated: (updated) {
+        setState(() {
+          final dIdx = _debtorsList.indexWhere(
+              (p) => p.name.trim().toLowerCase() == updated.name.trim().toLowerCase());
+          if (dIdx != -1) _debtorsList[dIdx] = updated;
 
-      final clean = text.toLowerCase();
-      final cleanName = GstPartyUtils.extractPartyName(text).toLowerCase();
+          final cIdx = _creditorsList.indexWhere(
+              (p) => p.name.trim().toLowerCase() == updated.name.trim().toLowerCase());
+          if (cIdx != -1) _creditorsList[cIdx] = updated;
 
-      final matchedParty = _currentAvailableParties.where((p) =>
-          p.displayName.trim().toLowerCase() == clean ||
-          p.name.trim().toLowerCase() == clean ||
-          p.displayName.trim().toLowerCase() == cleanName ||
-          p.name.trim().toLowerCase() == cleanName).firstOrNull;
+          _partyController.text = updated.displayName;
+          _checkGstMode(autoAdjustSaleType: true);
+          _refreshTaxesOnAllRows();
+        });
+      },
+      onItemUpdated: (i, updated) {
+        setState(() {
+          final idx = _itemsMasterList.indexWhere((m) =>
+              m.name.trim().toLowerCase() == updated.name.trim().toLowerCase());
+          if (idx != -1) _itemsMasterList[idx] = updated;
 
-      if (matchedParty != null) {
-        showDialog(
-          context: context,
-          builder: (_) => AddPartyDialog(
-            voucherType: widget.voucherType,
-            initialParty: matchedParty,
-            isEdit: true,
-            onPartyCreated: (partyData) async {
-              final updated = PartyMasterModel(
-                name: partyData['name'] ?? '',
-                gstin: partyData['gstin'] ?? '',
-                group: partyData['group'] ?? matchedParty.group,
-              );
-
-              setState(() {
-                final dIdx = _debtorsList.indexWhere(
-                    (p) => p.name.trim().toLowerCase() == matchedParty.name.trim().toLowerCase());
-                if (dIdx != -1) _debtorsList[dIdx] = updated;
-
-                final cIdx = _creditorsList.indexWhere(
-                    (p) => p.name.trim().toLowerCase() == matchedParty.name.trim().toLowerCase());
-                if (cIdx != -1) _creditorsList[cIdx] = updated;
-
-                _partyController.text = updated.displayName;
-                _checkGstMode(autoAdjustSaleType: true);
-                _refreshTaxesOnAllRows();
-              });
-
-              await _syncMastersToFile();
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Party Master "${updated.displayName}" updated and saved permanently to masters.json'),
-                    backgroundColor: AppColors.success,
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              }
-            },
-          ),
-        );
-        return true;
-      }
-      return false;
-    }
-
-    for (int i = 0; i < _items.length; i++) {
-      final row = _items[i];
-      final isRowFocused = row.itemFocus.hasFocus ||
-          row.qtyFocus.hasFocus ||
-          row.priceFocus.hasFocus ||
-          row.taxableFocus.hasFocus ||
-          row.amountFocus.hasFocus;
-
-      if (isRowFocused) {
-        final text = row.item.text.trim();
-        if (text.isEmpty) return false;
-
-        final matchedItem = _itemsMasterList.where((m) =>
-            m.name.trim().toLowerCase() == text.toLowerCase()).firstOrNull;
-
-        if (matchedItem != null) {
-          showDialog(
-            context: context,
-            builder: (_) => AddItemDialog(
-              initialItem: matchedItem,
-              isEdit: true,
-              onItemCreated: (itemData) async {
-                final updated = ItemMasterModel(
-                  name: itemData['name'],
-                  hsn: itemData['hsn'],
-                  unit: itemData['unit'],
-                  taxCategory: itemData['taxCategory'],
-                  taxRate: itemData['taxRate'],
-                  salesPrice: itemData['salesPrice'],
-                  purchasePrice: itemData['purchasePrice'],
-                  mrp: itemData['mrp'],
-                );
-
-                setState(() {
-                  final idx = _itemsMasterList.indexWhere((m) =>
-                      m.name.trim().toLowerCase() == matchedItem.name.trim().toLowerCase());
-                  if (idx != -1) _itemsMasterList[idx] = updated;
-
-                  for (final r in _items) {
-                    if (r.item.text.trim().toLowerCase() == matchedItem.name.trim().toLowerCase()) {
-                      r.item.text = updated.name;
-                      r.hsn = updated.hsn;
-                      r.unit.text = updated.unit;
-                      r.gstRate = updated.taxRate;
-                    }
-                  }
-                  _onItemMasterSelected(i, updated);
-                });
-
-                await _syncMastersToFile();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Item Master "${updated.name}" updated and saved permanently to masters.json'),
-                      backgroundColor: AppColors.success,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                }
-              },
-            ),
-          );
-          return true;
-        }
-        return false;
-      }
-    }
-
-    return false;
+          for (final r in _items) {
+            if (r.item.text.trim().toLowerCase() == updated.name.trim().toLowerCase()) {
+              r.item.text = updated.name;
+              r.hsn = updated.hsn;
+              r.unit.text = updated.unit;
+              r.gstRate = updated.taxRate;
+            }
+          }
+          _onItemMasterSelected(i, updated);
+        });
+      },
+      onSyncMasters: _syncMastersToFile,
+    );
   }
 
   void _showValidationError(String msg, FocusNode? focus) {
@@ -1391,47 +1097,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   }
 
   Future<bool> _onWillPop() async {
-    final close = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: AppColors.errorLight,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.warning_amber_rounded, color: AppColors.errorDark, size: 20),
-            ),
-            const SizedBox(width: 10),
-            const Text(
-              'Unsaved Changes',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
-            ),
-          ],
-        ),
-        content: const Text(
-          'You have unsaved changes in this voucher. Discard and return to workspace?',
-          style: TextStyle(fontSize: 13, color: Color(0xFF475569)),
-        ),
-        actions: [
-          OutlinedButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep Editing')),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Discard & Exit', style: TextStyle(fontWeight: FontWeight.w800)),
-          ),
-        ],
-      ),
-    );
-    return close ?? false;
+    return await VoucherDialogUtils.showUnsavedChangesDialog(context);
   }
 
   void _handleItemRowEnter(int index, String field) {
