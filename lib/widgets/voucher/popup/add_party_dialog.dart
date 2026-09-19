@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
+import '../../../models/party_master_model.dart';
 import '../../../services/gstin_service.dart';
 
 class AddPartyDialog extends StatefulWidget {
   final String voucherType;
   final Function(Map<String, dynamic> partyData) onPartyCreated;
+  final PartyMasterModel? initialParty;
+  final bool isEdit;
 
   const AddPartyDialog({
     super.key,
     required this.voucherType,
     required this.onPartyCreated,
+    this.initialParty,
+    this.isEdit = false,
   });
 
   @override
@@ -35,8 +40,18 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
   @override
   void initState() {
     super.initState();
-    final isSales = widget.voucherType.toLowerCase().contains('sale');
-    _groupController.text = isSales ? 'Sundry Debtors' : 'Sundry Creditors';
+    if (widget.isEdit && widget.initialParty != null) {
+      _nameController.text = widget.initialParty!.name;
+      _gstinController.text = widget.initialParty!.gstin;
+      _groupController.text = widget.initialParty!.group;
+      if (widget.initialParty!.gstin.isNotEmpty) {
+        _onGstinChanged();
+        _validateGstin();
+      }
+    } else {
+      final isSales = widget.voucherType.toLowerCase().contains('sale');
+      _groupController.text = isSales ? 'Sundry Debtors' : 'Sundry Creditors';
+    }
 
     _gstinController.addListener(_onGstinChanged);
   }
@@ -132,18 +147,26 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
                       color: const Color(0xFFEBF3FE),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.person_add_rounded, size: 20, color: Color(0xFF0F62FE)),
+                    child: Icon(
+                      widget.isEdit ? Icons.edit_note_rounded : Icons.person_add_rounded,
+                      size: 20,
+                      color: const Color(0xFF0F62FE),
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Add New Party (${_groupController.text})',
+                        widget.isEdit
+                            ? 'Edit Party (${_groupController.text})'
+                            : 'Add New Party (${_groupController.text})',
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF101B3A)),
                       ),
                       Text(
-                        'Master Account Ledger Entry for ${widget.voucherType}',
+                        widget.isEdit
+                            ? 'Update Master Account Ledger Entry'
+                            : 'Master Account Ledger Entry for ${widget.voucherType}',
                         style: const TextStyle(fontSize: 11.5, color: Color(0xFF6B7B9B)),
                       ),
                     ],
@@ -314,7 +337,10 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    child: const Text('Save & Select Party', style: TextStyle(fontWeight: FontWeight.w700)),
+                    child: Text(
+                      widget.isEdit ? 'Save Changes' : 'Save & Select Party',
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
                   ),
                 ],
               ),

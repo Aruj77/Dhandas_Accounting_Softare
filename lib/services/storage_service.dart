@@ -4,7 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class StorageService {
   static const String _prefDirectoryKey = 'dhandas_data_directory_path';
-    static const Map<String, dynamic> defaultCompanyMasters = {
+  
+  static const Map<String, dynamic> defaultCompanyMasters = {
     'debtors': [
       {'name': 'Cash', 'gstin': '', 'group': 'Cash-in-Hand'},
     ],
@@ -33,7 +34,23 @@ class StorageService {
         'mrp': 52000.0,
       },
     ],
+    'series': ['Main'],
+    'seriesSettings': {
+      'Main': {
+        'name': 'Main',
+        'numberingType': 'Manual', // Main set to Manual by default
+        'renumberingFreq': 'None',
+        'yearFormat': 'YY-YY',
+        'yearPosition': 'As Prefix',
+        'separator': '/',
+        'prefix': '',
+        'suffix': '',
+        'startNumber': 1,
+        'endNumber': 99999999,
+      }
+    },
   };
+
   static Future<String?> getSavedDirectory() async {
     final prefs = await SharedPreferences.getInstance();
     final path = prefs.getString(_prefDirectoryKey);
@@ -127,36 +144,7 @@ class StorageService {
 
     await saveCompanyMasters(
       folderPath: companyDir.path,
-      mastersData: {
-        'debtors': [
-          {'name': 'Cash', 'gstin': '', 'group': 'Cash-in-Hand'},
-        ],
-        'creditors': [
-          {'name': 'Cash', 'gstin': '', 'group': 'Cash-in-Hand'},
-        ],
-        'items': [
-          {
-            'name': '3304 18% Pcs',
-            'hsn': '3304',
-            'unit': 'Pcs',
-            'taxCategory': 'GST 18%',
-            'taxRate': 18.0,
-            'salesPrice': 250.0,
-            'purchasePrice': 200.0,
-            'mrp': 300.0,
-          },
-          {
-            'name': '8471 18% Nos',
-            'hsn': '8471',
-            'unit': 'Nos',
-            'taxCategory': 'GST 18%',
-            'taxRate': 18.0,
-            'salesPrice': 45000.0,
-            'purchasePrice': 40000.0,
-            'mrp': 52000.0,
-          },
-        ],
-      },
+      mastersData: defaultCompanyMasters,
     );
 
     return folderId;
@@ -185,14 +173,6 @@ class StorageService {
       );
       return;
     }
-
-    final legacyFilePath = companyData['legacyFilePath']?.toString();
-    if (legacyFilePath != null && await File(legacyFilePath).exists()) {
-      final file = File(legacyFilePath);
-      await file.writeAsString(
-        const JsonEncoder.withIndent('  ').convert(companyData),
-      );
-    }
   }
 
   static Future<void> deleteCompanyLocally({
@@ -206,14 +186,6 @@ class StorageService {
         return;
       }
     }
-
-    final legacyFilePath = companyData['legacyFilePath']?.toString();
-    if (legacyFilePath != null) {
-      final file = File(legacyFilePath);
-      if (await file.exists()) {
-        await file.delete();
-      }
-    }
   }
 
   static Future<Map<String, dynamic>> loadCompanyMasters({
@@ -225,41 +197,14 @@ class StorageService {
         final content = await file.readAsString();
         final data = jsonDecode(content);
         if (data is Map<String, dynamic>) {
+          data['series'] ??= ['Main'];
+          data['seriesSettings'] ??= {'Main': defaultCompanyMasters['seriesSettings']['Main']};
           return data;
         }
       } catch (_) {}
     }
 
-    return {
-      'debtors': [
-        {'name': 'Cash', 'gstin': '', 'group': 'Cash-in-Hand'},
-      ],
-      'creditors': [
-        {'name': 'Cash', 'gstin': '', 'group': 'Cash-in-Hand'},
-      ],
-      'items': [
-        {
-          'name': '3304 18% Pcs',
-          'hsn': '3304',
-          'unit': 'Pcs',
-          'taxCategory': 'GST 18%',
-          'taxRate': 18.0,
-          'salesPrice': 250.0,
-          'purchasePrice': 200.0,
-          'mrp': 300.0,
-        },
-        {
-          'name': '8471 18% Nos',
-          'hsn': '8471',
-          'unit': 'Nos',
-          'taxCategory': 'GST 18%',
-          'taxRate': 18.0,
-          'salesPrice': 45000.0,
-          'purchasePrice': 40000.0,
-          'mrp': 52000.0,
-        },
-      ],
-    };
+    return Map<String, dynamic>.from(defaultCompanyMasters);
   }
 
   static Future<void> saveCompanyMasters({
@@ -272,15 +217,23 @@ class StorageService {
     );
   }
 
-  static String resolveVoucherFileName(String voucherType) {
+  /// Resolves file name based on voucher type and series name (e.g., sales.json vs sales_aetyv.json)
+  static String resolveVoucherFileName(String voucherType, [String? seriesName]) {
     final vch = voucherType.toLowerCase().trim();
-    if (vch.contains('sale')) return 'sales.json';
-    if (vch.contains('purchase')) return 'purchase.json';
-    if (vch.contains('payment')) return 'payment.json';
-    if (vch.contains('receipt')) return 'receipt.json';
-    if (vch.contains('journal')) return 'journal.json';
-    if (vch.contains('contra')) return 'contra.json';
-    return '${vch.replaceAll(RegExp(r'[^a-z0-9]'), '_')}.json';
+    String base = 'sales';
+    if (vch.contains('sale')) base = 'sales';
+    else if (vch.contains('purchase')) base = 'purchase';
+    else if (vch.contains('payment')) base = 'payment';
+    else if (vch.contains('receipt')) base = 'receipt';
+    else if (vch.contains('journal')) base = 'journal';
+    else if (vch.contains('contra')) base = 'contra';
+    else base = vch.replaceAll(RegExp(r'[^a-z0-9]'), '_');
+
+    if (seriesName != null && seriesName.trim().isNotEmpty && seriesName.toLowerCase() != 'main') {
+      final cleanSeries = seriesName.trim().replaceAll(RegExp(r'[^a-z0-9]'), '_').toLowerCase();
+      return '${base}_$cleanSeries.json';
+    }
+    return '$base.json';
   }
 
   static Future<void> saveVoucher({
@@ -296,7 +249,8 @@ class StorageService {
       await vouchersDir.create(recursive: true);
     }
 
-    final targetFileName = resolveVoucherFileName(voucherData['voucherType'] ?? 'voucher');
+    final seriesName = voucherData['series']?.toString();
+    final targetFileName = resolveVoucherFileName(voucherData['voucherType'] ?? 'voucher', seriesName);
     final file = File('${vouchersDir.path}${Platform.pathSeparator}$targetFileName');
 
     List<dynamic> voucherList = [];
@@ -330,6 +284,7 @@ class StorageService {
     required String folderPath,
     required String financialYear,
     required String voucherType,
+    String? seriesName,
     required List<Map<String, dynamic>> vouchers,
   }) async {
     final fySlug = normalizeFySlug(financialYear);
@@ -340,7 +295,7 @@ class StorageService {
       await vouchersDir.create(recursive: true);
     }
 
-    final targetFileName = resolveVoucherFileName(voucherType);
+    final targetFileName = resolveVoucherFileName(voucherType, seriesName);
     final file = File('${vouchersDir.path}${Platform.pathSeparator}$targetFileName');
 
     await file.writeAsString(
@@ -352,6 +307,7 @@ class StorageService {
     required String folderPath,
     required String financialYear,
     String? voucherType,
+    String? seriesName,
   }) async {
     final fySlug = normalizeFySlug(financialYear);
     final vouchersDir = Directory(
@@ -362,7 +318,7 @@ class StorageService {
     final List<Map<String, dynamic>> allVouchers = [];
 
     if (voucherType != null) {
-      final fileName = resolveVoucherFileName(voucherType);
+      final fileName = resolveVoucherFileName(voucherType, seriesName);
       final file = File('${vouchersDir.path}${Platform.pathSeparator}$fileName');
       if (await file.exists()) {
         try {

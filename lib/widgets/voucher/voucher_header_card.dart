@@ -5,6 +5,7 @@ import '../../models/party_master_model.dart';
 class VoucherHeaderCard extends StatelessWidget {
   final TextEditingController seriesController;
   final FocusNode seriesFocus;
+  final List<String> availableSeries;
   final TextEditingController dateController;
   final FocusNode dateFocus;
   final String? dateError;
@@ -28,6 +29,7 @@ class VoucherHeaderCard extends StatelessWidget {
     super.key,
     required this.seriesController,
     required this.seriesFocus,
+    required this.availableSeries,
     required this.dateController,
     required this.dateFocus,
     required this.dateError,
@@ -64,26 +66,18 @@ class VoucherHeaderCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color.fromARGB(255, 204, 219, 241), width: 1.2),
+        border: Border.all(color: const Color.fromARGB(255, 186, 202, 226), width: 1.2),
         boxShadow: const [
           BoxShadow(color: Color(0x04092B60), blurRadius: 8, offset: Offset(0, 2)),
         ],
       ),
       child: Column(
         children: [
-          // Row 1: Series, Date, Voucher Number (widened), Party (placed before taxation)
+          // Row 1: Series, Date, Voucher Number, Party
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildFieldWithAction(
-                label: 'Series',
-                controller: seriesController,
-                focusNode: seriesFocus,
-                width: 140,
-                icon: Icons.tag_rounded,
-                onAdd: () => onQuickAdd('Series'),
-                onSubmitted: () => dateFocus.requestFocus(),
-              ),
+              _buildSeriesField(),
               const SizedBox(width: 10),
               _buildDateInput(
                 label: 'Voucher Date',
@@ -108,7 +102,7 @@ class VoucherHeaderCard extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 flex: 4,
-                child: _buildPartyField(), // Party placed before Taxation
+                child: _buildPartyField(),
               ),
             ],
           ),
@@ -118,7 +112,7 @@ class VoucherHeaderCard extends StatelessWidget {
             children: [
               Expanded(
                 flex: 4,
-                child: _buildSaleTypeField(), // Taxation/Sale Type follows Party
+                child: _buildSaleTypeField(),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -146,6 +140,130 @@ class VoucherHeaderCard extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSeriesField() {
+    return Focus(
+      onKeyEvent: (node, event) {
+        if (AppShortcuts.isQuickAdd(event)) {
+          onQuickAdd('Series');
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: SizedBox(
+        width: 140,
+        height: 36,
+        child: RawAutocomplete<String>(
+          focusNode: seriesFocus,
+          textEditingController: seriesController,
+          optionsBuilder: (TextEditingValue textEditingValue) {
+            final query = textEditingValue.text.trim().toLowerCase();
+            if (query.isEmpty) return availableSeries;
+            return availableSeries.where((s) => s.toLowerCase().contains(query));
+          },
+          onSelected: (String selection) {
+            seriesController.text = selection;
+            dateFocus.requestFocus();
+          },
+          optionsViewBuilder: (context, onSelected, options) {
+            return Align(
+              alignment: Alignment.topLeft,
+              child: Material(
+                elevation: 8,
+                borderRadius: BorderRadius.circular(10),
+                color: Colors.white,
+                child: Container(
+                  width: 180,
+                  constraints: const BoxConstraints(maxHeight: 200),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFD6E4F5), width: 1.2),
+                  ),
+                  child: ListView.separated(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    shrinkWrap: true,
+                    itemCount: options.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5FB)),
+                    itemBuilder: (BuildContext context, int index) {
+                      final String option = options.elementAt(index);
+                      return InkWell(
+                        onTap: () => onSelected(option),
+                        hoverColor: const Color(0xFFF4F8FE),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.tag_rounded, size: 14, color: Color(0xFF0F62FE)),
+                              const SizedBox(width: 8),
+                              Text(
+                                option,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF101C38),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            );
+          },
+          fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+            return ListenableBuilder(
+              listenable: focusNode,
+              builder: (context, _) {
+                return TextField(
+                  controller: controller,
+                  focusNode: focusNode,
+                  textInputAction: TextInputAction.next,
+                  onSubmitted: (_) {
+                    onFieldSubmitted();
+                    dateFocus.requestFocus();
+                  },
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF101B3A),
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Series',
+                    labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6B7B9B)),
+                    prefixIcon: const Icon(Icons.tag_rounded, size: 14, color: Color(0xFF0F62FE)),
+                    suffixIcon: focusNode.hasFocus
+                        ? Focus(
+                            canRequestFocus: false,
+                            descendantsAreFocusable: false,
+                            child: Container(
+                              margin: const EdgeInsets.only(right: 6),
+                              child: IconButton(
+                                icon: const Icon(Icons.add_circle, size: 18, color: Color(0xFF0F62FE)),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(maxWidth: 24, maxHeight: 24),
+                                onPressed: () => onQuickAdd('Series'),
+                              ),
+                            ),
+                          )
+                        : const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF64748B)),
+                    suffixIconConstraints: const BoxConstraints(minWidth: 32, minHeight: 24),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    filled: true,
+                    fillColor: const Color(0xFFF8FAFD),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color.fromARGB(255, 186, 202, 226))),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.3)),
+                  ),
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }
@@ -266,7 +384,7 @@ class VoucherHeaderCard extends StatelessWidget {
                     contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     filled: true,
                     fillColor: const Color(0xFFF8FAFD),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color.fromARGB(255, 204, 219, 241))),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color.fromARGB(255, 186, 202, 226))),
                     focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.3)),
                   ),
                 );
@@ -423,7 +541,7 @@ class VoucherHeaderCard extends StatelessWidget {
                     contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     filled: true,
                     fillColor: const Color(0xFFF8FAFD),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color.fromARGB(255, 204, 219, 241))),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color.fromARGB(255, 186, 202, 226))),
                     focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.3)),
                   ),
                 );
@@ -486,7 +604,7 @@ class VoucherHeaderCard extends StatelessWidget {
                 contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 filled: true,
                 fillColor: const Color(0xFFF8FAFD),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color.fromARGB(255, 204, 219, 241))),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color.fromARGB(255, 186, 202, 226))),
                 focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.3)),
               ),
             ),
@@ -523,7 +641,7 @@ class VoucherHeaderCard extends StatelessWidget {
           fillColor: const Color(0xFFF8FAFD),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: errorText != null ? const Color(0xFFEE4343) : const Color.fromARGB(255, 204, 219, 241)),
+            borderSide: BorderSide(color: errorText != null ? const Color(0xFFEE4343) : const Color.fromARGB(255, 186, 202, 226)),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),

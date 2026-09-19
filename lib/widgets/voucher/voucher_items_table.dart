@@ -76,7 +76,7 @@ class VoucherItemsTable extends StatelessWidget {
               child: const Row(
                 children: [
                   SizedBox(width: 32, child: Text('S.N.', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF6B7B9B)))),
-                  Expanded(flex: 6, child: Text('Item Name & Description', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF6B7B9B)))),
+                  Expanded(flex: 6, child: Text('Item Name & Description [Alt+E]', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF0F62FE)))),
                   SizedBox(width: 10),
                   SizedBox(width: 90, child: Text('Qty', textAlign: TextAlign.right, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF6B7B9B)))),
                   SizedBox(width: 10),
@@ -88,7 +88,7 @@ class VoucherItemsTable extends StatelessWidget {
                   SizedBox(width: 10),
                   SizedBox(
                     width: 140,
-                    child: Text('Amount (₹) [Alt+E]', textAlign: TextAlign.right, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF0F62FE))),
+                    child: Text('Amount (₹)', textAlign: TextAlign.right, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF0F62FE))),
                   ),
                 ],
               ),
@@ -105,12 +105,10 @@ class VoucherItemsTable extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                     child: Row(
                       children: [
-                        // S.N. (NO BORDER)
                         SizedBox(
                           width: 32,
                           child: Text('${index + 1}', style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF90A1BA))),
                         ),
-                        // ITEM NAME & DESCRIPTION (BORDER APPLIED)
                         Expanded(
                           flex: 6,
                           child: _buildItemAutocomplete(
@@ -120,7 +118,6 @@ class VoucherItemsTable extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 10),
-                        // QTY (BORDER APPLIED)
                         SizedBox(
                           width: 90,
                           child: _buildSimpleGridInput(
@@ -131,7 +128,6 @@ class VoucherItemsTable extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 10),
-                        // UNIT (BORDER APPLIED)
                         Container(
                           width: 60,
                           height: 36,
@@ -147,7 +143,6 @@ class VoucherItemsTable extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 10),
-                        // PRICE (BORDER APPLIED)
                         SizedBox(
                           width: 110,
                           child: _buildSimpleGridInput(
@@ -158,7 +153,6 @@ class VoucherItemsTable extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 10),
-                        // TAXABLE (BORDER APPLIED)
                         SizedBox(
                           width: 130,
                           child: _buildSimpleGridInput(
@@ -169,23 +163,13 @@ class VoucherItemsTable extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 10),
-                        // AMOUNT (BORDER APPLIED)
                         SizedBox(
                           width: 140,
-                          child: Focus(
-                            onKeyEvent: (node, event) {
-                              if (AppShortcuts.isTaxDetails(event)) {
-                                onOpenTaxDetails(index);
-                                return KeyEventResult.handled;
-                              }
-                              return KeyEventResult.ignored;
-                            },
-                            child: _buildSimpleGridInput(
-                              controller: row.amount,
-                              focusNode: row.amountFocus,
-                              textAlign: TextAlign.right,
-                              onSubmitted: () => onRowEnter(index, 'amount'),
-                            ),
+                          child: _buildSimpleGridInput(
+                            controller: row.amount,
+                            focusNode: row.amountFocus,
+                            textAlign: TextAlign.right,
+                            onSubmitted: () => onRowEnter(index, 'amount'),
                           ),
                         ),
                       ],

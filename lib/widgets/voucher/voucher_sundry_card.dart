@@ -44,7 +44,7 @@ class VoucherSundryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const customCellBorderColor = Color.fromARGB(255, 204, 219, 241);
+    const customCellBorderColor = Color.fromARGB(255, 186, 202, 226);
 
     return Focus(
       onKeyEvent: (node, event) {

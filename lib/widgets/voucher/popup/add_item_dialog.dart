@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
+import '../../../models/item_master_model.dart';
 
 class AddItemDialog extends StatefulWidget {
   final Function(Map<String, dynamic> itemData) onItemCreated;
+  final ItemMasterModel? initialItem;
+  final bool isEdit;
 
   const AddItemDialog({
     super.key,
     required this.onItemCreated,
+    this.initialItem,
+    this.isEdit = false,
   });
 
   @override
@@ -57,6 +62,21 @@ class _AddItemDialogState extends State<AddItemDialog> {
   @override
   void initState() {
     super.initState();
+    if (widget.isEdit && widget.initialItem != null) {
+      final item = widget.initialItem!;
+      _nameController.text = item.name;
+      _hsnController.text = item.hsn;
+      _selectedUnit = _units.contains(item.unit) ? item.unit : 'Pcs';
+      _selectedTaxCategory = _taxCategories.firstWhere(
+        (c) => c.contains('${item.taxRate.toInt()}%'),
+        orElse: () => _taxCategories.contains(item.taxCategory) ? item.taxCategory : 'GST 18%',
+      );
+      _salesPriceController.text = item.salesPrice > 0 ? item.salesPrice.toStringAsFixed(2) : '';
+      _purchasePriceController.text = item.purchasePrice > 0 ? item.purchasePrice.toStringAsFixed(2) : '';
+      _mrpController.text = item.mrp > 0 ? item.mrp.toStringAsFixed(2) : '';
+      if (item.hsn.isNotEmpty) _validateHsn();
+    }
+
     _hsnController.addListener(_autoGenerateName);
   }
 
@@ -67,6 +87,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
   }
 
   void _autoGenerateName() {
+    // Removed 'if (widget.isEdit) return;' so name updates dynamically in edit mode too
     final hsn = _hsnController.text.trim();
     final tax = _extractTaxPercentage(_selectedTaxCategory);
     final unit = _selectedUnit;
@@ -97,8 +118,60 @@ class _AddItemDialogState extends State<AddItemDialog> {
     });
   }
 
-  void _handleSubmit() {
+  Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) return;
+
+    if (widget.isEdit) {
+      final shouldContinue = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 22),
+              ),
+              const SizedBox(width: 10),
+              const Text(
+                'Warning',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+              ),
+            ],
+          ),
+          content: const Text(
+            'All previous transactions will be changed accordingly. Do you want to continue?',
+            style: TextStyle(fontSize: 13, color: Color(0xFF475569), height: 1.4),
+          ),
+          actions: [
+            OutlinedButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF475569),
+                side: const BorderSide(color: Color(0xFFCBD5E1)),
+              ),
+              child: const Text('No', style: TextStyle(fontWeight: FontWeight.w600)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0F62FE),
+                elevation: 0,
+              ),
+              child: const Text('Yes', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+            ),
+          ],
+        ),
+      );
+
+      if (shouldContinue != true) return;
+    }
 
     final taxMatch = RegExp(r'(\d+)%').firstMatch(_selectedTaxCategory);
     final rate = taxMatch != null ? double.tryParse(taxMatch.group(1)!) ?? 18.0 : 0.0;
@@ -142,7 +215,6 @@ class _AddItemDialogState extends State<AddItemDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
               Row(
                 children: [
                   Container(
@@ -152,19 +224,25 @@ class _AddItemDialogState extends State<AddItemDialog> {
                       color: const Color(0xFFEFF6FE),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.inventory_2_rounded, size: 20, color: Color(0xFF0F62FE)),
+                    child: Icon(
+                      widget.isEdit ? Icons.edit_note_rounded : Icons.inventory_2_rounded,
+                      size: 20,
+                      color: const Color(0xFF0F62FE),
+                    ),
                   ),
                   const SizedBox(width: 12),
-                  const Column(
+                  Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Add New Item Master',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF101B3A)),
+                        widget.isEdit ? 'Edit Item Master' : 'Add New Item Master',
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF101B3A)),
                       ),
                       Text(
-                        'Inventory and tariff configuration',
-                        style: TextStyle(fontSize: 11.5, color: Color(0xFF6B7B9B)),
+                        widget.isEdit
+                            ? 'Update inventory and tariff configuration'
+                            : 'Inventory and tariff configuration',
+                        style: const TextStyle(fontSize: 11.5, color: Color(0xFF6B7B9B)),
                       ),
                     ],
                   ),
@@ -176,8 +254,6 @@ class _AddItemDialogState extends State<AddItemDialog> {
                 ],
               ),
               const SizedBox(height: 18),
-
-              // HSN and Validation
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -219,8 +295,6 @@ class _AddItemDialogState extends State<AddItemDialog> {
                 ),
               ],
               const SizedBox(height: 14),
-
-              // Unit & Tax Category
               Row(
                 children: [
                   Expanded(
@@ -257,17 +331,13 @@ class _AddItemDialogState extends State<AddItemDialog> {
                 ],
               ),
               const SizedBox(height: 14),
-
-              // Auto-Generated Name
               _buildTextField(
                 controller: _nameController,
-                label: 'Item Name (Auto-Generated) *',
-                hintText: 'Auto: HSN Tax% Unit',
+                label: 'Item Name *',
+                hintText: 'Enter item master name',
                 validator: (val) => val == null || val.trim().isEmpty ? 'Item name cannot be empty' : null,
               ),
               const SizedBox(height: 14),
-
-              // Pricing Details
               Row(
                 children: [
                   Expanded(
@@ -297,8 +367,6 @@ class _AddItemDialogState extends State<AddItemDialog> {
                 ],
               ),
               const SizedBox(height: 24),
-
-              // Action Buttons
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
@@ -319,7 +387,10 @@ class _AddItemDialogState extends State<AddItemDialog> {
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    child: const Text('Save & Select Item', style: TextStyle(fontWeight: FontWeight.w700)),
+                    child: Text(
+                      widget.isEdit ? 'Save Changes' : 'Save & Select Item',
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
                   ),
                 ],
               ),
@@ -344,7 +415,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
         SizedBox(
           height: 38,
           child: DropdownButtonFormField<String>(
-            initialValue: value,
+            value: value,
             items: items
                 .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700))))
                 .toList(),
