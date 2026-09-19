@@ -76,6 +76,9 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   bool _isInterState = false;
   bool _autoRoundOff = true;
   bool _isAutoAdjustingSaleType = false;
+  bool _isHandlingMasterNotFound = false;
+  bool _isHandlingVchNoWarning = false;
+  bool _allowEmptyVchNo = false;
   String? _dateError;
 
   DateTime _fyStartDate = DateTime(2026, 4, 1);
@@ -105,6 +108,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     _matCenterController.text = v['materialCenter']?.toString() ?? 'Main Store';
     _narrationController.text = v['narration']?.toString() ?? '';
     _isInterState = v['isInterState'] == true;
+    _allowEmptyVchNo = _vchNoController.text.trim().isEmpty;
 
     final fy = v['financialYear']?.toString() ??
         widget.company['activeFinancialYear']?.toString() ??
@@ -185,6 +189,40 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   }
 
   void _attachItemRowListeners(VoucherItemRow row) {
+    row.itemFocus.addListener(() {
+      if (!row.itemFocus.hasFocus && !_isHandlingMasterNotFound) {
+        final text = row.item.text.trim();
+        if (text.isNotEmpty) {
+          final exists = _itemsMasterList.any(
+            (item) => item.name.trim().toLowerCase() == text.toLowerCase(),
+          );
+          if (!exists) {
+            _isHandlingMasterNotFound = true;
+            _showMasterNotFoundDialog(
+              title: 'Item not added in Master',
+              message: '"$text" does not exist in your item master list. Would you like to add it now?',
+              onAdd: () async {
+                final index = _items.indexOf(row);
+                if (index != -1) {
+                  final added = await _openAddItemDialog(index);
+                  if (!added) {
+                    row.item.clear();
+                    row.itemFocus.requestFocus();
+                  }
+                }
+                _isHandlingMasterNotFound = false;
+              },
+              onCancel: () {
+                row.item.clear();
+                row.itemFocus.requestFocus();
+                _isHandlingMasterNotFound = false;
+              },
+            );
+          }
+        }
+      }
+    });
+
     void handlePriceOrQty() {
       final q = double.tryParse(row.qty.text) ?? 0.0;
       final p = double.tryParse(row.price.text) ?? 0.0;
@@ -259,6 +297,52 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     _dateFocusNode.addListener(() {
       if (!_dateFocusNode.hasFocus) _parseAndValidateDate();
     });
+
+    // Warning when leaving Voucher Number empty
+    _vchNoFocus.addListener(() {
+      if (_vchNoFocus.hasFocus) {
+        _allowEmptyVchNo = false;
+      } else if (!_isHandlingVchNoWarning && !_allowEmptyVchNo) {
+        final text = _vchNoController.text.trim();
+        if (text.isEmpty) {
+          _isHandlingVchNoWarning = true;
+          _showMissingVchNoWarning();
+        }
+      }
+    });
+
+    // Validate Party Name against Party Master when focus leaves the party field
+    _partyFocus.addListener(() {
+      if (!_partyFocus.hasFocus && !_isHandlingMasterNotFound) {
+        final text = _partyController.text.trim();
+        if (text.isNotEmpty) {
+          final exists = _currentAvailableParties.any((p) =>
+              p.displayName.trim().toLowerCase() == text.toLowerCase() ||
+              p.name.trim().toLowerCase() == text.toLowerCase());
+          if (!exists) {
+            _isHandlingMasterNotFound = true;
+            _showMasterNotFoundDialog(
+              title: 'Party not added in Master',
+              message: '"$text" does not exist in your account ledger masters. Would you like to add it now?',
+              onAdd: () async {
+                final added = await _openAddPartyDialog();
+                if (!added) {
+                  _partyController.clear();
+                  _partyFocus.requestFocus();
+                }
+                _isHandlingMasterNotFound = false;
+              },
+              onCancel: () {
+                _partyController.clear();
+                _partyFocus.requestFocus();
+                _isHandlingMasterNotFound = false;
+              },
+            );
+          }
+        }
+      }
+    });
+
     _partyController.addListener(() {
       _checkGstMode(autoAdjustSaleType: true);
       _refreshTaxesOnAllRows();
@@ -266,6 +350,129 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     _saleTypeController.addListener(() {
       if (!_isAutoAdjustingSaleType) _handleManualSaleTypeChange();
     });
+  }
+
+  void _showMissingVchNoWarning() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF3C7),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 22),
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              'Warning',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+            ),
+          ],
+        ),
+        content: const Text(
+          'You are proceeding without entering voucher no. Do you want to continue?',
+          style: TextStyle(fontSize: 13, color: Color(0xFF475569), height: 1.4),
+        ),
+        actions: [
+          OutlinedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _allowEmptyVchNo = false;
+              _isHandlingVchNoWarning = false;
+              _vchNoFocus.requestFocus();
+            },
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF475569),
+              side: const BorderSide(color: Color(0xFFCBD5E1)),
+            ),
+            child: const Text('No', style: TextStyle(fontWeight: FontWeight.w600)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _allowEmptyVchNo = true;
+              _isHandlingVchNoWarning = false;
+              _partyFocus.requestFocus();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              elevation: 0,
+            ),
+            child: const Text('Yes', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showMasterNotFoundDialog({
+    required String title,
+    required String message,
+    required VoidCallback onAdd,
+    required VoidCallback onCancel,
+  }) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF3C7),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 22),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          message,
+          style: const TextStyle(fontSize: 13, color: Color(0xFF475569), height: 1.4),
+        ),
+        actions: [
+          OutlinedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              onCancel();
+            },
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF475569),
+              side: const BorderSide(color: Color(0xFFCBD5E1)),
+            ),
+            child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.w600)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              onAdd();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              elevation: 0,
+            ),
+            child: const Text('Add', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+          ),
+        ],
+      ),
+    );
   }
 
   bool _parseAndValidateDate() {
@@ -342,6 +549,8 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     _saleTypeController.text = 'Local Itemwise';
     _isInterState = false;
     _isAutoAdjustingSaleType = false;
+    _allowEmptyVchNo = false;
+    _isHandlingVchNoWarning = false;
 
     final now = DateTime.now();
     _dateController.text = (now.isAfter(_fyStartDate) && now.isBefore(_fyEndDate))
@@ -586,8 +795,9 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     );
   }
 
-  void _openAddItemDialog(int index) {
-    showDialog(
+  Future<bool> _openAddItemDialog(int index) async {
+    bool created = false;
+    await showDialog(
       context: context,
       builder: (_) => AddItemDialog(
         onItemCreated: (itemData) async {
@@ -607,6 +817,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
             _onItemMasterSelected(index, newModel);
           });
           await _syncMastersToFile();
+          created = true;
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -618,10 +829,12 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
         },
       ),
     );
+    return created;
   }
 
-  void _openAddPartyDialog() {
-    showDialog(
+  Future<bool> _openAddPartyDialog() async {
+    bool created = false;
+    await showDialog(
       context: context,
       builder: (_) => AddPartyDialog(
         voucherType: widget.voucherType,
@@ -640,6 +853,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
             _partyController.text = newModel.displayName;
           });
           await _syncMastersToFile();
+          created = true;
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -651,6 +865,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
         },
       ),
     );
+    return created;
   }
 
   void _openQuickAddDialog(String masterType) {
@@ -790,7 +1005,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
       _showValidationError(_dateError ?? 'Valid Voucher Date required within F.Y.', _dateFocusNode);
       return;
     }
-    if (_vchNoController.text.trim().isEmpty) {
+    if (_vchNoController.text.trim().isEmpty && !_allowEmptyVchNo) {
       _showValidationError('Voucher Number is required.', _vchNoFocus);
       return;
     }
@@ -984,17 +1199,25 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   Color _getVoucherColor() {
     final v = widget.voucherType.toLowerCase();
     if (v.contains('sale')) {
-      return const Color(0xFFD97706); // Warm Yellow/Amber for sales
+      return const Color(0xFFD97706);
     }
-    return AppColors.primary; // Default Blue for purchase and others
+    return AppColors.primary;
   }
 
   Color _getScreenBackgroundColor() {
     final v = widget.voucherType.toLowerCase();
     if (v.contains('sale')) {
-      return const Color(0xFFFEFCE8); // Light yellowish tint for sales across screen
+      return const Color.fromARGB(255, 255, 241, 209);
     }
-    return const Color(0xFFF8FAFC);
+    return const Color.fromARGB(255, 206, 231, 255);
+  }
+  
+  Color _getTopBarBackgroundColor() {
+    final v = widget.voucherType.toLowerCase();
+    if (v.contains('sale')) {
+      return const Color.fromARGB(255, 255, 232, 169); // Soft warm amber/yellow tint for sales
+    }
+    return const Color(0xFFEFF6FF); // Soft fresh sky/blue tint for purchase
   }
 
   @override
@@ -1043,7 +1266,6 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
         onKeyEvent: (_, event) {
           if (event is! KeyDownEvent) return KeyEventResult.ignored;
 
-          // Ctrl + P or Cmd + P Print Shortcut
           final isCtrl = HardwareKeyboard.instance.isControlPressed || HardwareKeyboard.instance.isMetaPressed;
           if (isCtrl && event.logicalKey == LogicalKeyboardKey.keyP) {
             _openPrintPreview();
@@ -1107,13 +1329,11 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
           backgroundColor: _getScreenBackgroundColor(),
           body: Column(
             children: [
-              // Top Bar with Edit-Mode Print (Ctrl+P) Button
               Container(
                 height: 52,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  border: Border(bottom: BorderSide(color: AppColors.border, width: 1.2)),
+                decoration: BoxDecoration(
+                  color: _getTopBarBackgroundColor(),
                 ),
                 child: Row(
                   children: [
@@ -1143,7 +1363,6 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    // Tax Regime Badge
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
@@ -1173,8 +1392,6 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
                       ),
                     ),
                     const Spacer(),
-
-                    // Print (Ctrl+P) Button for Edit Mode
                     if (widget.isEdit) ...[
                       OutlinedButton.icon(
                         onPressed: _openPrintPreview,
@@ -1189,26 +1406,88 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
                       ),
                       const SizedBox(width: 8),
                     ],
-
-                    // AI Scan Button
-                    OutlinedButton.icon(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('AI Scan: Feature ready for invoice optical recognition processing.'),
-                            backgroundColor: Color(0xFF7034E6),
-                            behavior: SnackBarBehavior.floating,
+                    Container(
+                      height: 32,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10),
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF7C3AED), Color(0xFF6366F1), Color(0xFF3B82F6)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x386366F1),
+                            blurRadius: 10,
+                            offset: Offset(0, 3),
                           ),
-                        );
-                      },
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF7034E6),
-                        side: const BorderSide(color: Color(0xFFD8B4FE)),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ],
                       ),
-                      icon: const Icon(Icons.auto_awesome_rounded, size: 15, color: Color(0xFF7034E6)),
-                      label: const Text('Scan (AI)', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800)),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(10),
+                          onTap: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Row(
+                                  children: [
+                                    Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 18),
+                                    SizedBox(width: 8),
+                                    Text('AI Scan: Initializing smart document recognition...'),
+                                  ],
+                                ),
+                                backgroundColor: Color(0xFF4F46E5),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.auto_awesome_rounded,
+                                  size: 14,
+                                  color: Colors.white,
+                                ),
+                                const SizedBox(width: 6),
+                                const Text(
+                                  'Scan with AI',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.2,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 4.5, vertical: 1.5),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.22),
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(
+                                      color: Colors.white.withOpacity(0.35),
+                                      width: 0.6,
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'PRO',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 8.5,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                     const SizedBox(width: 6),
                     TextButton.icon(
@@ -1253,7 +1532,6 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
                   ],
                 ),
               ),
-              // Main Voucher Body
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -1282,8 +1560,6 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
                         onNarrationSubmitted: () => _items.firstOrNull?.itemFocus.requestFocus(),
                       ),
                       const SizedBox(height: 10),
-
-                      // Items Table
                       Expanded(
                         child: VoucherItemsTable(
                           items: _items,
@@ -1294,15 +1570,13 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
                           totalAmount: _totalItemAmount,
                           onAddRow: () => setState(_addItemRow),
                           onRowEnter: _handleItemRowEnter,
-                          onAddItem: _openAddItemDialog,
+                          onAddItem: (idx) => _openAddItemDialog(idx),
                           onItemSelected: _onItemMasterSelected,
                           onOpenTaxDetails: _openTaxDetailsDialog,
                           onTabToSundry: () => _sundries.firstOrNull?.nameFocus.requestFocus(),
                         ),
                       ),
                       const SizedBox(height: 10),
-
-                      // Bottom Panels: Sundries and Final Summary
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -1356,8 +1630,6 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
                   ),
                 ),
               ),
-
-              // Bottom Shortcut Helper Dock
               Container(
                 height: 30,
                 padding: const EdgeInsets.symmetric(horizontal: 16),

@@ -64,7 +64,7 @@ class VoucherHeaderCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2EAF5), width: 1.2),
+        border: Border.all(color: const Color.fromARGB(255, 204, 219, 241), width: 1.2),
         boxShadow: const [
           BoxShadow(color: Color(0x04092B60), blurRadius: 8, offset: Offset(0, 2)),
         ],
@@ -266,7 +266,7 @@ class VoucherHeaderCard extends StatelessWidget {
                     contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     filled: true,
                     fillColor: const Color(0xFFF8FAFD),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2EAF5))),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color.fromARGB(255, 204, 219, 241))),
                     focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.3)),
                   ),
                 );
@@ -423,7 +423,7 @@ class VoucherHeaderCard extends StatelessWidget {
                     contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     filled: true,
                     fillColor: const Color(0xFFF8FAFD),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2EAF5))),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color.fromARGB(255, 204, 219, 241))),
                     focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.3)),
                   ),
                 );
@@ -486,7 +486,7 @@ class VoucherHeaderCard extends StatelessWidget {
                 contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 filled: true,
                 fillColor: const Color(0xFFF8FAFD),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2EAF5))),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color.fromARGB(255, 204, 219, 241))),
                 focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.3)),
               ),
             ),
@@ -523,7 +523,7 @@ class VoucherHeaderCard extends StatelessWidget {
           fillColor: const Color(0xFFF8FAFD),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: errorText != null ? const Color(0xFFEE4343) : const Color(0xFFE2EAF5)),
+            borderSide: BorderSide(color: errorText != null ? const Color(0xFFEE4343) : const Color.fromARGB(255, 204, 219, 241)),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
@@ -576,7 +576,7 @@ class VoucherHeaderCard extends StatelessWidget {
           contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           filled: true,
           fillColor: const Color(0xFFF8FAFD),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2EAF5))),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color.fromARGB(255, 204, 219, 241))),
           focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.3)),
         ),
       ),

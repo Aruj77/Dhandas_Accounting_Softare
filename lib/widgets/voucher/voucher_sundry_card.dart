@@ -44,6 +44,8 @@ class VoucherSundryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const customCellBorderColor = Color.fromARGB(255, 204, 219, 241);
+
     return Focus(
       onKeyEvent: (node, event) {
         if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.tab) {
@@ -57,7 +59,7 @@ class VoucherSundryCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE2EAF5), width: 1.2),
+          border: Border.all(color: customCellBorderColor, width: 1.2),
           boxShadow: const [
             BoxShadow(color: Color(0x04092B60), blurRadius: 8, offset: Offset(0, 2)),
           ],
@@ -134,8 +136,8 @@ class VoucherSundryCard extends StatelessWidget {
                                   filled: true,
                                   fillColor: const Color(0xFFFAFBFD),
                                   suffixIcon: const Icon(Icons.keyboard_arrow_down_rounded, size: 15, color: Color(0xFF64748B)),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFFE5EDF7))),
-                                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFFE5EDF7))),
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: customCellBorderColor)),
+                                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: customCellBorderColor)),
                                   focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.4)),
                                 ),
                               );
@@ -166,8 +168,8 @@ class VoucherSundryCard extends StatelessWidget {
                               contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
                               filled: true,
                               fillColor: const Color(0xFFFAFBFD),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFFE5EDF7))),
-                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFFE5EDF7))),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: customCellBorderColor)),
+                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: customCellBorderColor)),
                               focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.4)),
                             ),
                           ),
@@ -196,8 +198,8 @@ class VoucherSundryCard extends StatelessWidget {
                               contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
                               filled: true,
                               fillColor: const Color(0xFFFAFBFD),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFFE5EDF7))),
-                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFFE5EDF7))),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: customCellBorderColor)),
+                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: customCellBorderColor)),
                               focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.4)),
                             ),
                           ),
@@ -209,12 +211,12 @@ class VoucherSundryCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 6),
+            // Auto Round-off Container (border removed)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: const Color(0xFFF8FAFD),
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: const Color(0xFFE4EDF7)),
               ),
               child: Row(
                 children: [

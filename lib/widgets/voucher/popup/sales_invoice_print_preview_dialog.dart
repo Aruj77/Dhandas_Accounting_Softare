@@ -59,7 +59,6 @@ class _SalesInvoicePrintPreviewDialogState
   @override
   void initState() {
     super.initState();
-    // Initialize Bank Controllers
     _bankNameCtrl = TextEditingController(
       text: (widget.company['bankName'] ?? '').toString().trim(),
     );
@@ -74,7 +73,6 @@ class _SalesInvoicePrintPreviewDialogState
           .trim(),
     );
 
-    // Initialize Dispatch & Transport Controllers
     _grNoCtrl = TextEditingController(
       text: (widget.voucherData['grNo'] ?? '').toString().trim(),
     );
@@ -206,13 +204,11 @@ class _SalesInvoicePrintPreviewDialogState
   }
 
   Future<Uint8List> _generatePdf(PdfPageFormat format) async {
-    // 1. Load full Unicode font variants (Regular, Bold, Italic, BoldItalic)
     final fontRegular = await PdfGoogleFonts.notoSansRegular();
     final fontBold = await PdfGoogleFonts.notoSansBold();
     final fontItalic = await PdfGoogleFonts.notoSansItalic();
     final fontBoldItalic = await PdfGoogleFonts.notoSansBoldItalic();
 
-    // 2. Build font theme ensuring bold-italic has full Unicode support
     final pdfTheme = pw.ThemeData.withFont(
       base: fontRegular,
       bold: fontBold,
@@ -276,7 +272,6 @@ class _SalesInvoicePrintPreviewDialogState
     final roundOff = double.tryParse(voucherData['roundOff']?.toString() ?? '0') ?? 0.0;
     final grandTotal = double.tryParse(voucherData['grandTotal']?.toString() ?? '0') ?? 0.0;
 
-    // Build HSN/SAC Unit-wise, Rate-wise Matrix
     final Map<String, Map<String, dynamic>> hsnMap = {};
     double totalMainUnits = 0.0;
     double totalHsnTaxable = 0.0;
@@ -336,16 +331,75 @@ class _SalesInvoicePrintPreviewDialogState
     if (_copyExtra) copiesToGenerate.add('EXTRA COPY');
     if (copiesToGenerate.isEmpty) copiesToGenerate.add('ORIGINAL FOR RECIPIENT');
 
+    // Table Column Widths for both Header & MultiPage Text Array
+    final tableColumnWidths = {
+      0: const pw.FixedColumnWidth(26),
+      1: const pw.FlexColumnWidth(3.8),
+      2: const pw.FixedColumnWidth(48),
+      3: const pw.FixedColumnWidth(46),
+      4: const pw.FixedColumnWidth(46),
+      5: const pw.FixedColumnWidth(40),
+      6: const pw.FixedColumnWidth(48),
+      7: const pw.FixedColumnWidth(40),
+      8: const pw.FixedColumnWidth(48),
+      9: const pw.FixedColumnWidth(64),
+    };
+
+    final tableHeaders = [
+      'S.N.',
+      'Description of Goods',
+      'HSN/SAC',
+      'Qty. Unit',
+      'Price',
+      isInterState ? 'IGST %' : 'CGST %',
+      isInterState ? 'IGST Amt' : 'CGST Amt',
+      isInterState ? '' : 'SGST %',
+      isInterState ? '' : 'SGST Amt',
+      'Amount (₹)',
+    ];
+
+    final tableData = List.generate(items.length, (idx) {
+      final item = items[idx];
+      final qty = double.tryParse(item['qty']?.toString() ?? '0') ?? 0.0;
+      final unit = (item['unit'] ?? 'Pcs').toString().trim();
+      final price = double.tryParse(item['price']?.toString() ?? '0') ?? 0.0;
+      final amt = double.tryParse(item['amount']?.toString() ?? '0') ?? 0.0;
+      final rate = double.tryParse(item['gstRate']?.toString() ?? '0') ?? 0.0;
+      final halfRate = rate / 2.0;
+
+      final cgstAmt = double.tryParse(item['cgst']?.toString() ?? '0') ?? 0.0;
+      final sgstAmt = double.tryParse(item['sgst']?.toString() ?? '0') ?? 0.0;
+      final igstAmt = double.tryParse(item['igst']?.toString() ?? '0') ?? 0.0;
+      final isExempt = rate == 0.0 || (item['taxCategory'] ?? '').toString().toLowerCase().contains('exempt');
+
+      return [
+        '${idx + 1}.',
+        (item['item'] ?? '').toString(),
+        (item['hsn'] ?? '-').toString(),
+        '${qty.toStringAsFixed(2)} $unit',
+        price.toStringAsFixed(2),
+        isInterState ? '$rate%' : (isExempt ? 'Exempt' : '${halfRate.toStringAsFixed(2)}%'),
+        isInterState ? igstAmt.toStringAsFixed(2) : cgstAmt.toStringAsFixed(2),
+        isInterState ? '' : (isExempt ? 'Exempt' : '${halfRate.toStringAsFixed(2)}%'),
+        isInterState ? '' : sgstAmt.toStringAsFixed(2),
+        amt.toStringAsFixed(2),
+      ];
+    });
+
     for (final currentCopy in copiesToGenerate) {
       pdf.addPage(
-        pw.Page(
+        pw.MultiPage(
           pageFormat: format,
           margin: pw.EdgeInsets.all(_pageMargin),
           theme: pdfTheme,
-          build: (pw.Context context) {
+          header: (pw.Context context) {
             return pw.Container(
               decoration: pw.BoxDecoration(
-                border: pw.Border.all(color: borderColor, width: 1.0),
+                border: pw.Border(
+                  top: pw.BorderSide(color: borderColor, width: 1.0),
+                  left: pw.BorderSide(color: borderColor, width: 1.0),
+                  right: pw.BorderSide(color: borderColor, width: 1.0),
+                ),
               ),
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.stretch,
@@ -505,433 +559,34 @@ class _SalesInvoicePrintPreviewDialogState
                             padding: const pw.EdgeInsets.all(8),
                             child: pw.Column(
                               children: [
-                                _buildPdfMetaRow('Invoice No.', vchNo, _fontScale, isBold: true),
+                                _buildPdfMetaRow('Invoice No.', vchNo, _fontScale, isBold: true, isClassic: isClassic),
                                 pw.SizedBox(height: 3.5),
-                                _buildPdfMetaRow('Dated', vchDate, _fontScale),
+                                _buildPdfMetaRow('Dated', vchDate, _fontScale, isClassic: isClassic),
                                 pw.SizedBox(height: 3.5),
                                 _buildPdfMetaRow(
                                   'Place of Supply',
                                   isInterState ? 'Inter-State' : (companyState.isNotEmpty ? companyState : 'Local'),
                                   _fontScale,
+                                  isClassic: isClassic,
                                 ),
                                 pw.SizedBox(height: 3.5),
-                                _buildPdfMetaRow('Reverse Charge', _reverseCharge ? 'Y' : 'N', _fontScale),
+                                _buildPdfMetaRow('Reverse Charge', _reverseCharge ? 'Y' : 'N', _fontScale, isClassic: isClassic),
                                 if (_showTransportDetails && hasTransport) ...[
                                   pw.Padding(
                                     padding: const pw.EdgeInsets.symmetric(vertical: 3),
                                     child: pw.Divider(color: borderColor, thickness: 0.5),
                                   ),
-                                  _buildPdfMetaRow('GR/RR No.', grNo.isNotEmpty ? grNo : '-', _fontScale),
+                                  _buildPdfMetaRow('GR/RR No.', grNo.isNotEmpty ? grNo : '-', _fontScale, isClassic: isClassic),
                                   pw.SizedBox(height: 2.5),
-                                  _buildPdfMetaRow('Transport', transport.isNotEmpty ? transport : '-', _fontScale),
+                                  _buildPdfMetaRow('Transport', transport.isNotEmpty ? transport : '-', _fontScale, isClassic: isClassic),
                                   pw.SizedBox(height: 2.5),
-                                  _buildPdfMetaRow('Vehicle No.', vehicleNo.isNotEmpty ? vehicleNo : '-', _fontScale),
+                                  _buildPdfMetaRow('Vehicle No.', vehicleNo.isNotEmpty ? vehicleNo : '-', _fontScale, isClassic: isClassic),
                                   pw.SizedBox(height: 2.5),
-                                  _buildPdfMetaRow('Station', station.isNotEmpty ? station : '-', _fontScale),
+                                  _buildPdfMetaRow('Station', station.isNotEmpty ? station : '-', _fontScale, isClassic: isClassic),
                                 ],
                               ],
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // 4. Main Line Items Table
-                  pw.Expanded(
-                    child: pw.Table(
-                      border: pw.TableBorder(
-                        horizontalInside: pw.BorderSide(color: borderColor, width: 0.5),
-                        verticalInside: pw.BorderSide(color: borderColor, width: 0.8),
-                        bottom: pw.BorderSide(color: borderColor, width: 1.0),
-                      ),
-                      columnWidths: {
-                        0: const pw.FixedColumnWidth(26),
-                        1: const pw.FlexColumnWidth(3.8),
-                        2: const pw.FixedColumnWidth(48),
-                        3: const pw.FixedColumnWidth(46),
-                        4: const pw.FixedColumnWidth(46),
-                        5: const pw.FixedColumnWidth(40),
-                        6: const pw.FixedColumnWidth(48),
-                        7: const pw.FixedColumnWidth(40),
-                        8: const pw.FixedColumnWidth(48),
-                        9: const pw.FixedColumnWidth(64),
-                      },
-                      children: [
-                        // Header
-                        pw.TableRow(
-                          decoration: pw.BoxDecoration(color: lightBg),
-                          children: [
-                            _buildPdfTableCell('S.N.', _fontScale, align: pw.TextAlign.center, isHeader: true),
-                            _buildPdfTableCell('Description of Goods', _fontScale, isHeader: true),
-                            _buildPdfTableCell('HSN/SAC', _fontScale, align: pw.TextAlign.center, isHeader: true),
-                            _buildPdfTableCell('Qty. Unit', _fontScale, align: pw.TextAlign.right, isHeader: true),
-                            _buildPdfTableCell('Price', _fontScale, align: pw.TextAlign.right, isHeader: true),
-                            _buildPdfTableCell(isInterState ? 'IGST %' : 'CGST %', _fontScale, align: pw.TextAlign.center, isHeader: true),
-                            _buildPdfTableCell(isInterState ? 'IGST Amt' : 'CGST Amt', _fontScale, align: pw.TextAlign.right, isHeader: true),
-                            _buildPdfTableCell(isInterState ? '' : 'SGST %', _fontScale, align: pw.TextAlign.center, isHeader: true),
-                            _buildPdfTableCell(isInterState ? '' : 'SGST Amt', _fontScale, align: pw.TextAlign.right, isHeader: true),
-                            _buildPdfTableCell('Amount (₹)', _fontScale, align: pw.TextAlign.right, isHeader: true),
-                          ],
-                        ),
-                        // Data rows
-                        ...List.generate(items.length, (idx) {
-                          final item = items[idx];
-                          final qty = double.tryParse(item['qty']?.toString() ?? '0') ?? 0.0;
-                          final unit = (item['unit'] ?? 'Pcs').toString().trim();
-                          final price = double.tryParse(item['price']?.toString() ?? '0') ?? 0.0;
-                          final amt = double.tryParse(item['amount']?.toString() ?? '0') ?? 0.0;
-                          final rate = double.tryParse(item['gstRate']?.toString() ?? '0') ?? 0.0;
-                          final halfRate = rate / 2.0;
-
-                          final cgstAmt = double.tryParse(item['cgst']?.toString() ?? '0') ?? 0.0;
-                          final sgstAmt = double.tryParse(item['sgst']?.toString() ?? '0') ?? 0.0;
-                          final igstAmt = double.tryParse(item['igst']?.toString() ?? '0') ?? 0.0;
-                          final isEven = idx % 2 == 0;
-                          final isExempt = rate == 0.0 || (item['taxCategory'] ?? '').toString().toLowerCase().contains('exempt');
-
-                          return pw.TableRow(
-                            decoration: pw.BoxDecoration(
-                              color: (_zebraStripes && !isClassic && isEven)
-                                  ? tableRowAlt
-                                  : PdfColors.white,
-                            ),
-                            children: [
-                              _buildPdfTableCell('${idx + 1}.', _fontScale, align: pw.TextAlign.center),
-                              _buildPdfTableCell((item['item'] ?? '').toString(), _fontScale, isBold: true),
-                              _buildPdfTableCell((item['hsn'] ?? '-').toString(), _fontScale, align: pw.TextAlign.center),
-                              _buildPdfTableCell('${qty.toStringAsFixed(2)} $unit', _fontScale, align: pw.TextAlign.right),
-                              _buildPdfTableCell(price.toStringAsFixed(2), _fontScale, align: pw.TextAlign.right),
-                              _buildPdfTableCell(isInterState ? '$rate%' : (isExempt ? 'Exempt' : '${halfRate.toStringAsFixed(2)}%'), _fontScale, align: pw.TextAlign.center),
-                              _buildPdfTableCell(isInterState ? igstAmt.toStringAsFixed(2) : cgstAmt.toStringAsFixed(2), _fontScale, align: pw.TextAlign.right),
-                              _buildPdfTableCell(isInterState ? '' : (isExempt ? 'Exempt' : '${halfRate.toStringAsFixed(2)}%'), _fontScale, align: pw.TextAlign.center),
-                              _buildPdfTableCell(isInterState ? '' : sgstAmt.toStringAsFixed(2), _fontScale, align: pw.TextAlign.right),
-                              _buildPdfTableCell(amt.toStringAsFixed(2), _fontScale, align: pw.TextAlign.right, isBold: true),
-                            ],
-                          );
-                        }),
-                        // Main Table Summary Total Line
-                        pw.TableRow(
-                          decoration: pw.BoxDecoration(color: lightBg),
-                          children: [
-                            _buildPdfTableCell('', _fontScale),
-                            _buildPdfTableCell('Total', _fontScale, isBold: true),
-                            _buildPdfTableCell('', _fontScale),
-                            _buildPdfTableCell('${totalMainUnits.toStringAsFixed(2)} Units', _fontScale, align: pw.TextAlign.right, isBold: true),
-                            _buildPdfTableCell('', _fontScale),
-                            _buildPdfTableCell('', _fontScale),
-                            _buildPdfTableCell(isInterState ? totalIgst.toStringAsFixed(2) : totalCgst.toStringAsFixed(2), _fontScale, align: pw.TextAlign.right, isBold: true),
-                            _buildPdfTableCell('', _fontScale),
-                            _buildPdfTableCell(isInterState ? '' : totalSgst.toStringAsFixed(2), _fontScale, align: pw.TextAlign.right, isBold: true),
-                            _buildPdfTableCell(grandTotal.toStringAsFixed(2), _fontScale, align: pw.TextAlign.right, isBold: true),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // 5. Lower HSN Matrix, Calculations, Bank, and Unboxed Terms
-                  pw.Container(
-                    decoration: pw.BoxDecoration(
-                      border: pw.Border(bottom: pw.BorderSide(color: borderColor, width: 1)),
-                    ),
-                    child: pw.Row(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        // Left Side: HSN Matrix + Amount in Words + Bank Details + Unboxed Terms
-                        pw.Expanded(
-                          flex: 6,
-                          child: pw.Container(
-                            padding: const pw.EdgeInsets.all(8),
-                            decoration: pw.BoxDecoration(
-                              border: pw.Border(right: pw.BorderSide(color: borderColor, width: 1)),
-                            ),
-                            child: pw.Column(
-                              crossAxisAlignment: pw.CrossAxisAlignment.start,
-                              children: [
-                                // Detailed HSN Summary Matrix Table
-                                if (_showHsnSummary && hsnMap.isNotEmpty) ...[
-                                  pw.Table(
-                                    border: pw.TableBorder.all(color: borderColor, width: 0.5),
-                                    columnWidths: {
-                                      0: const pw.FlexColumnWidth(1.2),
-                                      1: const pw.FlexColumnWidth(1.0),
-                                      2: const pw.FlexColumnWidth(1.4),
-                                      3: const pw.FlexColumnWidth(1.4),
-                                      4: const pw.FlexColumnWidth(1.1),
-                                      5: const pw.FlexColumnWidth(1.1),
-                                      6: const pw.FlexColumnWidth(1.2),
-                                    },
-                                    children: [
-                                      pw.TableRow(
-                                        decoration: pw.BoxDecoration(color: lightBg),
-                                        children: [
-                                          _buildMiniHsnHead('HSN/SAC', _fontScale),
-                                          _buildMiniHsnHead('Tax Rate', _fontScale, align: pw.TextAlign.center),
-                                          _buildMiniHsnHead('UQC Main Qty.', _fontScale, align: pw.TextAlign.right),
-                                          _buildMiniHsnHead('Taxable Amt.', _fontScale, align: pw.TextAlign.right),
-                                          if (!isInterState) ...[
-                                            _buildMiniHsnHead('CGST Amt', _fontScale, align: pw.TextAlign.right),
-                                            _buildMiniHsnHead('SGST Amt', _fontScale, align: pw.TextAlign.right),
-                                          ] else
-                                            _buildMiniHsnHead('IGST Amt', _fontScale, align: pw.TextAlign.right),
-                                          _buildMiniHsnHead('Total Tax', _fontScale, align: pw.TextAlign.right),
-                                        ],
-                                      ),
-                                      ...hsnMap.entries.map((e) {
-                                        final data = e.value;
-                                        final rate = data['rate'] as double;
-                                        final isExempt = rate == 0.0;
-                                        final taxSum = isInterState
-                                            ? (data['igst'] as double)
-                                            : ((data['cgst'] as double) + (data['sgst'] as double));
-
-                                        return pw.TableRow(
-                                          children: [
-                                            _buildMiniHsnCell(data['hsn'].toString(), _fontScale),
-                                            _buildMiniHsnCell(isExempt ? 'Exempt' : '$rate%', _fontScale, align: pw.TextAlign.center),
-                                            _buildMiniHsnCell('${(data['qty'] as double).toStringAsFixed(2)} ${data['unit']}', _fontScale, align: pw.TextAlign.right),
-                                            _buildMiniHsnCell((data['taxable'] as double).toStringAsFixed(2), _fontScale, align: pw.TextAlign.right),
-                                            if (!isInterState) ...[
-                                              _buildMiniHsnCell((data['cgst'] as double).toStringAsFixed(2), _fontScale, align: pw.TextAlign.right),
-                                              _buildMiniHsnCell((data['sgst'] as double).toStringAsFixed(2), _fontScale, align: pw.TextAlign.right),
-                                            ] else
-                                              _buildMiniHsnCell((data['igst'] as double).toStringAsFixed(2), _fontScale, align: pw.TextAlign.right),
-                                            _buildMiniHsnCell(taxSum.toStringAsFixed(2), _fontScale, align: pw.TextAlign.right, isBold: true),
-                                          ],
-                                        );
-                                      }),
-                                      // Cumulative Total Footer Row
-                                      pw.TableRow(
-                                        decoration: pw.BoxDecoration(color: lightBg),
-                                        children: [
-                                          _buildMiniHsnCell('Total', _fontScale, isBold: true),
-                                          _buildMiniHsnCell('', _fontScale),
-                                          _buildMiniHsnCell('${totalMainUnits.toStringAsFixed(2)} Units', _fontScale, align: pw.TextAlign.right, isBold: true),
-                                          _buildMiniHsnCell(totalHsnTaxable.toStringAsFixed(2), _fontScale, align: pw.TextAlign.right, isBold: true),
-                                          if (!isInterState) ...[
-                                            _buildMiniHsnCell(totalHsnCgst.toStringAsFixed(2), _fontScale, align: pw.TextAlign.right, isBold: true),
-                                            _buildMiniHsnCell(totalHsnSgst.toStringAsFixed(2), _fontScale, align: pw.TextAlign.right, isBold: true),
-                                          ] else
-                                            _buildMiniHsnCell(totalHsnIgst.toStringAsFixed(2), _fontScale, align: pw.TextAlign.right, isBold: true),
-                                          _buildMiniHsnCell(
-                                            isInterState
-                                                ? totalHsnIgst.toStringAsFixed(2)
-                                                : (totalHsnCgst + totalHsnSgst).toStringAsFixed(2),
-                                            _fontScale,
-                                            align: pw.TextAlign.right,
-                                            isBold: true,
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                  pw.SizedBox(height: 6),
-                                ],
-
-                                // Amount in Words
-                                pw.Container(
-                                  padding: const pw.EdgeInsets.symmetric(vertical: 2),
-                                  child: pw.Row(
-                                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                                    children: [
-                                      pw.Text(
-                                        'Amount in Words : ',
-                                        style: pw.TextStyle(
-                                          fontSize: _fontScale * 0.9,
-                                          fontWeight: pw.FontWeight.bold,
-                                          color: primaryColor,
-                                        ),
-                                      ),
-                                      pw.Expanded(
-                                        child: pw.Text(
-                                          _numberToWords(grandTotal),
-                                          style: pw.TextStyle(
-                                            fontSize: _fontScale * 0.9,
-                                            fontWeight: pw.FontWeight.bold,
-                                            fontStyle: pw.FontStyle.italic,
-                                            color: primaryColor,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                pw.SizedBox(height: 6),
-
-                                // Bank Details Block (Vertical Rows)
-                                if (_showBankDetails && hasAnyBankDetails) ...[
-                                  pw.Container(
-                                    width: double.infinity,
-                                    padding: const pw.EdgeInsets.all(6),
-                                    decoration: pw.BoxDecoration(
-                                      color: lightBg,
-                                      borderRadius: pw.BorderRadius.circular(4),
-                                      border: pw.Border.all(color: borderColor, width: 0.8),
-                                    ),
-                                    child: pw.Column(
-                                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                                      children: [
-                                        pw.Text(
-                                          'BANK & PAYMENT DETAILS',
-                                          style: pw.TextStyle(
-                                            fontSize: _fontScale * 0.8,
-                                            fontWeight: pw.FontWeight.bold,
-                                            color: isClassic ? PdfColors.black : accentColor,
-                                          ),
-                                        ),
-                                        pw.SizedBox(height: 3),
-                                        if (currentBankName.isNotEmpty)
-                                          pw.Padding(
-                                            padding: const pw.EdgeInsets.only(bottom: 2),
-                                            child: pw.Text(
-                                              'Bank Name : $currentBankName',
-                                              style: pw.TextStyle(
-                                                fontSize: _fontScale * 0.85,
-                                                fontWeight: pw.FontWeight.bold,
-                                                color: primaryColor,
-                                              ),
-                                            ),
-                                          ),
-                                        if (currentAccountNo.isNotEmpty)
-                                          pw.Padding(
-                                            padding: const pw.EdgeInsets.only(bottom: 2),
-                                            child: pw.Text(
-                                              'Account No : $currentAccountNo',
-                                              style: pw.TextStyle(
-                                                fontSize: _fontScale * 0.85,
-                                                fontWeight: pw.FontWeight.bold,
-                                                color: primaryColor,
-                                              ),
-                                            ),
-                                          ),
-                                        if (currentIfsc.isNotEmpty)
-                                          pw.Text(
-                                            'IFSC Code : $currentIfsc',
-                                            style: pw.TextStyle(
-                                              fontSize: _fontScale * 0.85,
-                                              fontWeight: pw.FontWeight.bold,
-                                              color: primaryColor,
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                  pw.SizedBox(height: 6),
-                                ],
-
-                                // Terms & Conditions (Unboxed)
-                                if (_showTerms) ...[
-                                  pw.Text(
-                                    'Terms & Conditions:',
-                                    style: pw.TextStyle(
-                                      fontSize: _fontScale * 0.9,
-                                      fontWeight: pw.FontWeight.bold,
-                                      color: primaryColor,
-                                    ),
-                                  ),
-                                  pw.Text(
-                                    'E.& O.E.',
-                                    style: pw.TextStyle(
-                                      fontSize: _fontScale * 0.8,
-                                      fontWeight: pw.FontWeight.bold,
-                                      color: mutedColor,
-                                    ),
-                                  ),
-                                  pw.SizedBox(height: 2),
-                                  pw.Text(
-                                    '1. Goods once sold will not be taken back.\n'
-                                    '2. Interest @ 18% p.a. will be charged if the payment is not made with in the stipulated time.\n'
-                                    '3. Subject to \'${companyState.isNotEmpty ? companyState : "Uttar Pradesh"}\' Jurisdiction only.',
-                                    style: pw.TextStyle(
-                                      fontSize: _fontScale * 0.8,
-                                      color: primaryColor,
-                                      height: 1.35,
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ),
-
-                        // Right Side: Grand Total & Taxes Calculation Box
-                        pw.Expanded(
-                          flex: 4,
-                          child: pw.Container(
-                            padding: const pw.EdgeInsets.all(10),
-                            child: pw.Column(
-                              children: [
-                                _buildPdfSummaryRow('Taxable Amount', '₹ ${subTotal.toStringAsFixed(2)}', _fontScale),
-                                pw.SizedBox(height: 4),
-                                if (!isInterState) ...[
-                                  _buildPdfSummaryRow('CGST Amount', '₹ ${totalCgst.toStringAsFixed(2)}', _fontScale),
-                                  pw.SizedBox(height: 4),
-                                  _buildPdfSummaryRow('SGST Amount', '₹ ${totalSgst.toStringAsFixed(2)}', _fontScale),
-                                ] else ...[
-                                  _buildPdfSummaryRow('IGST Amount', '₹ ${totalIgst.toStringAsFixed(2)}', _fontScale),
-                                ],
-                                if (sundries.isNotEmpty)
-                                  ...sundries.map((s) => pw.Padding(
-                                        padding: const pw.EdgeInsets.only(top: 4),
-                                        child: _buildPdfSummaryRow(
-                                          (s['name'] ?? 'Sundry').toString(),
-                                          '₹ ${(double.tryParse(s['amount']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2)}',
-                                          _fontScale,
-                                        ),
-                                      )),
-                                if (roundOff != 0.0) ...[
-                                  pw.SizedBox(height: 4),
-                                  _buildPdfSummaryRow('Round Off', '₹ ${roundOff.toStringAsFixed(2)}', _fontScale),
-                                ],
-                                pw.Padding(
-                                  padding: const pw.EdgeInsets.symmetric(vertical: 6),
-                                  child: pw.Divider(color: borderColor, thickness: 0.8),
-                                ),
-                                pw.Row(
-                                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    pw.Text('Grand Total',
-                                        style: pw.TextStyle(
-                                            fontSize: _fontScale * 1.25,
-                                            fontWeight: pw.FontWeight.bold,
-                                            color: primaryColor)),
-                                    pw.Text('₹ ${grandTotal.toStringAsFixed(2)}',
-                                        style: pw.TextStyle(
-                                            fontSize: _fontScale * 1.45,
-                                            fontWeight: pw.FontWeight.bold,
-                                            color: accentColor)),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // 6. Signatures Bottom Strip
-                  pw.Container(
-                    padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    child: pw.Row(
-                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: pw.CrossAxisAlignment.end,
-                      children: [
-                        pw.Text('Receiver\'s Signature:',
-                            style: pw.TextStyle(fontSize: _fontScale * 0.85, color: mutedColor)),
-                        pw.Column(
-                          crossAxisAlignment: pw.CrossAxisAlignment.end,
-                          children: [
-                            pw.Text('for ${companyName.isNotEmpty ? companyName.toUpperCase() : "SELLER"}',
-                                style: pw.TextStyle(
-                                    fontSize: _fontScale * 0.9,
-                                    fontWeight: pw.FontWeight.bold,
-                                    color: primaryColor)),
-                            pw.SizedBox(height: 28),
-                            pw.Text('Authorised Signatory',
-                                style: pw.TextStyle(fontSize: _fontScale * 0.85, color: mutedColor)),
-                          ],
                         ),
                       ],
                     ),
@@ -940,6 +595,405 @@ class _SalesInvoicePrintPreviewDialogState
               ),
             );
           },
+          build: (pw.Context context) {
+            return [
+              // 4. Auto-Paginating MultiPage Table
+              pw.TableHelper.fromTextArray(
+                border: pw.TableBorder(
+                  left: pw.BorderSide(color: borderColor, width: 1.0),
+                  right: pw.BorderSide(color: borderColor, width: 1.0),
+                  top: pw.BorderSide(color: borderColor, width: 1.0),
+                  bottom: pw.BorderSide(color: borderColor, width: 1.0),
+                  horizontalInside: pw.BorderSide(color: borderColor, width: 0.5),
+                  verticalInside: pw.BorderSide(color: borderColor, width: 0.8),
+                ),
+                columnWidths: tableColumnWidths,
+                headers: tableHeaders,
+                data: tableData,
+                headerStyle: pw.TextStyle(
+                  fontSize: _fontScale * 0.9,
+                  fontWeight: pw.FontWeight.bold,
+                  color: primaryColor,
+                ),
+                headerDecoration: pw.BoxDecoration(color: lightBg),
+                headerAlignment: pw.Alignment.center,
+                headerPadding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+                cellPadding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 4.5),
+                cellStyle: pw.TextStyle(
+                  fontSize: _fontScale * 0.85,
+                  color: isClassic ? PdfColors.black : const PdfColor.fromInt(0xFF1E293B),
+                ),
+                rowDecoration: pw.BoxDecoration(color: PdfColors.white),
+                oddRowDecoration: (_zebraStripes && !isClassic)
+                    ? pw.BoxDecoration(color: tableRowAlt)
+                    : pw.BoxDecoration(color: PdfColors.white),
+                cellAlignments: {
+                  0: pw.Alignment.center,
+                  1: pw.Alignment.centerLeft,
+                  2: pw.Alignment.center,
+                  3: pw.Alignment.centerRight,
+                  4: pw.Alignment.centerRight,
+                  5: pw.Alignment.center,
+                  6: pw.Alignment.centerRight,
+                  7: pw.Alignment.center,
+                  8: pw.Alignment.centerRight,
+                  9: pw.Alignment.centerRight,
+                },
+              ),
+
+              // Total Row Underneath Table
+              pw.Container(
+                decoration: pw.BoxDecoration(
+                  border: pw.Border(
+                    left: pw.BorderSide(color: borderColor, width: 1.0),
+                    right: pw.BorderSide(color: borderColor, width: 1.0),
+                    bottom: pw.BorderSide(color: borderColor, width: 1.0),
+                  ),
+                ),
+                child: pw.Table(
+                  border: pw.TableBorder(
+                    verticalInside: pw.BorderSide(color: borderColor, width: 0.8),
+                  ),
+                  columnWidths: tableColumnWidths,
+                  children: [
+                    pw.TableRow(
+                      decoration: pw.BoxDecoration(color: lightBg),
+                      children: [
+                        _buildPdfTableCell('', _fontScale, isClassic: isClassic),
+                        _buildPdfTableCell('Total', _fontScale, isBold: true, isClassic: isClassic),
+                        _buildPdfTableCell('', _fontScale, isClassic: isClassic),
+                        _buildPdfTableCell('${totalMainUnits.toStringAsFixed(2)} Units', _fontScale, align: pw.TextAlign.right, isBold: true, isClassic: isClassic),
+                        _buildPdfTableCell('', _fontScale, isClassic: isClassic),
+                        _buildPdfTableCell('', _fontScale, isClassic: isClassic),
+                        _buildPdfTableCell(isInterState ? totalIgst.toStringAsFixed(2) : totalCgst.toStringAsFixed(2), _fontScale, align: pw.TextAlign.right, isBold: true, isClassic: isClassic),
+                        _buildPdfTableCell('', _fontScale, isClassic: isClassic),
+                        _buildPdfTableCell(isInterState ? '' : totalSgst.toStringAsFixed(2), _fontScale, align: pw.TextAlign.right, isBold: true, isClassic: isClassic),
+                        _buildPdfTableCell(grandTotal.toStringAsFixed(2), _fontScale, align: pw.TextAlign.right, isBold: true, isClassic: isClassic),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              // 5. Lower HSN Matrix, Calculations, Bank, and Unboxed Terms (Kept intact on final page)
+              pw.Container(
+                decoration: pw.BoxDecoration(
+                  border: pw.Border(
+                    left: pw.BorderSide(color: borderColor, width: 1.0),
+                    right: pw.BorderSide(color: borderColor, width: 1.0),
+                    bottom: pw.BorderSide(color: borderColor, width: 1.0),
+                  ),
+                ),
+                child: pw.Row(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    // Left Side: HSN Matrix + Amount in Words + Bank Details + Terms
+                    pw.Expanded(
+                      flex: 6,
+                      child: pw.Container(
+                        padding: const pw.EdgeInsets.all(8),
+                        decoration: pw.BoxDecoration(
+                          border: pw.Border(right: pw.BorderSide(color: borderColor, width: 1)),
+                        ),
+                        child: pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            if (_showHsnSummary && hsnMap.isNotEmpty) ...[
+                              pw.Table(
+                                border: pw.TableBorder.all(color: borderColor, width: 0.5),
+                                columnWidths: {
+                                  0: const pw.FlexColumnWidth(1.2),
+                                  1: const pw.FlexColumnWidth(1.0),
+                                  2: const pw.FlexColumnWidth(1.4),
+                                  3: const pw.FlexColumnWidth(1.4),
+                                  4: const pw.FlexColumnWidth(1.1),
+                                  5: const pw.FlexColumnWidth(1.1),
+                                  6: const pw.FlexColumnWidth(1.2),
+                                },
+                                children: [
+                                  pw.TableRow(
+                                    decoration: pw.BoxDecoration(color: lightBg),
+                                    children: [
+                                      _buildMiniHsnHead('HSN/SAC', _fontScale, isClassic: isClassic),
+                                      _buildMiniHsnHead('Tax Rate', _fontScale, align: pw.TextAlign.center, isClassic: isClassic),
+                                      _buildMiniHsnHead('UQC Main Qty.', _fontScale, align: pw.TextAlign.right, isClassic: isClassic),
+                                      _buildMiniHsnHead('Taxable Amt.', _fontScale, align: pw.TextAlign.right, isClassic: isClassic),
+                                      if (!isInterState) ...[
+                                        _buildMiniHsnHead('CGST Amt', _fontScale, align: pw.TextAlign.right, isClassic: isClassic),
+                                        _buildMiniHsnHead('SGST Amt', _fontScale, align: pw.TextAlign.right, isClassic: isClassic),
+                                      ] else
+                                        _buildMiniHsnHead('IGST Amt', _fontScale, align: pw.TextAlign.right, isClassic: isClassic),
+                                      _buildMiniHsnHead('Total Tax', _fontScale, align: pw.TextAlign.right, isClassic: isClassic),
+                                    ],
+                                  ),
+                                  ...hsnMap.entries.map((e) {
+                                    final data = e.value;
+                                    final rate = data['rate'] as double;
+                                    final isExempt = rate == 0.0;
+                                    final taxSum = isInterState
+                                        ? (data['igst'] as double)
+                                        : ((data['cgst'] as double) + (data['sgst'] as double));
+
+                                    return pw.TableRow(
+                                      children: [
+                                        _buildMiniHsnCell(data['hsn'].toString(), _fontScale, isClassic: isClassic),
+                                        _buildMiniHsnCell(isExempt ? 'Exempt' : '$rate%', _fontScale, align: pw.TextAlign.center, isClassic: isClassic),
+                                        _buildMiniHsnCell('${(data['qty'] as double).toStringAsFixed(2)} ${data['unit']}', _fontScale, align: pw.TextAlign.right, isClassic: isClassic),
+                                        _buildMiniHsnCell((data['taxable'] as double).toStringAsFixed(2), _fontScale, align: pw.TextAlign.right, isClassic: isClassic),
+                                        if (!isInterState) ...[
+                                          _buildMiniHsnCell((data['cgst'] as double).toStringAsFixed(2), _fontScale, align: pw.TextAlign.right, isClassic: isClassic),
+                                          _buildMiniHsnCell((data['sgst'] as double).toStringAsFixed(2), _fontScale, align: pw.TextAlign.right, isClassic: isClassic),
+                                        ] else
+                                          _buildMiniHsnCell((data['igst'] as double).toStringAsFixed(2), _fontScale, align: pw.TextAlign.right, isClassic: isClassic),
+                                        _buildMiniHsnCell(taxSum.toStringAsFixed(2), _fontScale, align: pw.TextAlign.right, isBold: true, isClassic: isClassic),
+                                      ],
+                                    );
+                                  }),
+                                  pw.TableRow(
+                                    decoration: pw.BoxDecoration(color: lightBg),
+                                    children: [
+                                      _buildMiniHsnCell('Total', _fontScale, isBold: true, isClassic: isClassic),
+                                      _buildMiniHsnCell('', _fontScale, isClassic: isClassic),
+                                      _buildMiniHsnCell('${totalMainUnits.toStringAsFixed(2)} Units', _fontScale, align: pw.TextAlign.right, isBold: true, isClassic: isClassic),
+                                      _buildMiniHsnCell(totalHsnTaxable.toStringAsFixed(2), _fontScale, align: pw.TextAlign.right, isBold: true, isClassic: isClassic),
+                                      if (!isInterState) ...[
+                                        _buildMiniHsnCell(totalHsnCgst.toStringAsFixed(2), _fontScale, align: pw.TextAlign.right, isBold: true, isClassic: isClassic),
+                                        _buildMiniHsnCell(totalHsnSgst.toStringAsFixed(2), _fontScale, align: pw.TextAlign.right, isBold: true, isClassic: isClassic),
+                                      ] else
+                                        _buildMiniHsnCell(totalHsnIgst.toStringAsFixed(2), _fontScale, align: pw.TextAlign.right, isBold: true, isClassic: isClassic),
+                                      _buildMiniHsnCell(
+                                        isInterState
+                                            ? totalHsnIgst.toStringAsFixed(2)
+                                            : (totalHsnCgst + totalHsnSgst).toStringAsFixed(2),
+                                        _fontScale,
+                                        align: pw.TextAlign.right,
+                                        isBold: true,
+                                        isClassic: isClassic,
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              pw.SizedBox(height: 6),
+                            ],
+
+                            // Amount in Words
+                            pw.Container(
+                              padding: const pw.EdgeInsets.symmetric(vertical: 2),
+                              child: pw.Row(
+                                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                                children: [
+                                  pw.Text(
+                                    'Amount in Words : ',
+                                    style: pw.TextStyle(
+                                      fontSize: _fontScale * 0.9,
+                                      fontWeight: pw.FontWeight.bold,
+                                      color: primaryColor,
+                                    ),
+                                  ),
+                                  pw.Expanded(
+                                    child: pw.Text(
+                                      _numberToWords(grandTotal),
+                                      style: pw.TextStyle(
+                                        fontSize: _fontScale * 0.9,
+                                        fontWeight: pw.FontWeight.bold,
+                                        fontStyle: pw.FontStyle.italic,
+                                        color: primaryColor,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            pw.SizedBox(height: 6),
+
+                            // Bank Details Block
+                            if (_showBankDetails && hasAnyBankDetails) ...[
+                              pw.Container(
+                                width: double.infinity,
+                                padding: const pw.EdgeInsets.all(6),
+                                decoration: pw.BoxDecoration(
+                                  color: lightBg,
+                                  borderRadius: pw.BorderRadius.circular(4),
+                                  border: pw.Border.all(color: borderColor, width: 0.8),
+                                ),
+                                child: pw.Column(
+                                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                                  children: [
+                                    pw.Text(
+                                      'BANK & PAYMENT DETAILS',
+                                      style: pw.TextStyle(
+                                        fontSize: _fontScale * 0.8,
+                                        fontWeight: pw.FontWeight.bold,
+                                        color: accentColor,
+                                      ),
+                                    ),
+                                    pw.SizedBox(height: 3),
+                                    if (currentBankName.isNotEmpty)
+                                      pw.Padding(
+                                        padding: const pw.EdgeInsets.only(bottom: 2),
+                                        child: pw.Text(
+                                          'Bank Name : $currentBankName',
+                                          style: pw.TextStyle(
+                                            fontSize: _fontScale * 0.85,
+                                            fontWeight: pw.FontWeight.bold,
+                                            color: primaryColor,
+                                          ),
+                                        ),
+                                      ),
+                                    if (currentAccountNo.isNotEmpty)
+                                      pw.Padding(
+                                        padding: const pw.EdgeInsets.only(bottom: 2),
+                                        child: pw.Text(
+                                          'Account No : $currentAccountNo',
+                                          style: pw.TextStyle(
+                                            fontSize: _fontScale * 0.85,
+                                            fontWeight: pw.FontWeight.bold,
+                                            color: primaryColor,
+                                          ),
+                                        ),
+                                      ),
+                                    if (currentIfsc.isNotEmpty)
+                                      pw.Text(
+                                        'IFSC Code : $currentIfsc',
+                                        style: pw.TextStyle(
+                                          fontSize: _fontScale * 0.85,
+                                          fontWeight: pw.FontWeight.bold,
+                                          color: primaryColor,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              pw.SizedBox(height: 6),
+                            ],
+
+                            // Terms & Conditions (Unboxed)
+                            if (_showTerms) ...[
+                              pw.Text(
+                                'Terms & Conditions:',
+                                style: pw.TextStyle(
+                                  fontSize: _fontScale * 0.9,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: primaryColor,
+                                ),
+                              ),
+                              pw.Text(
+                                'E.& O.E.',
+                                style: pw.TextStyle(
+                                  fontSize: _fontScale * 0.8,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: mutedColor,
+                                ),
+                              ),
+                              pw.SizedBox(height: 2),
+                              pw.Text(
+                                '1. Goods once sold will not be taken back.\n'
+                                '2. Interest @ 18% p.a. will be charged if the payment is not made with in the stipulated time.\n'
+                                '3. Subject to \'${companyState.isNotEmpty ? companyState : "Uttar Pradesh"}\' Jurisdiction only.',
+                                style: pw.TextStyle(
+                                  fontSize: _fontScale * 0.8,
+                                  color: primaryColor,
+                                  height: 1.35,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // Right Side: Grand Total & Taxes Calculation Box
+                    pw.Expanded(
+                      flex: 4,
+                      child: pw.Container(
+                        padding: const pw.EdgeInsets.all(10),
+                        child: pw.Column(
+                          children: [
+                            _buildPdfSummaryRow('Taxable Amount', '₹ ${subTotal.toStringAsFixed(2)}', _fontScale, isClassic: isClassic),
+                            pw.SizedBox(height: 4),
+                            if (!isInterState) ...[
+                              _buildPdfSummaryRow('CGST Amount', '₹ ${totalCgst.toStringAsFixed(2)}', _fontScale, isClassic: isClassic),
+                              pw.SizedBox(height: 4),
+                              _buildPdfSummaryRow('SGST Amount', '₹ ${totalSgst.toStringAsFixed(2)}', _fontScale, isClassic: isClassic),
+                            ] else ...[
+                              _buildPdfSummaryRow('IGST Amount', '₹ ${totalIgst.toStringAsFixed(2)}', _fontScale, isClassic: isClassic),
+                            ],
+                            if (sundries.isNotEmpty)
+                              ...sundries.map((s) => pw.Padding(
+                                    padding: const pw.EdgeInsets.only(top: 4),
+                                    child: _buildPdfSummaryRow(
+                                      (s['name'] ?? 'Sundry').toString(),
+                                      '₹ ${(double.tryParse(s['amount']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2)}',
+                                      _fontScale,
+                                      isClassic: isClassic,
+                                    ),
+                                  )),
+                            if (roundOff != 0.0) ...[
+                              pw.SizedBox(height: 4),
+                              _buildPdfSummaryRow('Round Off', '₹ ${roundOff.toStringAsFixed(2)}', _fontScale, isClassic: isClassic),
+                            ],
+                            pw.Padding(
+                              padding: const pw.EdgeInsets.symmetric(vertical: 6),
+                              child: pw.Divider(color: borderColor, thickness: 0.8),
+                            ),
+                            pw.Row(
+                              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                              children: [
+                                pw.Text('Grand Total',
+                                    style: pw.TextStyle(
+                                        fontSize: _fontScale * 1.25,
+                                        fontWeight: pw.FontWeight.bold,
+                                        color: primaryColor)),
+                                pw.Text('₹ ${grandTotal.toStringAsFixed(2)}',
+                                    style: pw.TextStyle(
+                                        fontSize: _fontScale * 1.45,
+                                        fontWeight: pw.FontWeight.bold,
+                                        color: accentColor)),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // 6. Signatures Bottom Strip
+              pw.Container(
+                decoration: pw.BoxDecoration(
+                  border: pw.Border(
+                    left: pw.BorderSide(color: borderColor, width: 1.0),
+                    right: pw.BorderSide(color: borderColor, width: 1.0),
+                    bottom: pw.BorderSide(color: borderColor, width: 1.0),
+                  ),
+                ),
+                padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: [
+                    pw.Text('Receiver\'s Signature:',
+                        style: pw.TextStyle(fontSize: _fontScale * 0.85, color: mutedColor)),
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.end,
+                      children: [
+                        pw.Text('for ${companyName.isNotEmpty ? companyName.toUpperCase() : "SELLER"}',
+                            style: pw.TextStyle(
+                                fontSize: _fontScale * 0.9,
+                                fontWeight: pw.FontWeight.bold,
+                                color: primaryColor)),
+                        pw.SizedBox(height: 28),
+                        pw.Text('Authorised Signatory',
+                            style: pw.TextStyle(fontSize: _fontScale * 0.85, color: mutedColor)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ];
+          },
         ),
       );
     }
@@ -947,17 +1001,19 @@ class _SalesInvoicePrintPreviewDialogState
     return pdf.save();
   }
 
-  static pw.Widget _buildPdfMetaRow(String label, String val, double scale, {bool isBold = false}) {
+  static pw.Widget _buildPdfMetaRow(String label, String val, double scale, {bool isBold = false, bool isClassic = false}) {
+    final labelColor = isClassic ? PdfColors.black : const PdfColor.fromInt(0xFF475569);
+    final valColor = isClassic ? PdfColors.black : const PdfColor.fromInt(0xFF0F172A);
     return pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
       children: [
-        pw.Text('$label:', style: pw.TextStyle(fontSize: scale * 0.9, color: const PdfColor.fromInt(0xFF475569))),
+        pw.Text('$label:', style: pw.TextStyle(fontSize: scale * 0.9, color: labelColor)),
         pw.Text(
           val,
           style: pw.TextStyle(
             fontSize: scale * 0.95,
             fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal,
-            color: const PdfColor.fromInt(0xFF0F172A),
+            color: valColor,
           ),
         ),
       ],
@@ -965,7 +1021,12 @@ class _SalesInvoicePrintPreviewDialogState
   }
 
   static pw.Widget _buildTableCellText(String text, double scale,
-      {pw.TextAlign align = pw.TextAlign.left, bool isHeader = false, bool isBold = false, bool isMuted = false}) {
+      {pw.TextAlign align = pw.TextAlign.left, bool isHeader = false, bool isBold = false, bool isMuted = false, bool isClassic = false}) {
+    final textColor = isClassic
+        ? PdfColors.black
+        : (isMuted
+            ? const PdfColor.fromInt(0xFF94A3B8)
+            : (isHeader ? const PdfColor.fromInt(0xFF0F172A) : const PdfColor.fromInt(0xFF1E293B)));
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 5),
       child: pw.Text(
@@ -974,44 +1035,44 @@ class _SalesInvoicePrintPreviewDialogState
         style: pw.TextStyle(
           fontSize: isHeader ? scale * 0.9 : scale * 0.85,
           fontWeight: (isHeader || isBold) ? pw.FontWeight.bold : pw.FontWeight.normal,
-          color: isMuted
-              ? const PdfColor.fromInt(0xFF94A3B8)
-              : (isHeader ? const PdfColor.fromInt(0xFF0F172A) : const PdfColor.fromInt(0xFF1E293B)),
+          color: textColor,
         ),
       ),
     );
   }
 
   static pw.Widget _buildPdfTableCell(String text, double scale,
-      {pw.TextAlign align = pw.TextAlign.left, bool isHeader = false, bool isBold = false, bool isMuted = false}) {
-    return _buildTableCellText(text, scale, align: align, isHeader: isHeader, isBold: isBold, isMuted: isMuted);
+      {pw.TextAlign align = pw.TextAlign.left, bool isHeader = false, bool isBold = false, bool isMuted = false, bool isClassic = false}) {
+    return _buildTableCellText(text, scale, align: align, isHeader: isHeader, isBold: isBold, isMuted: isMuted, isClassic: isClassic);
   }
 
-  static pw.Widget _buildPdfSummaryRow(String label, String val, double scale) {
+  static pw.Widget _buildPdfSummaryRow(String label, String val, double scale, {bool isClassic = false}) {
+    final labelColor = isClassic ? PdfColors.black : const PdfColor.fromInt(0xFF334155);
+    final valColor = isClassic ? PdfColors.black : const PdfColor.fromInt(0xFF0F172A);
     return pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
       children: [
-        pw.Text(label, style: pw.TextStyle(fontSize: scale * 0.95, color: const PdfColor.fromInt(0xFF334155))),
-        pw.Text(val, style: pw.TextStyle(fontSize: scale * 0.95, fontWeight: pw.FontWeight.bold, color: const PdfColor.fromInt(0xFF0F172A))),
+        pw.Text(label, style: pw.TextStyle(fontSize: scale * 0.95, color: labelColor)),
+        pw.Text(val, style: pw.TextStyle(fontSize: scale * 0.95, fontWeight: pw.FontWeight.bold, color: valColor)),
       ],
     );
   }
 
-  static pw.Widget _buildMiniHsnHead(String title, double scale, {pw.TextAlign align = pw.TextAlign.left}) {
+  static pw.Widget _buildMiniHsnHead(String title, double scale, {pw.TextAlign align = pw.TextAlign.left, bool isClassic = false}) {
     return pw.Padding(
       padding: const pw.EdgeInsets.all(3.5),
       child: pw.Text(title,
           textAlign: align,
-          style: pw.TextStyle(fontSize: scale * 0.75, fontWeight: pw.FontWeight.bold, color: const PdfColor.fromInt(0xFF0F172A))),
+          style: pw.TextStyle(fontSize: scale * 0.75, fontWeight: pw.FontWeight.bold, color: isClassic ? PdfColors.black : const PdfColor.fromInt(0xFF0F172A))),
     );
   }
 
-  static pw.Widget _buildMiniHsnCell(String val, double scale, {pw.TextAlign align = pw.TextAlign.left, bool isBold = false}) {
+  static pw.Widget _buildMiniHsnCell(String val, double scale, {pw.TextAlign align = pw.TextAlign.left, bool isBold = false, bool isClassic = false}) {
     return pw.Padding(
       padding: const pw.EdgeInsets.all(3.5),
       child: pw.Text(val,
           textAlign: align,
-          style: pw.TextStyle(fontSize: scale * 0.75, fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal, color: const PdfColor.fromInt(0xFF334155))),
+          style: pw.TextStyle(fontSize: scale * 0.75, fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal, color: isClassic ? PdfColors.black : const PdfColor.fromInt(0xFF334155))),
     );
   }
 

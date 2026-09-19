@@ -43,6 +43,8 @@ class VoucherItemsTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const customCellBorderColor = Color.fromARGB(255, 204, 219, 241);
+
     return Focus(
       onKeyEvent: (node, event) {
         if (AppShortcuts.isQuickAdd(event)) {
@@ -55,7 +57,7 @@ class VoucherItemsTable extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE2EAF5), width: 1.2),
+          border: Border.all(color: customCellBorderColor, width: 1.2),
           boxShadow: const [
             BoxShadow(color: Color(0x04092B60), blurRadius: 8, offset: Offset(0, 2)),
           ],
@@ -69,7 +71,7 @@ class VoucherItemsTable extends StatelessWidget {
               decoration: const BoxDecoration(
                 color: Color(0xFFF8FAFD),
                 borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-                border: Border(bottom: BorderSide(color: Color(0xFFE2EAF5), width: 1.2)),
+                border: Border(bottom: BorderSide(color: customCellBorderColor, width: 1.2)),
               ),
               child: const Row(
                 children: [
@@ -103,10 +105,12 @@ class VoucherItemsTable extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                     child: Row(
                       children: [
+                        // S.N. (NO BORDER)
                         SizedBox(
                           width: 32,
                           child: Text('${index + 1}', style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF90A1BA))),
                         ),
+                        // ITEM NAME & DESCRIPTION (BORDER APPLIED)
                         Expanded(
                           flex: 6,
                           child: _buildItemAutocomplete(
@@ -116,6 +120,7 @@ class VoucherItemsTable extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 10),
+                        // QTY (BORDER APPLIED)
                         SizedBox(
                           width: 90,
                           child: _buildSimpleGridInput(
@@ -126,6 +131,7 @@ class VoucherItemsTable extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 10),
+                        // UNIT (BORDER APPLIED)
                         Container(
                           width: 60,
                           height: 36,
@@ -133,7 +139,7 @@ class VoucherItemsTable extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: const Color(0xFFF1F5FB),
                             borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: const Color(0xFFE2EAF5)),
+                            border: Border.all(color: customCellBorderColor, width: 1.0),
                           ),
                           child: Text(
                             _getUnitString(row.unit),
@@ -141,6 +147,7 @@ class VoucherItemsTable extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 10),
+                        // PRICE (BORDER APPLIED)
                         SizedBox(
                           width: 110,
                           child: _buildSimpleGridInput(
@@ -151,6 +158,7 @@ class VoucherItemsTable extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 10),
+                        // TAXABLE (BORDER APPLIED)
                         SizedBox(
                           width: 130,
                           child: _buildSimpleGridInput(
@@ -161,7 +169,7 @@ class VoucherItemsTable extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 10),
-                        // Amount with Alt+E shortcut handling
+                        // AMOUNT (BORDER APPLIED)
                         SizedBox(
                           width: 140,
                           child: Focus(
@@ -232,6 +240,8 @@ class VoucherItemsTable extends StatelessWidget {
     required int index,
     required VoidCallback onSubmitted,
   }) {
+    const customCellBorderColor = Color.fromARGB(255, 204, 219, 241);
+
     return SizedBox(
       height: 36,
       child: RawAutocomplete<ItemMasterModel>(
@@ -264,7 +274,7 @@ class VoucherItemsTable extends StatelessWidget {
                 constraints: const BoxConstraints(maxHeight: 220),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFD6E4F5), width: 1.2),
+                  border: Border.all(color: customCellBorderColor, width: 1.2),
                 ),
                 child: ListView.separated(
                   padding: const EdgeInsets.symmetric(vertical: 4),
@@ -356,8 +366,8 @@ class VoucherItemsTable extends StatelessWidget {
                   contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                   filled: true,
                   fillColor: const Color(0xFFFAFBFD),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFFE5EDF7))),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFFE5EDF7))),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: customCellBorderColor, width: 1.0)),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: customCellBorderColor, width: 1.0)),
                   focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.5)),
                 ),
               );
@@ -374,6 +384,8 @@ class VoucherItemsTable extends StatelessWidget {
     TextAlign textAlign = TextAlign.left,
     VoidCallback? onSubmitted,
   }) {
+    const customCellBorderColor = Color.fromARGB(255, 204, 219, 241);
+
     return ListenableBuilder(
       listenable: focusNode,
       builder: (context, _) {
@@ -395,12 +407,12 @@ class VoucherItemsTable extends StatelessWidget {
               contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               filled: true,
               fillColor: const Color(0xFFFAFBFD),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFFE5EDF7))),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFFE5EDF7))),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: customCellBorderColor, width: 1.0)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: customCellBorderColor, width: 1.0)),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(6),
                 borderSide: BorderSide(
-                  color: isFocused ? const Color(0xFF0F62FE) : const Color(0xFFE5EDF7),
+                  color: isFocused ? const Color(0xFF0F62FE) : customCellBorderColor,
                   width: isFocused ? 1.5 : 1.0,
                 ),
               ),
