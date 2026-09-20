@@ -26,6 +26,8 @@ class AppColors {
 
   // Violet & Purples
   static const Color purple = Color(0xFF7034E6);
+  static const Color purpleSemi = Color(0xFF9061F9);
+  static const Color purpleSemiLight = Color(0xFFE5DEFF);
   static const Color purpleLight = Color(0xFFF5F3FF);
   static const Color purpleBorder = Color(0xFFE9D5FF);
 

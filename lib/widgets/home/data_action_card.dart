@@ -45,7 +45,7 @@ class _DataActionCardState extends State<DataActionCard> {
   @override
   Widget build(BuildContext context) {
     return ModernGlassCard(
-      gradientColors: const [AppColors.purpleLight, AppColors.purple],
+      gradientColors: const [AppColors.purpleSemiLight, AppColors.purpleSemiLight],
       borderColor: AppColors.purpleBorder,
       glowColor: AppColors.purple.withValues(alpha: 0.1),
       child: Column(
