@@ -3,6 +3,7 @@ import '../../../constants/app_colors.dart';
 import '../../../models/party_master_model.dart';
 import '../../../services/focus_policy_service.dart';
 import '../../../services/gstin_service.dart';
+import '../../../services/loading_service.dart';
 
 class AddPartyDialog extends StatefulWidget {
   final String voucherType;
@@ -113,30 +114,32 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
   }
 
   Future<void> _validateGstin() async {
-    final gstin = _c['gstin']!.text.trim().toUpperCase();
-    if (gstin.isEmpty) {
-      setState(() => _gstinStatus = 'Please enter GSTIN first');
-      return;
-    }
-
-    setState(() => _isCheckingGstin = true);
-    await Future.delayed(const Duration(milliseconds: 250));
-    final isValid = GstinService.isValid(gstin);
-
-    if (!mounted) return;
-    setState(() {
-      _isCheckingGstin = false;
-      _gstinStatus = isValid
-          ? 'GSTIN verified • ${GstinService.getStateName(gstin)}'
-          : 'Invalid GSTIN format or checksum';
-    });
-
-    if (isValid) {
-      final state = GstinService.getStateName(gstin);
-      if (state != 'Unknown') {
-        _c['state']!.text = state;
+    await LoadingService.wrap(() async {
+      final gstin = _c['gstin']!.text.trim().toUpperCase();
+      if (gstin.isEmpty) {
+        setState(() => _gstinStatus = 'Please enter GSTIN first');
+        return;
       }
-    }
+
+      setState(() => _isCheckingGstin = true);
+      await Future.delayed(const Duration(milliseconds: 250));
+      final isValid = GstinService.isValid(gstin);
+
+      if (!mounted) return;
+      setState(() {
+        _isCheckingGstin = false;
+        _gstinStatus = isValid
+            ? 'GSTIN verified • ${GstinService.getStateName(gstin)}'
+            : 'Invalid GSTIN format or checksum';
+      });
+
+      if (isValid) {
+        final state = GstinService.getStateName(gstin);
+        if (state != 'Unknown') {
+          _c['state']!.text = state;
+        }
+      }
+    }, message: 'Validating GSTIN...');
   }
 
   void _handleSubmit() {

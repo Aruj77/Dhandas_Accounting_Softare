@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
 import '../../constants/gst_constants.dart';
 import '../../services/storage_service.dart';
+import '../../services/loading_service.dart';
 
 class CreateCompanyDialog extends StatefulWidget {
   final String? currentDirectory;
@@ -35,100 +36,102 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
   List<String> get _allStates => GstConstants.allSortedStateNames;
 
   Future<void> _validateAndFetchGstin() async {
-    final gstin = _gstinController.text.trim().toUpperCase();
+    await LoadingService.wrap(() async {
+      final gstin = _gstinController.text.trim().toUpperCase();
+      if (gstin.isEmpty) {
+        setState(() => _gstError = 'Enter a GSTIN to validate');
+        return;
+      }
+      if (!GstConstants.gstinRegex.hasMatch(gstin)) {
+        setState(() {
+          _gstError = 'Invalid GSTIN format (e.g. 09AAECB1234F1Z5)';
+          _isGstValid = false;
+        });
+        return;
+      }
 
-    if (gstin.isEmpty) {
-      setState(() => _gstError = 'Enter a GSTIN to validate');
-      return;
-    }
-
-    if (!GstConstants.gstinRegex.hasMatch(gstin)) {
       setState(() {
-        _gstError = 'Invalid GSTIN format (e.g. 09AAECB1234F1Z5)';
-        _isGstValid = false;
+        _isValidatingGst = true;
+        _gstError = null;
       });
-      return;
-    }
 
-    setState(() {
-      _isValidatingGst = true;
-      _gstError = null;
-    });
+      await Future.delayed(const Duration(milliseconds: 750));
 
-    await Future.delayed(const Duration(milliseconds: 750));
+      final stateCode = gstin.substring(0, 2);
+      final detectedState = GstConstants.getStateName(stateCode);
 
-    final stateCode = gstin.substring(0, 2);
-    final detectedState = GstConstants.getStateName(stateCode);
+      setState(() {
+        _isValidatingGst = false;
+        _isGstValid = true;
+        _selectedState = detectedState != 'Unknown' ? detectedState : 'Delhi';
+        _selectedCountry = 'India';
 
-    setState(() {
-      _isValidatingGst = false;
-      _isGstValid = true;
-      _selectedState = detectedState != 'Unknown' ? detectedState : 'Delhi';
-      _selectedCountry = 'India';
-
-      if (_companyNameController.text.isEmpty) {
-        _companyNameController.text = 'Dhandas Global Solutions Pvt Ltd';
-      }
-      if (_cityController.text.isEmpty) {
-        _cityController.text = (stateCode == '09')
-            ? 'Noida'
-            : (stateCode == '27')
-                ? 'Mumbai'
-                : (stateCode == '29')
-                    ? 'Bengaluru'
-                    : 'Central District';
-      }
-      if (_addressController.text.isEmpty) {
-        _addressController.text = 'Unit 402, Signature Tower, Tech Park';
-      }
-    });
+        if (_companyNameController.text.isEmpty) {
+          _companyNameController.text = 'Dhandas Global Solutions Pvt Ltd';
+        }
+        if (_cityController.text.isEmpty) {
+          _cityController.text = (stateCode == '09')
+              ? 'Noida'
+              : (stateCode == '27')
+                  ? 'Mumbai'
+                  : (stateCode == '29')
+                      ? 'Bengaluru'
+                      : 'Central District';
+        }
+        if (_addressController.text.isEmpty) {
+          _addressController.text = 'Unit 402, Signature Tower, Tech Park';
+        }
+      });
+    }, message: 'Validating GSTIN...');
   }
 
   Future<void> _submitForm() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+    await LoadingService.wrap(() async {
+      if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    if (widget.currentDirectory == null || widget.currentDirectory!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a Data Directory first before creating a company.'),
-          backgroundColor: AppColors.error,
-        ),
-      );
-      return;
-    }
-
-    setState(() => _isSaving = true);
-
-    final companyData = {
-      'companyName': _companyNameController.text.trim(),
-      'gstin': _gstinController.text.trim().toUpperCase(),
-      'address': _addressController.text.trim(),
-      'city': _cityController.text.trim(),
-      'state': _selectedState ?? '',
-      'country': _selectedCountry ?? 'India',
-      'createdAt': DateTime.now().toIso8601String(),
-    };
-
-    try {
-      await StorageService.saveCompanyLocally(
-        directoryPath: widget.currentDirectory!,
-        companyData: companyData,
-      );
-
-      if (mounted) {
-        Navigator.of(context).pop(true);
-      }
-    } catch (e) {
-      setState(() => _isSaving = false);
-      if (mounted) {
+      if (widget.currentDirectory == null || widget.currentDirectory!.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error saving company: $e'),
+          const SnackBar(
+            content: Text('Please select a Data Directory first before creating a company.'),
             backgroundColor: AppColors.error,
           ),
         );
+        return;
       }
-    }
+
+      setState(() => _isSaving = true);
+
+      final companyData = {
+        'companyName': _companyNameController.text.trim(),
+        'gstin': _gstinController.text.trim().toUpperCase(),
+        'address': _addressController.text.trim(),
+        'city': _cityController.text.trim(),
+        'state': _selectedState ?? '',
+        'country': _selectedCountry ?? 'India',
+        'createdAt': DateTime.now().toIso8601String(),
+      };
+
+      try {
+        await StorageService.saveCompanyLocally(
+          directoryPath: widget.currentDirectory!,
+          companyData: companyData,
+        );
+
+        if (mounted) {
+          Navigator.of(context).pop(true);
+        }
+      } catch (e) {
+        setState(() => _isSaving = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error saving company: $e'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+      }
+    }, message: 'Saving Company...');
   }
 
   @override

@@ -18,6 +18,7 @@ import '../../../utils/gst_party_utils.dart';
 import '../../../widgets/common/data_table_cells.dart';
 import '../../../widgets/common/quick_metric_badge.dart';
 import 'voucher_entry_screen.dart';
+import '../../../services/loading_service.dart';
 
 class VoucherListScreen extends StatefulWidget {
   final Map<String, dynamic> company;
@@ -104,27 +105,29 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
   }
 
   Future<void> _loadAvailableSeries() async {
-    final folderPath = widget.company['folderPath']?.toString();
-    final seriesSet = <String>{'All', 'Main'};
-    if (_selectedSeries != 'All') {
-      seriesSet.add(_selectedSeries);
-    }
-    if (folderPath != null) {
-      try {
-        final rawMasters = await StorageService.loadCompanyMasters(folderPath: folderPath);
-        final loaded = rawMasters['series'] as List? ?? [];
-        for (final s in loaded) {
-          if (s != null && s.toString().trim().isNotEmpty) {
-            seriesSet.add(s.toString().trim());
+      await LoadingService.wrap(() async {
+      final folderPath = widget.company['folderPath']?.toString();
+      final seriesSet = <String>{'All', 'Main'};
+      if (_selectedSeries != 'All') {
+        seriesSet.add(_selectedSeries);
+      }
+      if (folderPath != null) {
+        try {
+          final rawMasters = await StorageService.loadCompanyMasters(folderPath: folderPath);
+          final loaded = rawMasters['series'] as List? ?? [];
+          for (final s in loaded) {
+            if (s != null && s.toString().trim().isNotEmpty) {
+              seriesSet.add(s.toString().trim());
+            }
           }
-        }
-      } catch (_) {}
-    }
-    if (mounted) {
-      setState(() {
-        _availableSeries = seriesSet.toList();
-      });
-    }
+        } catch (_) {}
+      }
+      if (mounted) {
+        setState(() {
+          _availableSeries = seriesSet.toList();
+        });
+      }
+    }, message: '');
   }
 
   @override
@@ -148,59 +151,61 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
   }
 
   Future<void> _loadVouchers() async {
-    final folderPath = widget.company['folderPath']?.toString();
-    final fy = (widget.company['activeFinancialYear'] ?? AppDateUtils.defaultFinancialYear).toString();
+    await LoadingService.wrap(() async {
+      final folderPath = widget.company['folderPath']?.toString();
+      final fy = (widget.company['activeFinancialYear'] ?? AppDateUtils.defaultFinancialYear).toString();
 
-    if (folderPath != null) {
-      final allVouchers = await StorageService.loadVouchers(
-        folderPath: folderPath,
-        financialYear: fy,
-      );
+      if (folderPath != null) {
+        final allVouchers = await StorageService.loadVouchers(
+          folderPath: folderPath,
+          financialYear: fy,
+        );
 
-      final targetType = widget.voucherType.toLowerCase().trim();
+        final targetType = widget.voucherType.toLowerCase().trim();
 
-      for (final v in allVouchers) {
-        final s = (v['series'] ?? v['seriesName'] ?? '').toString().trim();
-        if (s.isNotEmpty && !_availableSeries.contains(s)) {
-          _availableSeries.add(s);
-        }
-      }
-
-      final matching = allVouchers.where((v) {
-        final vchType = (v['voucherType'] ?? '').toString().toLowerCase().trim();
-        bool typeMatches = vchType.isEmpty ||
-            vchType == targetType ||
-            vchType.contains(targetType) ||
-            targetType.contains(vchType);
-        if (!typeMatches) return false;
-
-        if (_selectedSeries.toLowerCase() != 'all') {
-          final rawSeries = (v['series'] ?? v['seriesName'] ?? '').toString().trim();
-          final voucherSeries = rawSeries.isEmpty ? 'Main' : rawSeries;
-          if (voucherSeries.toLowerCase() != _selectedSeries.toLowerCase()) {
-            return false;
+        for (final v in allVouchers) {
+          final s = (v['series'] ?? v['seriesName'] ?? '').toString().trim();
+          if (s.isNotEmpty && !_availableSeries.contains(s)) {
+            _availableSeries.add(s);
           }
         }
 
-        final dt = AppDateUtils.parseDate(v['date']?.toString());
-        if (dt == null) return true;
+        final matching = allVouchers.where((v) {
+          final vchType = (v['voucherType'] ?? '').toString().toLowerCase().trim();
+          bool typeMatches = vchType.isEmpty ||
+              vchType == targetType ||
+              vchType.contains(targetType) ||
+              targetType.contains(vchType);
+          if (!typeMatches) return false;
 
-        final start = DateTime(widget.fromDate.year, widget.fromDate.month, widget.fromDate.day);
-        final end = DateTime(widget.toDate.year, widget.toDate.month, widget.toDate.day, 23, 59, 59);
+          if (_selectedSeries.toLowerCase() != 'all') {
+            final rawSeries = (v['series'] ?? v['seriesName'] ?? '').toString().trim();
+            final voucherSeries = rawSeries.isEmpty ? 'Main' : rawSeries;
+            if (voucherSeries.toLowerCase() != _selectedSeries.toLowerCase()) {
+              return false;
+            }
+          }
 
-        return (dt.isAtSameMomentAs(start) || dt.isAfter(start)) &&
-            (dt.isAtSameMomentAs(end) || dt.isBefore(end));
-      }).toList();
+          final dt = AppDateUtils.parseDate(v['date']?.toString());
+          if (dt == null) return true;
 
-      if (mounted) {
-        setState(() {
-          _vouchers = matching;
-          _filtered = matching;
-          _isLoading = false;
-          _syncFocusNodes();
-        });
+          final start = DateTime(widget.fromDate.year, widget.fromDate.month, widget.fromDate.day);
+          final end = DateTime(widget.toDate.year, widget.toDate.month, widget.toDate.day, 23, 59, 59);
+
+          return (dt.isAtSameMomentAs(start) || dt.isAfter(start)) &&
+              (dt.isAtSameMomentAs(end) || dt.isBefore(end));
+        }).toList();
+
+        if (mounted) {
+          setState(() {
+            _vouchers = matching;
+            _filtered = matching;
+            _isLoading = false;
+            _syncFocusNodes();
+          });
+        }
       }
-    }
+    }, message:'Loading ${widget.voucherType} register...');
   }
 
   void _onSearch() {
@@ -265,72 +270,76 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
   }
 
   Future<void> _handleExcelExport() async {
-    try {
-      final activeKeys = _columnLabels.keys.where(_isColVisible).toList();
+    await LoadingService.wrap(() async {
+      try {
+        final activeKeys = _columnLabels.keys.where(_isColVisible).toList();
 
-      final savedPath = await VoucherExcelExportService.exportToExcel(
-        company: widget.company,
-        voucherType: widget.voucherType,
-        fromDate: widget.fromDate,
-        toDate: widget.toDate,
-        filteredVouchers: _filtered,
-        activeKeys: activeKeys,
-        columnLabels: _columnLabels,
-        extractPartyName: GstPartyUtils.extractPartyName,
-        extractPartyGstin: GstPartyUtils.extractPartyGstin,
-        getPlaceOfSupply: _getPos,
-        extractCessAmount: GstPartyUtils.extractCessAmount,
-        formatDate: AppDateUtils.formatDate,
-        totalQuantity: _summary.totalQuantity,
-        totalInvoiceValue: _summary.totalInvoiceValue,
-        totalTaxable: _summary.totalTaxable,
-        totalIgst: _summary.totalIgst,
-        totalCgst: _summary.totalCgst,
-        totalSgst: _summary.totalSgst,
-        totalCess: _summary.totalCess,
-        onConfirmOverwrite: (p) => ExportDialogUtils.confirmOverwrite(context, p),
-      );
-      if (savedPath != null && mounted) {
-        ExportDialogUtils.showSuccessDialog(context, savedPath, 'Excel Workbook (.xlsx)');
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Export failed: $e'), backgroundColor: AppColors.error),
+        final savedPath = await VoucherExcelExportService.exportToExcel(
+          company: widget.company,
+          voucherType: widget.voucherType,
+          fromDate: widget.fromDate,
+          toDate: widget.toDate,
+          filteredVouchers: _filtered,
+          activeKeys: activeKeys,
+          columnLabels: _columnLabels,
+          extractPartyName: GstPartyUtils.extractPartyName,
+          extractPartyGstin: GstPartyUtils.extractPartyGstin,
+          getPlaceOfSupply: _getPos,
+          extractCessAmount: GstPartyUtils.extractCessAmount,
+          formatDate: AppDateUtils.formatDate,
+          totalQuantity: _summary.totalQuantity,
+          totalInvoiceValue: _summary.totalInvoiceValue,
+          totalTaxable: _summary.totalTaxable,
+          totalIgst: _summary.totalIgst,
+          totalCgst: _summary.totalCgst,
+          totalSgst: _summary.totalSgst,
+          totalCess: _summary.totalCess,
+          onConfirmOverwrite: (p) => ExportDialogUtils.confirmOverwrite(context, p),
         );
+        if (savedPath != null && mounted) {
+          ExportDialogUtils.showSuccessDialog(context, savedPath, 'Excel Workbook (.xlsx)');
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Export failed: $e'), backgroundColor: AppColors.error),
+          );
+        }
       }
-    }
+    }, message: 'Generating Excel Workbook...');
   }
 
   Future<void> _exportToJson() async {
-    try {
-      final dir = await VoucherExcelExportService.getOrChooseExportDirectory();
-      if (dir == null) return;
-      final file = File('$dir${Platform.pathSeparator}${widget.voucherType.replaceAll(' ', '_').toLowerCase()}_register.json');
-      if (!await ExportDialogUtils.confirmOverwrite(context, file.path)) return;
+    await LoadingService.wrap(() async {
+      try {
+        final dir = await VoucherExcelExportService.getOrChooseExportDirectory();
+        if (dir == null) return;
+        final file = File('$dir${Platform.pathSeparator}${widget.voucherType.replaceAll(' ', '_').toLowerCase()}_register.json');
+        if (!await ExportDialogUtils.confirmOverwrite(context, file.path)) return;
 
-      final data = _filtered.map((v) => {
-        'voucherNumber': v['voucherNumber'],
-        'date': v['date'],
-        'series': v['series'],
-        'party': GstPartyUtils.extractPartyName((v['party'] ?? '').toString()),
-        'gstin': GstPartyUtils.extractPartyGstin((v['party'] ?? '').toString()),
-        'grandTotal': v['grandTotal'],
-        'subTotal': v['subTotal'],
-        'items': (v['items'] as List? ?? []).map((i) => {
-          'qty': i['qty'], 'unit': i['unit'], 'hsn': i['hsn'], 'taxable': i['taxable'], 'gstRate': i['gstRate']
-        }).toList(),
-      }).toList();
+        final data = _filtered.map((v) => {
+          'voucherNumber': v['voucherNumber'],
+          'date': v['date'],
+          'series': v['series'],
+          'party': GstPartyUtils.extractPartyName((v['party'] ?? '').toString()),
+          'gstin': GstPartyUtils.extractPartyGstin((v['party'] ?? '').toString()),
+          'grandTotal': v['grandTotal'],
+          'subTotal': v['subTotal'],
+          'items': (v['items'] as List? ?? []).map((i) => {
+            'qty': i['qty'], 'unit': i['unit'], 'hsn': i['hsn'], 'taxable': i['taxable'], 'gstRate': i['gstRate']
+          }).toList(),
+        }).toList();
 
-      await file.writeAsString(const JsonEncoder.withIndent('  ').convert(data));
-      if (mounted) ExportDialogUtils.showSuccessDialog(context, file.path, 'JSON');
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Export failed: $e'), backgroundColor: AppColors.error),
-        );
+        await file.writeAsString(const JsonEncoder.withIndent('  ').convert(data));
+        if (mounted) ExportDialogUtils.showSuccessDialog(context, file.path, 'JSON');
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Export failed: $e'), backgroundColor: AppColors.error),
+          );
+        }
       }
-    }
+    }, message: 'Generating JSON File...');
   }
 
   Future<void> _openEdit(Map<String, dynamic> voucher) async {

@@ -12,6 +12,7 @@ import '../../../widgets/common/data_table_cells.dart';
 import '../../../widgets/common/quick_metric_badge.dart';
 import 'voucher_entry_screen.dart';
 import '../../../widgets/common/app_confirm_dialog.dart';
+import '../../../services/loading_service.dart';
 
 class VoucherManageListScreen extends StatefulWidget {
   final Map<String, dynamic> company;
@@ -94,22 +95,24 @@ class _VoucherManageListScreenState extends State<VoucherManageListScreen> {
   String _resolveKey(Map<String, dynamic> v, int i) => v['id']?.toString() ?? v['voucherNumber']?.toString() ?? 'idx_$i';
 
   Future<void> _loadVouchers() async {
-    final folderPath = widget.company['folderPath']?.toString();
-    final fy = (widget.company['activeFinancialYear'] ?? AppDateUtils.defaultFinancialYear).toString();
+    await LoadingService.wrap(() async {
+      final folderPath = widget.company['folderPath']?.toString();
+      final fy = (widget.company['activeFinancialYear'] ?? AppDateUtils.defaultFinancialYear).toString();
 
-    if (folderPath != null) {
-      final all = await StorageService.loadVouchers(folderPath: folderPath, financialYear: fy, voucherType: widget.voucherType);
-      final matching = all.where((v) => (v['voucherType'] ?? '').toString().toLowerCase() == widget.voucherType.toLowerCase()).toList();
-      if (mounted) {
-        setState(() {
-          _vouchers = matching;
-          _filtered = matching;
-          _selectedKeys.clear();
-          _isLoading = false;
-          _syncFocusNodes();
-        });
+      if (folderPath != null) {
+        final all = await StorageService.loadVouchers(folderPath: folderPath, financialYear: fy, voucherType: widget.voucherType);
+        final matching = all.where((v) => (v['voucherType'] ?? '').toString().toLowerCase() == widget.voucherType.toLowerCase()).toList();
+        if (mounted) {
+          setState(() {
+            _vouchers = matching;
+            _filtered = matching;
+            _selectedKeys.clear();
+            _isLoading = false;
+            _syncFocusNodes();
+          });
+        }
       }
-    }
+    }, message: 'Loading Vouchers for management...');
   }
 
   void _onSearch() {
@@ -135,48 +138,50 @@ class _VoucherManageListScreenState extends State<VoucherManageListScreen> {
   }
 
   Future<void> _confirmAndDelete(List<Map<String, dynamic>> toDelete) async {
-    if (toDelete.isEmpty) return;
-    final isPlural = toDelete.length > 1;
+    await LoadingService.wrap(() async {
+      if (toDelete.isEmpty) return;
+      final isPlural = toDelete.length > 1;
 
-    final shouldDelete = await AppConfirmDialog.show(
-      context: context,
-      title: 'Confirm Deletion',
-      message: isPlural
-          ? 'Permanently delete ${toDelete.length} selected vouchers?'
-          : 'Delete Voucher [${toDelete.first['voucherNumber']}]?',
-      confirmLabel: isPlural ? 'Delete All (${toDelete.length})' : 'Delete',
-      type: ConfirmDialogType.danger,
-    );
-
-    if (!shouldDelete || !mounted) return;
-
-    final keys = {for (int i = 0; i < toDelete.length; i++) _resolveKey(toDelete[i], i)};
-    setState(() {
-      _vouchers.removeWhere((v) => keys.contains(_resolveKey(v, _vouchers.indexOf(v))));
-      _filtered.removeWhere((v) => keys.contains(_resolveKey(v, _filtered.indexOf(v))));
-      _selectedKeys.removeAll(keys);
-      _syncFocusNodes();
-    });
-
-    final folderPath = widget.company['folderPath']?.toString();
-    final fy = (widget.company['activeFinancialYear'] ?? AppDateUtils.defaultFinancialYear).toString();
-    if (folderPath != null) {
-      await StorageService.saveAllVouchers(
-        folderPath: folderPath,
-        financialYear: fy,
-        voucherType: widget.voucherType,
-        vouchers: _vouchers,
+      final shouldDelete = await AppConfirmDialog.show(
+        context: context,
+        title: 'Confirm Deletion',
+        message: isPlural
+            ? 'Permanently delete ${toDelete.length} selected vouchers?'
+            : 'Delete Voucher [${toDelete.first['voucherNumber']}]?',
+        confirmLabel: isPlural ? 'Delete All (${toDelete.length})' : 'Delete',
+        type: ConfirmDialogType.danger,
       );
-    }
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(isPlural ? '${toDelete.length} vouchers deleted.' : 'Voucher deleted.'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
+
+      if (!shouldDelete || !mounted) return;
+
+      final keys = {for (int i = 0; i < toDelete.length; i++) _resolveKey(toDelete[i], i)};
+      setState(() {
+        _vouchers.removeWhere((v) => keys.contains(_resolveKey(v, _vouchers.indexOf(v))));
+        _filtered.removeWhere((v) => keys.contains(_resolveKey(v, _filtered.indexOf(v))));
+        _selectedKeys.removeAll(keys);
+        _syncFocusNodes();
+      });
+
+      final folderPath = widget.company['folderPath']?.toString();
+      final fy = (widget.company['activeFinancialYear'] ?? AppDateUtils.defaultFinancialYear).toString();
+      if (folderPath != null) {
+        await StorageService.saveAllVouchers(
+          folderPath: folderPath,
+          financialYear: fy,
+          voucherType: widget.voucherType,
+          vouchers: _vouchers,
+        );
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(isPlural ? '${toDelete.length} vouchers deleted.' : 'Voucher deleted.'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }, message: 'Deleting Selected Vouchers...');
   }
 
   @override

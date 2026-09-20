@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../../constants/app_colors.dart';
 import '../../services/storage_service.dart';
 import '../../widgets/common/app_confirm_dialog.dart';
+import '../../services/loading_service.dart';
 
 class OpenCompanyDialog extends StatefulWidget {
   final String directoryPath;
@@ -34,16 +35,18 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
   }
 
   Future<void> _loadCompanies() async {
-    final data = await StorageService.loadCompanies(widget.directoryPath);
-    if (mounted) {
-      setState(() {
-        _companies = data;
-        _filteredCompanies = data;
-        _isLoading = false;
-        _selectedIndex = data.isNotEmpty ? 0 : null;
-      });
-      _dialogFocusNode.requestFocus();
-    }
+    await LoadingService.wrap(() async {
+      final data = await StorageService.loadCompanies(widget.directoryPath);
+      if (mounted) {
+        setState(() {
+          _companies = data;
+          _filteredCompanies = data;
+          _isLoading = false;
+          _selectedIndex = data.isNotEmpty ? 0 : null;
+        });
+        _dialogFocusNode.requestFocus();
+      }
+    }, message: 'Scanning directory for companies...');
   }
 
   void _onSearchChanged() {
@@ -104,206 +107,210 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
   }
 
   Future<void> _openEditModal(Map<String, dynamic> company) async {
-    final nameController =
-        TextEditingController(text: company['companyName'] ?? '');
-    final gstinController =
-        TextEditingController(text: company['gstin'] ?? '');
-    final addressController =
-        TextEditingController(text: company['address'] ?? '');
-    final cityController = TextEditingController(text: company['city'] ?? '');
-    final formKey = GlobalKey<FormState>();
+    await LoadingService.wrap(() async {
+      final nameController =
+          TextEditingController(text: company['companyName'] ?? '');
+      final gstinController =
+          TextEditingController(text: company['gstin'] ?? '');
+      final addressController =
+          TextEditingController(text: company['address'] ?? '');
+      final cityController = TextEditingController(text: company['city'] ?? '');
+      final formKey = GlobalKey<FormState>();
 
-    final updated = await showDialog<bool>(
-      context: context,
-      builder: (ctx) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          child: Container(
-            width: 580,
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.border),
-              boxShadow: const [
-                BoxShadow(
-                  color: AppColors.shadowColor,
-                  blurRadius: 32,
-                  offset: Offset(0, 16),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: Form(
-                key: formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-                      decoration: const BoxDecoration(
-                        color: AppColors.cardBg,
-                        border: Border(bottom: BorderSide(color: AppColors.border)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.edit_note_rounded, color: AppColors.primaryAccent, size: 22),
-                          const SizedBox(width: 10),
-                          const Text(
-                            'Edit Company Details',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          const Spacer(),
-                          IconButton(
-                            onPressed: () => Navigator.of(ctx).pop(false),
-                            icon: const Icon(Icons.close_rounded, size: 20),
-                            color: AppColors.textSecondary,
-                          ),
-                        ],
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        children: [
-                          TextFormField(
-                            controller: nameController,
-                            validator: (v) => (v == null || v.trim().isEmpty)
-                                ? 'Company name cannot be empty'
-                                : null,
-                            decoration: InputDecoration(
-                              labelText: 'Company Name',
-                              prefixIcon: const Icon(Icons.apartment_rounded, size: 19),
-                              filled: true,
-                              fillColor: AppColors.cardBg,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: AppColors.border),
+      final updated = await showDialog<bool>(
+        context: context,
+        builder: (ctx) {
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            child: Container(
+              width: 580,
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.border),
+                boxShadow: const [
+                  BoxShadow(
+                    color: AppColors.shadowColor,
+                    blurRadius: 32,
+                    offset: Offset(0, 16),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+                        decoration: const BoxDecoration(
+                          color: AppColors.cardBg,
+                          border: Border(bottom: BorderSide(color: AppColors.border)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.edit_note_rounded, color: AppColors.primaryAccent, size: 22),
+                            const SizedBox(width: 10),
+                            const Text(
+                              'Edit Company Details',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 14),
-                          TextFormField(
-                            controller: gstinController,
-                            textCapitalization: TextCapitalization.characters,
-                            decoration: InputDecoration(
-                              labelText: 'GSTIN',
-                              prefixIcon: const Icon(Icons.qr_code_scanner_rounded, size: 19),
-                              filled: true,
-                              fillColor: AppColors.cardBg,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: AppColors.border),
-                              ),
+                            const Spacer(),
+                            IconButton(
+                              onPressed: () => Navigator.of(ctx).pop(false),
+                              icon: const Icon(Icons.close_rounded, size: 20),
+                              color: AppColors.textSecondary,
                             ),
-                          ),
-                          const SizedBox(height: 14),
-                          TextFormField(
-                            controller: cityController,
-                            decoration: InputDecoration(
-                              labelText: 'City',
-                              prefixIcon: const Icon(Icons.location_city_rounded, size: 19),
-                              filled: true,
-                              fillColor: AppColors.cardBg,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: AppColors.border),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          TextFormField(
-                            controller: addressController,
-                            maxLines: 2,
-                            decoration: InputDecoration(
-                              labelText: 'Address',
-                              prefixIcon: const Icon(Icons.location_on_outlined, size: 19),
-                              filled: true,
-                              fillColor: AppColors.cardBg,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: AppColors.border),
-                              ),
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                      decoration: const BoxDecoration(
-                        color: AppColors.cardBg,
-                        border: Border(top: BorderSide(color: AppColors.border)),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          OutlinedButton(
-                            onPressed: () => Navigator.of(ctx).pop(false),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.textSecondary,
-                              side: const BorderSide(color: AppColors.borderMedium),
+                      Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          children: [
+                            TextFormField(
+                              controller: nameController,
+                              validator: (v) => (v == null || v.trim().isEmpty)
+                                  ? 'Company name cannot be empty'
+                                  : null,
+                              decoration: InputDecoration(
+                                labelText: 'Company Name',
+                                prefixIcon: const Icon(Icons.apartment_rounded, size: 19),
+                                filled: true,
+                                fillColor: AppColors.cardBg,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(color: AppColors.border),
+                                ),
+                              ),
                             ),
-                            child: const Text('Cancel'),
-                          ),
-                          const SizedBox(width: 12),
-                          ElevatedButton(
-                            onPressed: () async {
-                              if (formKey.currentState?.validate() ?? false) {
-                                final updatedData = Map<String, dynamic>.from(company);
-                                updatedData['companyName'] = nameController.text.trim();
-                                updatedData['gstin'] = gstinController.text.trim().toUpperCase();
-                                updatedData['city'] = cityController.text.trim();
-                                updatedData['address'] = addressController.text.trim();
+                            const SizedBox(height: 14),
+                            TextFormField(
+                              controller: gstinController,
+                              textCapitalization: TextCapitalization.characters,
+                              decoration: InputDecoration(
+                                labelText: 'GSTIN',
+                                prefixIcon: const Icon(Icons.qr_code_scanner_rounded, size: 19),
+                                filled: true,
+                                fillColor: AppColors.cardBg,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(color: AppColors.border),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            TextFormField(
+                              controller: cityController,
+                              decoration: InputDecoration(
+                                labelText: 'City',
+                                prefixIcon: const Icon(Icons.location_city_rounded, size: 19),
+                                filled: true,
+                                fillColor: AppColors.cardBg,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(color: AppColors.border),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            TextFormField(
+                              controller: addressController,
+                              maxLines: 2,
+                              decoration: InputDecoration(
+                                labelText: 'Address',
+                                prefixIcon: const Icon(Icons.location_on_outlined, size: 19),
+                                filled: true,
+                                fillColor: AppColors.cardBg,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(color: AppColors.border),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                        decoration: const BoxDecoration(
+                          color: AppColors.cardBg,
+                          border: Border(top: BorderSide(color: AppColors.border)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            OutlinedButton(
+                              onPressed: () => Navigator.of(ctx).pop(false),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppColors.textSecondary,
+                                side: const BorderSide(color: AppColors.borderMedium),
+                              ),
+                              child: const Text('Cancel'),
+                            ),
+                            const SizedBox(width: 12),
+                            ElevatedButton(
+                              onPressed: () async {
+                                if (formKey.currentState?.validate() ?? false) {
+                                  final updatedData = Map<String, dynamic>.from(company);
+                                  updatedData['companyName'] = nameController.text.trim();
+                                  updatedData['gstin'] = gstinController.text.trim().toUpperCase();
+                                  updatedData['city'] = cityController.text.trim();
+                                  updatedData['address'] = addressController.text.trim();
 
-                                await StorageService.updateCompanyLocally(companyData: updatedData);
-                                if (ctx.mounted) Navigator.of(ctx).pop(true);
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primaryAccent,
+                                  await StorageService.updateCompanyLocally(companyData: updatedData);
+                                  if (ctx.mounted) Navigator.of(ctx).pop(true);
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primaryAccent,
+                              ),
+                              child: const Text('Save Changes', style: TextStyle(color: AppColors.surface)),
                             ),
-                            child: const Text('Save Changes', style: TextStyle(color: AppColors.surface)),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        );
-      },
-    );
+          );
+        },
+      );
 
-    if (updated == true) {
-      await _loadCompanies();
-      _onSearchChanged();
-    }
+      if (updated == true) {
+        await _loadCompanies();
+        _onSearchChanged();
+      }
+    }, message: 'Updating Company Data...');
   }
 
   Future<void> _confirmDelete(Map<String, dynamic> company) async {
-    final companyName = company['companyName'] ?? 'Untitled Company';
-    final folderLabel = (company['companyId'] ?? company['folderName'] ?? '').toString();
+    await LoadingService.wrap(() async {
+      final companyName = company['companyName'] ?? 'Untitled Company';
+      final folderLabel = (company['companyId'] ?? company['folderName'] ?? '').toString();
 
-    final shouldDelete = await AppConfirmDialog.show(
-      context: context,
-      title: 'Delete Company',
-      message: 'Are you sure you want to permanently delete "$companyName" ($folderLabel)?',
-      confirmLabel: 'Delete',
-      type: ConfirmDialogType.danger,
-    );
+      final shouldDelete = await AppConfirmDialog.show(
+        context: context,
+        title: 'Delete Company',
+        message: 'Are you sure you want to permanently delete "$companyName" ($folderLabel)?',
+        confirmLabel: 'Delete',
+        type: ConfirmDialogType.danger,
+      );
 
-    if (shouldDelete == true) {
-      await StorageService.deleteCompanyLocally(companyData: company);
-      await _loadCompanies();
-      _onSearchChanged();
-    }
+      if (shouldDelete == true) {
+        await StorageService.deleteCompanyLocally(companyData: company);
+        await _loadCompanies();
+        _onSearchChanged();
+      }
+    }, message: 'Removing Company Data...');
   }
   @override
   void dispose() {

@@ -1,8 +1,7 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
+import '../../../services/loading_service.dart';
 import '../../../constants/app_colors.dart';
 import '../../../models/item_master_model.dart';
 import '../../../services/focus_policy_service.dart';
@@ -189,40 +188,42 @@ class _AddItemDialogState extends State<AddItemDialog> {
   }
 
   Future<void> _loadMastersData() async {
-    final path =
-        widget.folderPath ?? widget.company?['folderPath']?.toString();
+    await LoadingService.wrap(() async {
+      final path =
+          widget.folderPath ?? widget.company?['folderPath']?.toString();
 
-    if (path == null || path.isEmpty) return;
+      if (path == null || path.isEmpty) return;
 
-    final raw = await StorageService.loadCompanyMasters(
-      folderPath: path,
-    );
+      final raw = await StorageService.loadCompanyMasters(
+        folderPath: path,
+      );
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    setState(() {
-      if (raw['units'] is List && (raw['units'] as List).isNotEmpty) {
-        _units =
-            (raw['units'] as List).map((e) => e.toString()).toList();
-      }
+      setState(() {
+        if (raw['units'] is List && (raw['units'] as List).isNotEmpty) {
+          _units =
+              (raw['units'] as List).map((e) => e.toString()).toList();
+        }
 
-      if (raw['taxCategories'] is List &&
-          (raw['taxCategories'] as List).isNotEmpty) {
-        _taxCategories =
-            (raw['taxCategories'] as List).map((e) => e.toString()).toList();
-      }
+        if (raw['taxCategories'] is List &&
+            (raw['taxCategories'] as List).isNotEmpty) {
+          _taxCategories =
+              (raw['taxCategories'] as List).map((e) => e.toString()).toList();
+        }
 
-      if (!_taxCategories.contains(_selectedTaxCategory)) {
-        _selectedTaxCategory =
-            _taxCategories.isNotEmpty ? _taxCategories.first : 'GST 18%';
-      }
+        if (!_taxCategories.contains(_selectedTaxCategory)) {
+          _selectedTaxCategory =
+              _taxCategories.isNotEmpty ? _taxCategories.first : 'GST 18%';
+        }
 
-      _taxCategoryController.text = _selectedTaxCategory;
+        _taxCategoryController.text = _selectedTaxCategory;
 
-      if (!_units.contains(_unitController.text.trim().toUpperCase())) {
-        _unitController.text = _units.isNotEmpty ? _units.first : 'PCS';
-      }
-    });
+        if (!_units.contains(_unitController.text.trim().toUpperCase())) {
+          _unitController.text = _units.isNotEmpty ? _units.first : 'PCS';
+        }
+      });
+    }, message: '');
   }
 
   String _extractTaxPercentage(String category) {
@@ -250,44 +251,46 @@ class _AddItemDialogState extends State<AddItemDialog> {
   // ---------------------------------------------------------------------------
 
   Future<void> _validateHsn() async {
-    final hsn = _hsnController.text.trim();
+    await LoadingService.wrap(() async {
+      final hsn = _hsnController.text.trim();
 
-    if (hsn.isEmpty) {
-      setState(() {
-        _hsnStatusMessage = 'Please enter an HSN/SAC code.';
-        _isHsnValid = false;
-      });
-      return;
-    }
-
-    final isValidFormat = RegExp(r'^[0-9]{4,8}$').hasMatch(hsn);
-
-    if (!isValidFormat) {
-      setState(() {
-        _isHsnValid = false;
-        _hsnStatusMessage =
-            'Invalid HSN. Must be 4 to 8 numeric digits.';
-      });
-      return;
-    }
-
-    setState(() => _isValidatingHsn = true);
-
-    final description = await HsnService.findDescription(hsn);
-
-    if (!mounted) return;
-
-    setState(() {
-      _isValidatingHsn = false;
-
-      if (description != null && description.isNotEmpty) {
-        _isHsnValid = true;
-        _hsnStatusMessage = description;
-      } else {
-        _isHsnValid = false;
-        _hsnStatusMessage = 'Invalid HSN code.';
+      if (hsn.isEmpty) {
+        setState(() {
+          _hsnStatusMessage = 'Please enter an HSN/SAC code.';
+          _isHsnValid = false;
+        });
+        return;
       }
-    });
+
+      final isValidFormat = RegExp(r'^[0-9]{4,8}$').hasMatch(hsn);
+
+      if (!isValidFormat) {
+        setState(() {
+          _isHsnValid = false;
+          _hsnStatusMessage =
+              'Invalid HSN. Must be 4 to 8 numeric digits.';
+        });
+        return;
+      }
+
+      setState(() => _isValidatingHsn = true);
+
+      final description = await HsnService.findDescription(hsn);
+
+      if (!mounted) return;
+
+      setState(() {
+        _isValidatingHsn = false;
+
+        if (description != null && description.isNotEmpty) {
+          _isHsnValid = true;
+          _hsnStatusMessage = description;
+        } else {
+          _isHsnValid = false;
+          _hsnStatusMessage = 'Invalid HSN code.';
+        }
+      });
+    }, message: 'Validating HSN/SAC code...');
   }
 
   // ---------------------------------------------------------------------------
@@ -295,104 +298,106 @@ class _AddItemDialogState extends State<AddItemDialog> {
   // ---------------------------------------------------------------------------
 
   Future<void> _handleSubmit() async {
-    _enforceValidUnitSelection();
-    _enforceValidTaxCategorySelection();
+    await LoadingService.wrap(() async {
+      _enforceValidUnitSelection();
+      _enforceValidTaxCategorySelection();
 
-    if (!_formKey.currentState!.validate()) return;
+      if (!_formKey.currentState!.validate()) return;
 
-    if (widget.isEdit) {
-      final shouldContinue = await AppConfirmDialog.show(
-        context: context,
-        barrierDismissible: false,
-        title: 'Warning',
-        message:
-            'All previous transactions will be changed accordingly. Do you want to continue?',
-        confirmLabel: 'Yes',
-        cancelLabel: 'No',
-        type: ConfirmDialogType.warning,
-      );
-
-      if (!shouldContinue) return;
-    }
-
-    setState(() => _isSaving = true);
-
-    final taxMatch =
-        RegExp(r'(\d+)%').firstMatch(_selectedTaxCategory);
-
-    final rate = taxMatch != null
-        ? double.tryParse(taxMatch.group(1)!) ?? 18.0
-        : 0.0;
-
-    final itemData = {
-      'name': _nameController.text.trim(),
-      'hsn': _hsnController.text.trim(),
-      'unit': _unitController.text.trim().isEmpty
-          ? 'PCS'
-          : _unitController.text.trim().toUpperCase(),
-      'taxCategory': _selectedTaxCategory,
-      'taxRate': rate,
-      'salesPrice':
-          double.tryParse(_salesPriceController.text.trim()) ?? 0.0,
-      'purchasePrice':
-          double.tryParse(_purchasePriceController.text.trim()) ?? 0.0,
-      'mrp': double.tryParse(_mrpController.text.trim()) ?? 0.0,
-    };
-
-    final path =
-        widget.folderPath ?? widget.company?['folderPath']?.toString();
-
-    if (path != null && path.isNotEmpty) {
-      try {
-        final raw = await StorageService.loadCompanyMasters(
-          folderPath: path,
+      if (widget.isEdit) {
+        final shouldContinue = await AppConfirmDialog.show(
+          context: context,
+          barrierDismissible: false,
+          title: 'Warning',
+          message:
+              'All previous transactions will be changed accordingly. Do you want to continue?',
+          confirmLabel: 'Yes',
+          cancelLabel: 'No',
+          type: ConfirmDialogType.warning,
         );
 
-        final itemsList = (raw['items'] as List? ?? [])
-            .map((e) => Map<String, dynamic>.from(e as Map))
-            .toList();
-
-        final originalName =
-            widget.initialItem?.name.trim().toLowerCase();
-
-        final newName =
-            itemData['name'].toString().trim().toLowerCase();
-
-        final idx = itemsList.indexWhere((i) {
-          final n =
-              (i['name'] ?? '').toString().trim().toLowerCase();
-
-          return widget.isEdit &&
-                  originalName != null &&
-                  originalName.isNotEmpty
-              ? n == originalName
-              : n == newName;
-        });
-
-        if (idx != -1) {
-          itemsList[idx] = itemData;
-        } else {
-          itemsList.add(itemData);
-        }
-
-        raw['items'] = itemsList;
-
-        await StorageService.saveCompanyMasters(
-          folderPath: path,
-          mastersData: raw,
-        );
-      } catch (e) {
-        debugPrint('Error saving item: $e');
+        if (!shouldContinue) return;
       }
-    }
 
-    if (widget.onItemCreated != null) {
-      await widget.onItemCreated!(itemData);
-    }
+      setState(() => _isSaving = true);
 
-    if (mounted) {
-      Navigator.of(context).pop(itemData);
-    }
+      final taxMatch =
+          RegExp(r'(\d+)%').firstMatch(_selectedTaxCategory);
+
+      final rate = taxMatch != null
+          ? double.tryParse(taxMatch.group(1)!) ?? 18.0
+          : 0.0;
+
+      final itemData = {
+        'name': _nameController.text.trim(),
+        'hsn': _hsnController.text.trim(),
+        'unit': _unitController.text.trim().isEmpty
+            ? 'PCS'
+            : _unitController.text.trim().toUpperCase(),
+        'taxCategory': _selectedTaxCategory,
+        'taxRate': rate,
+        'salesPrice':
+            double.tryParse(_salesPriceController.text.trim()) ?? 0.0,
+        'purchasePrice':
+            double.tryParse(_purchasePriceController.text.trim()) ?? 0.0,
+        'mrp': double.tryParse(_mrpController.text.trim()) ?? 0.0,
+      };
+
+      final path =
+          widget.folderPath ?? widget.company?['folderPath']?.toString();
+
+      if (path != null && path.isNotEmpty) {
+        try {
+          final raw = await StorageService.loadCompanyMasters(
+            folderPath: path,
+          );
+
+          final itemsList = (raw['items'] as List? ?? [])
+              .map((e) => Map<String, dynamic>.from(e as Map))
+              .toList();
+
+          final originalName =
+              widget.initialItem?.name.trim().toLowerCase();
+
+          final newName =
+              itemData['name'].toString().trim().toLowerCase();
+
+          final idx = itemsList.indexWhere((i) {
+            final n =
+                (i['name'] ?? '').toString().trim().toLowerCase();
+
+            return widget.isEdit &&
+                    originalName != null &&
+                    originalName.isNotEmpty
+                ? n == originalName
+                : n == newName;
+          });
+
+          if (idx != -1) {
+            itemsList[idx] = itemData;
+          } else {
+            itemsList.add(itemData);
+          }
+
+          raw['items'] = itemsList;
+
+          await StorageService.saveCompanyMasters(
+            folderPath: path,
+            mastersData: raw,
+          );
+        } catch (e) {
+          debugPrint('Error saving item: $e');
+        }
+      }
+
+      if (widget.onItemCreated != null) {
+        await widget.onItemCreated!(itemData);
+      }
+
+      if (mounted) {
+        Navigator.of(context).pop(itemData);
+      }
+    }, message: 'Saving Item Master...');
   }
 
   // ---------------------------------------------------------------------------

@@ -4,6 +4,7 @@ import '../../constants/app_colors.dart';
 import '../../services/focus_policy_service.dart';
 import '../../services/storage_service.dart';
 import '../../utils/app_date_utils.dart';
+import '../../services/loading_service.dart';
 
 class ReportsDashboardScreen extends StatefulWidget {
   final Map<String, dynamic> company;
@@ -43,49 +44,51 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
   }
 
   Future<void> _loadFinancialData() async {
-    final folderPath = widget.company['folderPath']?.toString();
-    final fy = (widget.company['activeFinancialYear'] ?? AppDateUtils.defaultFinancialYear).toString();
+    await LoadingService.wrap(() async {
+      final folderPath = widget.company['folderPath']?.toString();
+      final fy = (widget.company['activeFinancialYear'] ?? AppDateUtils.defaultFinancialYear).toString();
 
-    if (folderPath != null) {
-      final vouchers = await StorageService.loadVouchers(
-        folderPath: folderPath,
-        financialYear: fy,
-      );
+      if (folderPath != null) {
+        final vouchers = await StorageService.loadVouchers(
+          folderPath: folderPath,
+          financialYear: fy,
+        );
 
-      double sales = 0.0, purchases = 0.0, receipts = 0.0, payments = 0.0;
-      double taxOut = 0.0, taxIn = 0.0;
+        double sales = 0.0, purchases = 0.0, receipts = 0.0, payments = 0.0;
+        double taxOut = 0.0, taxIn = 0.0;
 
-      for (final v in vouchers) {
-        final type = (v['voucherType'] ?? '').toString().toLowerCase();
-        final grandTotal = double.tryParse(v['grandTotal']?.toString() ?? '0') ?? 0.0;
-        final tax = double.tryParse(v['totalTax']?.toString() ?? '0') ?? 0.0;
+        for (final v in vouchers) {
+          final type = (v['voucherType'] ?? '').toString().toLowerCase();
+          final grandTotal = double.tryParse(v['grandTotal']?.toString() ?? '0') ?? 0.0;
+          final tax = double.tryParse(v['totalTax']?.toString() ?? '0') ?? 0.0;
 
-        if (type.contains('sale')) {
-          sales += grandTotal;
-          taxOut += tax;
-        } else if (type.contains('purchase')) {
-          purchases += grandTotal;
-          taxIn += tax;
-        } else if (type.contains('receipt') || type.contains('payment in')) {
-          receipts += grandTotal;
-        } else if (type.contains('payment') || type.contains('payment out')) {
-          payments += grandTotal;
+          if (type.contains('sale')) {
+            sales += grandTotal;
+            taxOut += tax;
+          } else if (type.contains('purchase')) {
+            purchases += grandTotal;
+            taxIn += tax;
+          } else if (type.contains('receipt') || type.contains('payment in')) {
+            receipts += grandTotal;
+          } else if (type.contains('payment') || type.contains('payment out')) {
+            payments += grandTotal;
+          }
+        }
+
+        if (mounted) {
+          setState(() {
+            _allVouchers = vouchers;
+            _totalSales = sales;
+            _totalPurchases = purchases;
+            _totalReceipts = receipts;
+            _totalPayments = payments;
+            _totalTaxOutput = taxOut;
+            _totalTaxInput = taxIn;
+            _isLoading = false;
+          });
         }
       }
-
-      if (mounted) {
-        setState(() {
-          _allVouchers = vouchers;
-          _totalSales = sales;
-          _totalPurchases = purchases;
-          _totalReceipts = receipts;
-          _totalPayments = payments;
-          _totalTaxOutput = taxOut;
-          _totalTaxInput = taxIn;
-          _isLoading = false;
-        });
-      }
-    }
+    }, message: 'Recalculating Financial Reports...');
   }
 
   void _showExportSnack(String type) {

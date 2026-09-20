@@ -5,6 +5,7 @@ import '../../../services/keyboard_shortcut_service.dart';
 import '../../../services/storage_service.dart';
 import '../../../pages/company/voucher/voucher_entry_screen.dart';
 import '../../../pages/company/voucher/voucher_manage_list_screen.dart';
+import '../../../services/loading_service.dart';
 
 class VoucherModifyDialog extends StatefulWidget {
   final Map<String, dynamic> company;
@@ -42,35 +43,37 @@ class _VoucherModifyDialogState extends State<VoucherModifyDialog> {
   }
 
   Future<void> _loadVouchers() async {
-    final folderPath = widget.company['folderPath']?.toString();
-    final fy = (widget.company['activeFinancialYear'] ?? '2026-27').toString();
+    await LoadingService.wrap(() async {
+      final folderPath = widget.company['folderPath']?.toString();
+      final fy = (widget.company['activeFinancialYear'] ?? '2026-27').toString();
 
-    if (folderPath != null) {
-      final loaded = await StorageService.loadVouchers(
-        folderPath: folderPath,
-        financialYear: fy,
-        voucherType: widget.voucherType,
-      );
+      if (folderPath != null) {
+        final loaded = await StorageService.loadVouchers(
+          folderPath: folderPath,
+          financialYear: fy,
+          voucherType: widget.voucherType,
+        );
 
-      final matching = loaded.where((v) {
-        return (v['voucherType'] ?? '').toString().toLowerCase() ==
-            widget.voucherType.toLowerCase();
-      }).toList();
+        final matching = loaded.where((v) {
+          return (v['voucherType'] ?? '').toString().toLowerCase() ==
+              widget.voucherType.toLowerCase();
+        }).toList();
 
-      if (mounted) {
-        setState(() {
-          _vouchers = matching;
-          _isLoading = false;
-          if (_vouchers.isNotEmpty) {
-            _vchNoCtrl.text = (_vouchers.last['voucherNumber'] ?? '').toString();
-            _vchNoCtrl.selection = TextSelection(
-              baseOffset: 0,
-              extentOffset: _vchNoCtrl.text.length,
-            );
-          }
-        });
+        if (mounted) {
+          setState(() {
+            _vouchers = matching;
+            _isLoading = false;
+            if (_vouchers.isNotEmpty) {
+              _vchNoCtrl.text = (_vouchers.last['voucherNumber'] ?? '').toString();
+              _vchNoCtrl.selection = TextSelection(
+                baseOffset: 0,
+                extentOffset: _vchNoCtrl.text.length,
+              );
+            }
+          });
+        }
       }
-    }
+    }, message: 'Loading Vouchers...');
   }
 
   void _openEditForVoucherNumber(String vchNo) {

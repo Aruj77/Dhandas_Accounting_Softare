@@ -3,6 +3,7 @@ import '../../constants/app_colors.dart';
 import '../../services/storage_service.dart';
 import '../../utils/app_date_utils.dart';
 import '../common/app_dialog_frame.dart';
+import '../../../services/loading_service.dart';
 
 class DateRangeDialog extends StatefulWidget {
   final Map<String, dynamic> company;
@@ -39,33 +40,35 @@ class _DateRangeDialogState extends State<DateRangeDialog> {
   }
 
   Future<void> _loadSeries() async {
-    try {
-      final folderPath = widget.company['folderPath']?.toString();
-      final seriesList = <String>['All'];
-      if (folderPath != null) {
-        final rawMasters = await StorageService.loadCompanyMasters(folderPath: folderPath);
-        final loadedSeries = rawMasters['series'] as List? ?? ['Main'];
-        for (final s in loadedSeries) {
-          if (s != null && s.toString().trim().isNotEmpty) {
-            final name = s.toString().trim();
-            if (!seriesList.contains(name)) {
-              seriesList.add(name);
+    await LoadingService.wrap(() async {
+      try {
+        final folderPath = widget.company['folderPath']?.toString();
+        final seriesList = <String>['All'];
+        if (folderPath != null) {
+          final rawMasters = await StorageService.loadCompanyMasters(folderPath: folderPath);
+          final loadedSeries = rawMasters['series'] as List? ?? ['Main'];
+          for (final s in loadedSeries) {
+            if (s != null && s.toString().trim().isNotEmpty) {
+              final name = s.toString().trim();
+              if (!seriesList.contains(name)) {
+                seriesList.add(name);
+              }
             }
           }
         }
+        if (!seriesList.contains('Main')) {
+          seriesList.add('Main');
+        }
+        if (mounted) {
+          setState(() {
+            _availableSeries = seriesList;
+            _isLoadingSeries = false;
+          });
+        }
+      } catch (_) {
+        if (mounted) setState(() => _isLoadingSeries = false);
       }
-      if (!seriesList.contains('Main')) {
-        seriesList.add('Main');
-      }
-      if (mounted) {
-        setState(() {
-          _availableSeries = seriesList;
-          _isLoadingSeries = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) setState(() => _isLoadingSeries = false);
-    }
+    }, message: '');
   }
 
   @override

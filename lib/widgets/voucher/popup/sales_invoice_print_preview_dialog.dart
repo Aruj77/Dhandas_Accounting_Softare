@@ -6,6 +6,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../../../constants/app_colors.dart';
 import '../../../services/storage_service.dart';
+import '../../../services/loading_service.dart';
 
 class SalesInvoicePrintPreviewDialog extends StatefulWidget {
   final Map<String, dynamic> company;
@@ -100,43 +101,45 @@ class _SalesInvoicePrintPreviewDialogState
   }
 
   Future<void> _saveBankDetailsToCompany() async {
-    setState(() => _isSavingBankDetails = true);
-    try {
-      final updatedCompany = Map<String, dynamic>.from(widget.company);
-      updatedCompany['bankName'] = _bankNameCtrl.text.trim();
-      updatedCompany['accountNo'] = _accountNoCtrl.text.trim();
-      updatedCompany['ifsc'] = _ifscCtrl.text.trim();
+    await LoadingService.wrap(() async {
+      setState(() => _isSavingBankDetails = true);
+      try {
+        final updatedCompany = Map<String, dynamic>.from(widget.company);
+        updatedCompany['bankName'] = _bankNameCtrl.text.trim();
+        updatedCompany['accountNo'] = _accountNoCtrl.text.trim();
+        updatedCompany['ifsc'] = _ifscCtrl.text.trim();
 
-      await StorageService.updateCompanyLocally(companyData: updatedCompany);
+        await StorageService.updateCompanyLocally(companyData: updatedCompany);
 
-      widget.company['bankName'] = updatedCompany['bankName'];
-      widget.company['accountNo'] = updatedCompany['accountNo'];
-      widget.company['ifsc'] = updatedCompany['ifsc'];
+        widget.company['bankName'] = updatedCompany['bankName'];
+        widget.company['accountNo'] = updatedCompany['accountNo'];
+        widget.company['ifsc'] = updatedCompany['ifsc'];
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Bank details saved to Company profile (company.json)'),
-            backgroundColor: AppColors.success,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Bank details saved to Company profile (company.json)'),
+              backgroundColor: AppColors.success,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to save bank details: $e'),
+              backgroundColor: AppColors.error,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isSavingBankDetails = false);
+        }
       }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to save bank details: $e'),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isSavingBankDetails = false);
-      }
-    }
+    }, message: 'Saving Bank Details...');
   }
 
   PdfPageFormat _getActiveFormat() {

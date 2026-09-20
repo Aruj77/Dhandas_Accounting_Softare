@@ -27,6 +27,7 @@ import '../../../widgets/voucher/voucher_summary_card.dart';
 import '../../../widgets/voucher/voucher_sundry_card.dart';
 import '../../../widgets/voucher/voucher_sundry_row.dart';
 import '../../../utils/voucher_master_actions.dart';
+import '../../../services/loading_service.dart';
 
 class VoucherEntryScreen extends StatefulWidget {
   final Map<String, dynamic> company;
@@ -252,85 +253,91 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   }
 
   Future<void> _loadCompanyMastersOnly() async {
-    final folderPath = widget.company['folderPath'];
-    if (folderPath == null) return;
-    final rawMasters = await StorageService.loadCompanyMasters(folderPath: folderPath);
+    await LoadingService.wrap(() async {  
+      final folderPath = widget.company['folderPath'];
+      if (folderPath == null) return;
+      final rawMasters = await StorageService.loadCompanyMasters(folderPath: folderPath);
 
-    PartyMasterModel parseParty(dynamic d, String defaultGroup) => PartyMasterModel(
-      name: d['name']?.toString() ?? '',
-      gstin: d['gstin']?.toString() ?? '',
-      group: d['group']?.toString() ?? defaultGroup,
-    );
+      PartyMasterModel parseParty(dynamic d, String defaultGroup) => PartyMasterModel(
+        name: d['name']?.toString() ?? '',
+        gstin: d['gstin']?.toString() ?? '',
+        group: d['group']?.toString() ?? defaultGroup,
+      );
 
-    _debtorsList = (rawMasters['debtors'] as List? ?? []).map((d) => parseParty(d, 'Sundry Debtors')).toList();
-    _creditorsList = (rawMasters['creditors'] as List? ?? []).map((c) => parseParty(c, 'Sundry Creditors')).toList();
+      _debtorsList = (rawMasters['debtors'] as List? ?? []).map((d) => parseParty(d, 'Sundry Debtors')).toList();
+      _creditorsList = (rawMasters['creditors'] as List? ?? []).map((c) => parseParty(c, 'Sundry Creditors')).toList();
 
-    _itemsMasterList = (rawMasters['items'] as List? ?? []).map((i) => ItemMasterModel(
-      name: i['name']?.toString() ?? '',
-      hsn: i['hsn']?.toString() ?? '',
-      unit: i['unit']?.toString() ?? 'PCS',
-      taxCategory: i['taxCategory']?.toString() ?? 'GST 18%',
-      taxRate: (i['taxRate'] as num?)?.toDouble() ?? 18.0,
-      salesPrice: (i['salesPrice'] as num?)?.toDouble() ?? 0.0,
-      purchasePrice: (i['purchasePrice'] as num?)?.toDouble() ?? 0.0,
-      mrp: (i['mrp'] as num?)?.toDouble() ?? 0.0,
-    )).toList();
+      _itemsMasterList = (rawMasters['items'] as List? ?? []).map((i) => ItemMasterModel(
+        name: i['name']?.toString() ?? '',
+        hsn: i['hsn']?.toString() ?? '',
+        unit: i['unit']?.toString() ?? 'PCS',
+        taxCategory: i['taxCategory']?.toString() ?? 'GST 18%',
+        taxRate: (i['taxRate'] as num?)?.toDouble() ?? 18.0,
+        salesPrice: (i['salesPrice'] as num?)?.toDouble() ?? 0.0,
+        purchasePrice: (i['purchasePrice'] as num?)?.toDouble() ?? 0.0,
+        mrp: (i['mrp'] as num?)?.toDouble() ?? 0.0,
+      )).toList();
 
-    _availableSeries
-      ..clear()
-      ..addAll((rawMasters['series'] as List? ?? ['Main']).map((s) => s.toString().trim()).where((s) => s.isNotEmpty));
-    if (!_availableSeries.contains('Main')) _availableSeries.insert(0, 'Main');
+      _availableSeries
+        ..clear()
+        ..addAll((rawMasters['series'] as List? ?? ['Main']).map((s) => s.toString().trim()).where((s) => s.isNotEmpty));
+      if (!_availableSeries.contains('Main')) _availableSeries.insert(0, 'Main');
 
-    if (rawMasters['seriesSettings'] is Map<String, dynamic>) {
-      _seriesSettings.addAll(rawMasters['seriesSettings']);
-    }
+      if (rawMasters['seriesSettings'] is Map<String, dynamic>) {
+        _seriesSettings.addAll(rawMasters['seriesSettings']);
+      }
 
-    _availableSaleTypes = (rawMasters['saleTypes'] as List? ?? []).map((e) => e.toString()).toList();
-    _availableSundries = (rawMasters['billSundries'] as List? ?? []).map((e) => e.toString()).toList();
-    _availableMaterialCenters = (rawMasters['materialCenters'] as List? ?? []).map((e) => e.toString()).toList();
-    _availableUnits = (rawMasters['units'] as List? ?? []).map((e) => e.toString()).toList();
-    _availableTaxCategories = (rawMasters['taxCategories'] as List? ?? []).map((e) => e.toString()).toList();
-    _availableAccountGroups = (rawMasters['accountGroups'] as List? ?? []).map((e) => e.toString()).toList();
+      _availableSaleTypes = (rawMasters['saleTypes'] as List? ?? []).map((e) => e.toString()).toList();
+      _availableSundries = (rawMasters['billSundries'] as List? ?? []).map((e) => e.toString()).toList();
+      _availableMaterialCenters = (rawMasters['materialCenters'] as List? ?? []).map((e) => e.toString()).toList();
+      _availableUnits = (rawMasters['units'] as List? ?? []).map((e) => e.toString()).toList();
+      _availableTaxCategories = (rawMasters['taxCategories'] as List? ?? []).map((e) => e.toString()).toList();
+      _availableAccountGroups = (rawMasters['accountGroups'] as List? ?? []).map((e) => e.toString()).toList();
 
-    if (_matCenterController.text.isEmpty && _availableMaterialCenters.isNotEmpty) {
-      _matCenterController.text = _availableMaterialCenters.first;
-    }
+      if (_matCenterController.text.isEmpty && _availableMaterialCenters.isNotEmpty) {
+        _matCenterController.text = _availableMaterialCenters.first;
+      }
 
-    if (mounted) setState(() {});
+      if (mounted) setState(() {});
+    }, message:'Loading Master Records...');
   }
 
   Future<void> _syncMastersToFile() async {
-    final folderPath = widget.company['folderPath'];
-    if (folderPath == null) return;
-    await StorageService.saveCompanyMasters(
-      folderPath: folderPath,
-      mastersData: {
-        'debtors': _debtorsList.map((d) => {'name': d.name, 'gstin': d.gstin, 'group': d.group}).toList(),
-        'creditors': _creditorsList.map((c) => {'name': c.name, 'gstin': c.gstin, 'group': c.group}).toList(),
-        'items': _itemsMasterList.map((i) => {
-          'name': i.name, 'hsn': i.hsn, 'unit': i.unit, 'taxCategory': i.taxCategory,
-          'taxRate': i.taxRate, 'salesPrice': i.salesPrice, 'purchasePrice': i.purchasePrice, 'mrp': i.mrp,
-        }).toList(),
-        'series': _availableSeries,
-        'seriesSettings': _seriesSettings,
-        'saleTypes': _availableSaleTypes,
-        'billSundries': _availableSundries,
-        'materialCenters': _availableMaterialCenters,
-        'units': _availableUnits,
-        'taxCategories': _availableTaxCategories,
-        'accountGroups': _availableAccountGroups,
-      },
-    );
+    await LoadingService.wrap(() async {
+      final folderPath = widget.company['folderPath'];
+      if (folderPath == null) return;
+      await StorageService.saveCompanyMasters(
+        folderPath: folderPath,
+        mastersData: {
+          'debtors': _debtorsList.map((d) => {'name': d.name, 'gstin': d.gstin, 'group': d.group}).toList(),
+          'creditors': _creditorsList.map((c) => {'name': c.name, 'gstin': c.gstin, 'group': c.group}).toList(),
+          'items': _itemsMasterList.map((i) => {
+            'name': i.name, 'hsn': i.hsn, 'unit': i.unit, 'taxCategory': i.taxCategory,
+            'taxRate': i.taxRate, 'salesPrice': i.salesPrice, 'purchasePrice': i.purchasePrice, 'mrp': i.mrp,
+          }).toList(),
+          'series': _availableSeries,
+          'seriesSettings': _seriesSettings,
+          'saleTypes': _availableSaleTypes,
+          'billSundries': _availableSundries,
+          'materialCenters': _availableMaterialCenters,
+          'units': _availableUnits,
+          'taxCategories': _availableTaxCategories,
+          'accountGroups': _availableAccountGroups,
+        },
+      );
+    }, message:'Updating Masters Records...');
   }
 
   Future<void> _autogenerateVoucherNumber(String seriesName) async {
-    final nextNo = await VoucherNumberingService.autogenerate(
-      company: widget.company,
-      voucherType: widget.voucherType,
-      seriesName: seriesName,
-      seriesSettings: _seriesSettings[seriesName] ?? {},
-    );
-    if (nextNo != null && mounted) setState(() => _vchNoController.text = nextNo);
+    await LoadingService.wrap(() async {
+      final nextNo = await VoucherNumberingService.autogenerate(
+        company: widget.company,
+        voucherType: widget.voucherType,
+        seriesName: seriesName,
+        seriesSettings: _seriesSettings[seriesName] ?? {},
+      );
+      if (nextNo != null && mounted) setState(() => _vchNoController.text = nextNo);
+    }, message:'');
   }
 
   void _attachItemRowListeners(VoucherItemRow row) {
@@ -1025,52 +1032,54 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   }
 
   Future<void> _executeVoucherPersistence() async {
-    final payload = _buildCurrentVoucherPayload();
-    final folderPath = widget.company['folderPath'];
-    if (folderPath == null) return;
+    await LoadingService.wrap(() async {
+      final payload = _buildCurrentVoucherPayload();
+      final folderPath = widget.company['folderPath'];
+      if (folderPath == null) return;
 
-    await StorageService.saveVoucher(
-      folderPath: folderPath,
-      financialYear: widget.company['activeFinancialYear']?.toString() ?? AppDateUtils.defaultFinancialYear,
-      voucherData: payload,
-    );
-    if (!mounted) return;
-    _notify('${widget.voucherType} [${_vchNoController.text}] saved!');
-
-    if (_isSalesVoucher) {
-      final shouldPrint = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          backgroundColor: AppColors.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Row(children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-              child: const Icon(Icons.print_rounded, color: AppColors.primary, size: 20),
-            ),
-            const SizedBox(width: 10),
-            const Text('Print Invoice', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
-          ]),
-          content: Text('Sales invoice [${_vchNoController.text}] saved successfully.\n\nOpen Print Studio preview now?', style: const TextStyle(color: AppColors.textSecondary)),
-          actions: [
-            OutlinedButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-              child: const Text('Open Print Studio', style: TextStyle(color: AppColors.surface, fontWeight: FontWeight.w800)),
-            ),
-          ],
-        ),
+      await StorageService.saveVoucher(
+        folderPath: folderPath,
+        financialYear: widget.company['activeFinancialYear']?.toString() ?? AppDateUtils.defaultFinancialYear,
+        voucherData: payload,
       );
-      if ((shouldPrint ?? false) && mounted) {
-        await showDialog(
+      if (!mounted) return;
+      _notify('${widget.voucherType} [${_vchNoController.text}] saved!');
+
+      if (_isSalesVoucher) {
+        final shouldPrint = await showDialog<bool>(
           context: context,
-          builder: (_) => SalesInvoicePrintPreviewDialog(company: widget.company, voucherData: payload),
+          builder: (ctx) => AlertDialog(
+            backgroundColor: AppColors.surface,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+                child: const Icon(Icons.print_rounded, color: AppColors.primary, size: 20),
+              ),
+              const SizedBox(width: 10),
+              const Text('Print Invoice', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+            ]),
+            content: Text('Sales invoice [${_vchNoController.text}] saved successfully.\n\nOpen Print Studio preview now?', style: const TextStyle(color: AppColors.textSecondary)),
+            actions: [
+              OutlinedButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                child: const Text('Open Print Studio', style: TextStyle(color: AppColors.surface, fontWeight: FontWeight.w800)),
+              ),
+            ],
+          ),
         );
+        if ((shouldPrint ?? false) && mounted) {
+          await showDialog(
+            context: context,
+            builder: (_) => SalesInvoicePrintPreviewDialog(company: widget.company, voucherData: payload),
+          );
+        }
       }
-    }
-    widget.isEdit ? widget.onClose() : _initializeNewVoucher();
+      widget.isEdit ? widget.onClose() : _initializeNewVoucher();
+    }, message:'Saving ${widget.voucherType}...');
   }
 
   void _handleItemRowEnter(int index, String field) {

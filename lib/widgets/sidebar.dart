@@ -9,6 +9,7 @@ class SideBar extends StatefulWidget {
   final Map<String, dynamic>? activeCompany;
   final VoidCallback? onSwitchCompany;
   final VoidCallback? onMoveToRightPane;
+  final VoidCallback? onHelpTap;
 
   const SideBar({
     super.key,
@@ -17,6 +18,7 @@ class SideBar extends StatefulWidget {
     this.activeCompany,
     this.onSwitchCompany,
     this.onMoveToRightPane,
+    this.onHelpTap,
   });
 
   @override
@@ -335,8 +337,95 @@ class SideBarState extends State<SideBar> {
               },
             ),
           ),
+
+          // --- Need Help Section Card ---
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.primaryLight.withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: AppColors.borderSubtle.withValues(alpha: 0.7),
+                  width: 1.2,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.headset_mic_outlined,
+                        size: 26,
+                        color: AppColors.primary,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: const [
+                            Text(
+                              'Need Help?',
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            SizedBox(height: 3),
+                            Text(
+                              'User guide, support and more',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textSecondary,
+                                height: 1.3,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  InkWell(
+                    onTap: widget.onHelpTap,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Text(
+                            'Get Help',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          SizedBox(width: 6),
+                          Icon(
+                            Icons.arrow_forward_rounded,
+                            size: 15,
+                            color: AppColors.primary,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // --- Footer ---
           const Padding(
-            padding: EdgeInsets.fromLTRB(22, 10, 20, 20),
+            padding: EdgeInsets.fromLTRB(22, 6, 20, 20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
