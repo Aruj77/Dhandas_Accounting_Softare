@@ -23,6 +23,7 @@ enum FocusTargetScreen {
   voucherSaveConfirmDialog,
   dateRangeDialog,
   missingVchNoWarningDialog,
+  duplicateVchNoWarningDialog,
   masterNotFoundDialog,
   taxMismatchWarningDialog,
   unsavedChangesDialog,
@@ -67,7 +68,6 @@ class FocusPolicyService {
     FocusTargetScreen.voucherManageList: FocusFieldNode.searchField,
     FocusTargetScreen.mastersDashboard: FocusFieldNode.firstField,
     FocusTargetScreen.masterActionsSheet: FocusFieldNode.secondaryAction,
-
     FocusTargetScreen.administration: FocusFieldNode.firstField,
     FocusTargetScreen.reportsDashboard: FocusFieldNode.firstField,
     FocusTargetScreen.settings: FocusFieldNode.firstField,
@@ -84,6 +84,7 @@ class FocusPolicyService {
     FocusTargetScreen.voucherSaveConfirmDialog: FocusFieldNode.confirmYesButton,
     FocusTargetScreen.dateRangeDialog: FocusFieldNode.firstField,
     FocusTargetScreen.missingVchNoWarningDialog: FocusFieldNode.confirmNoButton,
+    FocusTargetScreen.duplicateVchNoWarningDialog: FocusFieldNode.confirmNoButton,
     FocusTargetScreen.masterNotFoundDialog: FocusFieldNode.confirmYesButton,
     FocusTargetScreen.taxMismatchWarningDialog: FocusFieldNode.confirmYesButton,
     FocusTargetScreen.unsavedChangesDialog: FocusFieldNode.confirmNoButton,

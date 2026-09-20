@@ -312,15 +312,42 @@ class StorageService {
       await vouchersDir.create(recursive: true);
     }
 
+    final voucherId = voucherData['id']?.toString().trim() ?? '';
+    final newVchNo = voucherData['voucherNumber']?.toString().trim() ?? '';
     final seriesName = voucherData['series']?.toString();
-    final targetFileName =
-        resolveVoucherFileName(voucherData['voucherType'] ?? 'voucher', seriesName);
-    final file = File('${vouchersDir.path}${Platform.pathSeparator}$targetFileName');
+    final targetFileName = resolveVoucherFileName(
+      voucherData['voucherType'] ?? 'voucher',
+      seriesName,
+    );
+    final targetFile = File('${vouchersDir.path}${Platform.pathSeparator}$targetFileName');
+
+    // Clean up older copies of this voucher ID from other series files if series changed
+    if (voucherId.isNotEmpty) {
+      await for (final entity in vouchersDir.list()) {
+        if (entity is File && entity.path.endsWith('.json') && entity.path != targetFile.path) {
+          try {
+            final content = await entity.readAsString();
+            final parsed = jsonDecode(content);
+            if (parsed is List) {
+              final initialLen = parsed.length;
+              parsed.removeWhere((item) =>
+                  item is Map<String, dynamic> &&
+                  item['id']?.toString().trim() == voucherId);
+              if (parsed.length != initialLen) {
+                await entity.writeAsString(
+                  const JsonEncoder.withIndent('  ').convert(parsed),
+                );
+              }
+            }
+          } catch (_) {}
+        }
+      }
+    }
 
     List<dynamic> voucherList = [];
-    if (await file.exists()) {
+    if (await targetFile.exists()) {
       try {
-        final content = await file.readAsString();
+        final content = await targetFile.readAsString();
         final parsed = jsonDecode(content);
         if (parsed is List) {
           voucherList = parsed;
@@ -328,18 +355,27 @@ class StorageService {
       } catch (_) {}
     }
 
-    final newVchNo = voucherData['voucherNumber']?.toString().trim() ?? '';
-    final existingIndex = voucherList.indexWhere((item) =>
-        item is Map<String, dynamic> &&
-        (item['voucherNumber']?.toString().trim() ?? '') == newVchNo);
+    // Match on unique ID first; fallback to voucher number only if no ID exists
+    int existingIndex = -1;
+    if (voucherId.isNotEmpty) {
+      existingIndex = voucherList.indexWhere((item) =>
+          item is Map<String, dynamic> &&
+          (item['id']?.toString().trim() ?? '') == voucherId);
+    }
 
-    if (existingIndex != -1 && newVchNo.isNotEmpty) {
+    if (existingIndex == -1 && newVchNo.isNotEmpty) {
+      existingIndex = voucherList.indexWhere((item) =>
+          item is Map<String, dynamic> &&
+          (item['voucherNumber']?.toString().trim() ?? '') == newVchNo);
+    }
+
+    if (existingIndex != -1) {
       voucherList[existingIndex] = voucherData;
     } else {
       voucherList.add(voucherData);
     }
 
-    await file.writeAsString(
+    await targetFile.writeAsString(
       const JsonEncoder.withIndent('  ').convert(voucherList),
     );
   }

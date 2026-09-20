@@ -108,12 +108,16 @@ class KeyboardShortcutService {
   static const String switchWorkspaceAction = 'switchWorkspace';
   static const String saveVoucherAction = 'saveVoucher';
 
-  static const String quickAddMasterAction = 'quickAddMaster';       
-  static const String modifyMasterAction = 'modifyMaster';         
-  static const String previousVoucherAction = 'previousVoucher';     
-  static const String nextVoucherAction = 'nextVoucher';            
-  static const String printInvoiceAction = 'printInvoice';           
-  static const String calculatorAction = 'calculator';              
+  // --- Fixed Hardware Action Identifiers ---
+  static const String quickAddMasterAction = 'quickAddMaster';       // Alt + C
+  static const String modifyMasterAction = 'modifyMaster';           // Alt + E
+  static const String previousVoucherAction = 'previousVoucher';     // Alt + P
+  static const String nextVoucherAction = 'nextVoucher';             // Alt + N
+  static const String printInvoiceAction = 'printInvoice';           // Ctrl/Cmd + P
+  static const String calculatorAction = 'calculator';               // F4
+  static const String exportExcelAction = 'exportExcel';             // Ctrl + E
+  static const String exportJsonAction = 'exportJson';               // Ctrl + J
+  static const String columnsDialogAction = 'columnsDialog';         // Ctrl + Q
 
   // --- Key Code Constants ---
   static const String keyEscape = 'escape';
@@ -196,6 +200,30 @@ class KeyboardShortcutService {
     final hw = HardwareKeyboard.instance;
     return (hw.isControlPressed || hw.isMetaPressed) &&
         event.logicalKey == LogicalKeyboardKey.keyP;
+  }
+
+  /// Ctrl + E / Cmd + E: Export to Excel Workbook
+  static bool isExportExcel(KeyEvent event) {
+    if (event is! KeyDownEvent) return false;
+    final hw = HardwareKeyboard.instance;
+    return (hw.isControlPressed || hw.isMetaPressed) &&
+        event.logicalKey == LogicalKeyboardKey.keyE;
+  }
+
+  /// Ctrl + J / Cmd + J: Export to JSON
+  static bool isExportJson(KeyEvent event) {
+    if (event is! KeyDownEvent) return false;
+    final hw = HardwareKeyboard.instance;
+    return (hw.isControlPressed || hw.isMetaPressed) &&
+        event.logicalKey == LogicalKeyboardKey.keyJ;
+  }
+
+  /// Ctrl + Q / Cmd + Q: Customize Columns Dialog
+  static bool isColumnsDialog(KeyEvent event) {
+    if (event is! KeyDownEvent) return false;
+    final hw = HardwareKeyboard.instance;
+    return (hw.isControlPressed || hw.isMetaPressed) &&
+        event.logicalKey == LogicalKeyboardKey.keyQ;
   }
 
   /// F4: Quick Calculator

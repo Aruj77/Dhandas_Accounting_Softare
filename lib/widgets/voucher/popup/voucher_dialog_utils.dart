@@ -1,8 +1,9 @@
-// lib/widgets/voucher/popup/voucher_dialog_utils.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../constants/app_colors.dart';
 import '../../../services/focus_policy_service.dart';
+
+enum DuplicateVchAction { no, openVoucher, yes }
 
 class VoucherDialogUtils {
   static void showMissingVchNoWarning({
@@ -16,6 +17,25 @@ class VoucherDialogUtils {
       builder: (ctx) => _MissingVchNoDialog(
         onConfirm: onConfirm,
         onCancel: onCancel,
+      ),
+    );
+  }
+
+  static void showDuplicateVchNoWarning({
+    required BuildContext context,
+    required String companyName,
+    required VoidCallback onNo,
+    required VoidCallback onOpenVoucher,
+    required VoidCallback onYes,
+  }) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => _DuplicateVchNoDialog(
+        companyName: companyName,
+        onNo: onNo,
+        onOpenVoucher: onOpenVoucher,
+        onYes: onYes,
       ),
     );
   }
@@ -94,7 +114,7 @@ class _UnsavedChangesDialogState extends State<_UnsavedChangesDialog> {
     return AutoScreenFocus(
       screen: FocusTargetScreen.unsavedChangesDialog,
       nodeMap: {
-        FocusFieldNode.confirmNoButton: _keepEditingNode, // Default Focus Target
+        FocusFieldNode.confirmNoButton: _keepEditingNode,
         FocusFieldNode.confirmYesButton: _discardNode,
       },
       child: AlertDialog(
@@ -245,7 +265,129 @@ class _MissingVchNoDialogState extends State<_MissingVchNoDialog> {
 }
 
 // ---------------------------------------------------------------------------
-// 3. Master Not Found Dialog
+// 3. Duplicate Voucher Number Warning Dialog (Focus on "No")
+// ---------------------------------------------------------------------------
+class _DuplicateVchNoDialog extends StatefulWidget {
+  final String companyName;
+  final VoidCallback onNo;
+  final VoidCallback onOpenVoucher;
+  final VoidCallback onYes;
+
+  const _DuplicateVchNoDialog({
+    required this.companyName,
+    required this.onNo,
+    required this.onOpenVoucher,
+    required this.onYes,
+  });
+
+  @override
+  State<_DuplicateVchNoDialog> createState() => _DuplicateVchNoDialogState();
+}
+
+class _DuplicateVchNoDialogState extends State<_DuplicateVchNoDialog> {
+  final FocusNode _noFocusNode = FocusNode();
+  final FocusNode _openFocusNode = FocusNode();
+  final FocusNode _yesFocusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _noFocusNode.canRequestFocus) {
+        _noFocusNode.requestFocus();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _noFocusNode.dispose();
+    _openFocusNode.dispose();
+    _yesFocusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AutoScreenFocus(
+      screen: FocusTargetScreen.duplicateVchNoWarningDialog,
+      nodeMap: {
+        FocusFieldNode.confirmNoButton: _noFocusNode,
+        FocusFieldNode.confirmYesButton: _yesFocusNode,
+      },
+      child: AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: AppColors.badgeYellowBg,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.warning_amber_rounded,
+                color: AppColors.warning,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Text(
+                'Voucher Number Exists',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primaryDark,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'This voucher no is already assigned to ${widget.companyName}. Do you still want to continue?',
+          style: const TextStyle(fontSize: 13, color: AppColors.textPrimary, height: 1.4),
+        ),
+        actions: [
+          _FocusableDialogButton(
+            focusNode: _noFocusNode,
+            isPrimary: true,
+            isDanger: true,
+            label: 'No',
+            onPressed: () {
+              Navigator.pop(context);
+              widget.onNo();
+            },
+          ),
+          const SizedBox(width: 8),
+          _FocusableDialogButton(
+            focusNode: _openFocusNode,
+            isPrimary: false,
+            label: 'Open Voucher',
+            onPressed: () {
+              Navigator.pop(context);
+              widget.onOpenVoucher();
+            },
+          ),
+          const SizedBox(width: 8),
+          _FocusableDialogButton(
+            focusNode: _yesFocusNode,
+            isPrimary: false,
+            label: 'Yes',
+            onPressed: () {
+              Navigator.pop(context);
+              widget.onYes();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 4. Master Not Found Dialog
 // ---------------------------------------------------------------------------
 class _MasterNotFoundDialog extends StatefulWidget {
   final String title;
@@ -344,7 +486,7 @@ class _MasterNotFoundDialogState extends State<_MasterNotFoundDialog> {
 }
 
 // ---------------------------------------------------------------------------
-// 4. Tax Mismatch Dialog
+// 5. Tax Mismatch Dialog
 // ---------------------------------------------------------------------------
 class _TaxMismatchDialog extends StatefulWidget {
   final String enteredType;

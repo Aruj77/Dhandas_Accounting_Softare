@@ -70,6 +70,10 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
 
   final List<Map<String, dynamic>> _sessionSavedVouchers = [];
   int _sessionIndex = -1;
+  late bool _isEditingExisting;
+
+  // Holds the active voucher record being edited so that its persistent ID is never lost
+  Map<String, dynamic>? _activeEditingVoucher;
 
   final List<VoucherItemRow> _items = [];
   final List<VoucherSundryRow> _sundries = [];
@@ -96,8 +100,10 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   bool _isAutoAdjustingSaleType = false;
   bool _isHandlingMasterNotFound = false;
   bool _isHandlingVchNoWarning = false;
+  bool _isHandlingDuplicateVchWarning = false;
   bool _isHandlingTaxMismatch = false;
   bool _allowEmptyVchNo = false;
+  bool _allowDuplicateVchNo = false;
   bool _isExitDialogOpen = false;
   String? _dateError;
 
@@ -107,7 +113,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   bool get _isSalesVoucher => widget.voucherType.toLowerCase().contains('sale');
   List<PartyMasterModel> get _currentAvailableParties => _isSalesVoucher ? _debtorsList : _creditorsList;
 
-  bool get _isViewingExistingVoucher => widget.isEdit || _sessionIndex != -1;
+  bool get _isViewingExistingVoucher => _isEditingExisting || _sessionIndex != -1;
 
   Color get _themeColor => _isSalesVoucher ? AppColors.warning : AppColors.primary;
   Color get _screenBg => _isSalesVoucher ? AppColors.salesScreenBg : AppColors.generalScreenBg;
@@ -116,6 +122,8 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   @override
   void initState() {
     super.initState();
+    _isEditingExisting = widget.isEdit;
+    _activeEditingVoucher = widget.voucherToEdit;
     HardwareKeyboard.instance.addHandler(_handleGlobalHardwareKey);
     _attachControllerListeners();
     if (widget.isEdit && widget.voucherToEdit != null) {
@@ -236,6 +244,11 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   }
 
   void _loadExistingVoucherData(Map<String, dynamic> v) {
+    setState(() {
+      _isEditingExisting = true;
+      _activeEditingVoucher = v;
+    });
+
     final series = v['series']?.toString() ?? 'Main';
     _seriesController.text = series;
     if (!_availableSeries.contains(series)) _availableSeries.add(series);
@@ -248,6 +261,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     _narrationController.text = v['narration']?.toString() ?? '';
     _isInterState = v['isInterState'] == true;
     _allowEmptyVchNo = _vchNoController.text.trim().isEmpty;
+    _allowDuplicateVchNo = true;
 
     final fy = v['financialYear']?.toString() ??
         widget.company['activeFinancialYear']?.toString() ??
@@ -506,15 +520,14 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     });
   }
 
-  void _attachControllerListeners() {
-    _dateFocusNode.addListener(() {
-      if (!_dateFocusNode.hasFocus) _parseAndValidateDate();
-    });
+  Future<void> _checkVoucherNumberOnBlur() async {
+    if (_isHandlingVchNoWarning || _isHandlingDuplicateVchWarning) return;
+    if (_isEditingExisting) return;
 
-    _vchNoFocus.addListener(() {
-      if (_vchNoFocus.hasFocus) {
-        _allowEmptyVchNo = false;
-      } else if (!_isHandlingVchNoWarning && !_allowEmptyVchNo && _vchNoController.text.trim().isEmpty) {
+    final vchText = _vchNoController.text.trim();
+
+    if (vchText.isEmpty) {
+      if (!_allowEmptyVchNo) {
         _isHandlingVchNoWarning = true;
         VoucherDialogUtils.showMissingVchNoWarning(
           context: context,
@@ -530,6 +543,72 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
           },
         );
       }
+      return;
+    }
+
+    if (_allowDuplicateVchNo) return;
+
+    final folderPath = widget.company['folderPath']?.toString();
+    final fy = (widget.company['activeFinancialYear'] ?? AppDateUtils.defaultFinancialYear).toString();
+    if (folderPath == null) return;
+
+    final existingVouchers = await StorageService.loadVouchers(
+      folderPath: folderPath,
+      financialYear: fy,
+      voucherType: widget.voucherType,
+      seriesName: _seriesController.text.trim(),
+    );
+
+    final currentId = _activeEditingVoucher?['id']?.toString() ?? widget.voucherToEdit?['id']?.toString();
+    final match = existingVouchers.where((v) {
+      final matchesNo = (v['voucherNumber'] ?? '').toString().trim().toLowerCase() == vchText.toLowerCase();
+      final isSelf = currentId != null && (v['id'] ?? '').toString() == currentId;
+      return matchesNo && !isSelf;
+    }).firstOrNull;
+
+    if (match != null && mounted) {
+      _isHandlingDuplicateVchWarning = true;
+      final assignedParty = GstPartyUtils.extractPartyName((match['party'] ?? '').toString());
+      final displayName = assignedParty.isNotEmpty ? assignedParty : (widget.company['companyName'] ?? 'Unknown Company');
+
+      VoucherDialogUtils.showDuplicateVchNoWarning(
+        context: context,
+        companyName: displayName,
+        onNo: () {
+          _isHandlingDuplicateVchWarning = false;
+          _allowDuplicateVchNo = false;
+          _vchNoController.clear();
+          _vchNoFocus.requestFocus();
+        },
+        onOpenVoucher: () {
+          _isHandlingDuplicateVchWarning = false;
+          _allowDuplicateVchNo = true;
+          _loadExistingVoucherData(match);
+        },
+        onYes: () {
+          _isHandlingDuplicateVchWarning = false;
+          _allowDuplicateVchNo = true;
+          _partyFocus.requestFocus();
+        },
+      );
+    }
+  }
+
+  void _attachControllerListeners() {
+    _dateFocusNode.addListener(() {
+      if (!_dateFocusNode.hasFocus) _parseAndValidateDate();
+    });
+
+    _vchNoFocus.addListener(() {
+      if (_vchNoFocus.hasFocus) {
+        _allowEmptyVchNo = false;
+      } else {
+        _checkVoucherNumberOnBlur();
+      }
+    });
+
+    _vchNoController.addListener(() {
+      _allowDuplicateVchNo = false;
     });
 
     _partyFocus.addListener(() {
@@ -683,8 +762,12 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     _matCenterController.text = _availableMaterialCenters.isNotEmpty ? _availableMaterialCenters.first : 'Main Store';
     _isInterState = false;
     _allowEmptyVchNo = false;
+    _allowDuplicateVchNo = false;
     _isHandlingVchNoWarning = false;
+    _isHandlingDuplicateVchWarning = false;
     _isHandlingTaxMismatch = false;
+    _isEditingExisting = false;
+    _activeEditingVoucher = null;
 
     final now = DateTime.now();
     _dateController.text = (now.isAfter(_fyStartDate) && now.isBefore(_fyEndDate))
@@ -983,8 +1066,13 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   }
 
   Map<String, dynamic> _buildCurrentVoucherPayload() {
+    // Preserve the original unique ID when editing a voucher so changes update in place
+    final persistentId = _activeEditingVoucher?['id'] ??
+        widget.voucherToEdit?['id'] ??
+        DateTime.now().millisecondsSinceEpoch.toString();
+
     return {
-      'id': widget.voucherToEdit?['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      'id': persistentId,
       'voucherType': widget.voucherType,
       'voucherNumber': _vchNoController.text.trim(),
       'date': _dateController.text,
@@ -1019,7 +1107,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
       'sundryTotal': _sundryTotal,
       'roundOff': _roundOff,
       'grandTotal': _grandTotal,
-      'createdAt': widget.voucherToEdit?['createdAt'] ?? DateTime.now().toIso8601String(),
+      'createdAt': _activeEditingVoucher?['createdAt'] ?? widget.voucherToEdit?['createdAt'] ?? DateTime.now().toIso8601String(),
     };
   }
 

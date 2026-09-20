@@ -105,7 +105,7 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
   }
 
   Future<void> _loadAvailableSeries() async {
-      await LoadingService.wrap(() async {
+    await LoadingService.wrap(() async {
       final folderPath = widget.company['folderPath']?.toString();
       final seriesSet = <String>{'All', 'Main'};
       if (_selectedSeries != 'All') {
@@ -202,10 +202,19 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
             _filtered = matching;
             _isLoading = false;
             _syncFocusNodes();
+            _focusedIndex = matching.isNotEmpty ? 0 : -1;
           });
+
+          if (_rowFocusNodes.isNotEmpty) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted && _rowFocusNodes.isNotEmpty && _rowFocusNodes[0].canRequestFocus) {
+                _rowFocusNodes[0].requestFocus();
+              }
+            });
+          }
         }
       }
-    }, message:'Loading ${widget.voucherType} register...');
+    }, message: 'Loading ${widget.voucherType} register...');
   }
 
   void _onSearch() {
@@ -226,11 +235,16 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
                       (it['item'] ?? '').toString().toLowerCase().contains(q));
             }).toList();
       _syncFocusNodes();
-      if (_rowFocusNodes.isNotEmpty) {
-        _rowFocusNodes[0].requestFocus();
-        _focusedIndex = 0;
-      }
+      _focusedIndex = _filtered.isNotEmpty ? 0 : -1;
     });
+
+    if (_rowFocusNodes.isNotEmpty && !_searchFocusNode.hasFocus) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _rowFocusNodes.isNotEmpty && _rowFocusNodes[0].canRequestFocus) {
+          _rowFocusNodes[0].requestFocus();
+        }
+      });
+    }
   }
 
   bool _hasEntries(String colKey) {
@@ -655,6 +669,42 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
     );
   }
 
+  KeyEventResult _handleGlobalKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+
+    // Esc: Close register
+    if (KeyboardShortcutService.isExit(event.logicalKey)) {
+      widget.onClose();
+      return KeyEventResult.handled;
+    }
+
+    // Ctrl + P: Print Preview Studio
+    if (KeyboardShortcutService.isPrint(event)) {
+      _triggerPrint();
+      return KeyEventResult.handled;
+    }
+
+    // Ctrl + E: Excel Export
+    if (KeyboardShortcutService.isExportExcel(event)) {
+      _handleExcelExport();
+      return KeyEventResult.handled;
+    }
+
+    // Ctrl + J: JSON Export
+    if (KeyboardShortcutService.isExportJson(event)) {
+      _exportToJson();
+      return KeyEventResult.handled;
+    }
+
+    // Ctrl + Q: Columns Configuration
+    if (KeyboardShortcutService.isColumnsDialog(event)) {
+      _openColumnSettingsDialog();
+      return KeyEventResult.handled;
+    }
+
+    return KeyEventResult.ignored;
+  }
+
   @override
   Widget build(BuildContext context) {
     final fy = widget.company['activeFinancialYear'] ?? AppDateUtils.defaultFinancialYear;
@@ -663,298 +713,364 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
       nodeMap: {
         FocusFieldNode.searchField: _searchFocusNode,
       },
-      child: Scaffold(
-        backgroundColor: AppColors.background,
-        body: Column(
-          children: [
-            Container(
-              height: 56,
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              decoration: const BoxDecoration(color: AppColors.surface, border: Border(bottom: BorderSide(color: AppColors.border, width: 1.2))),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(gradient: const LinearGradient(colors: [AppColors.primaryAccent, AppColors.primary]), borderRadius: BorderRadius.circular(8)),
-                    child: Row(children: [const Icon(Icons.format_list_bulleted_rounded, size: 16, color: AppColors.surface), const SizedBox(width: 6), Text('${widget.voucherType.toUpperCase()} REGISTER', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: AppColors.surface, letterSpacing: 0.5))]),
-                  ),
-                  const SizedBox(width: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(6), border: Border.all(color: AppColors.borderFocus)),
-                    child: Text('F.Y. $fy (${AppDateUtils.formatDate(widget.fromDate)} to ${AppDateUtils.formatDate(widget.toDate)})', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
-                  ),
-                  const SizedBox(width: 10),
-
-                  Container(
-                    height: 32,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.4), width: 1.2),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _availableSeries.contains(_selectedSeries) ? _selectedSeries : 'All',
-                        icon: const Icon(Icons.arrow_drop_down_rounded, size: 18, color: AppColors.primary),
-                        items: _availableSeries.map((s) => DropdownMenuItem(
-                          value: s,
-                          child: Text(
-                            s == 'All' ? 'Series: All' : 'Series: $s',
-                            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: AppColors.primary),
-                          ),
-                        )).toList(),
-                        onChanged: (val) {
-                          if (val != null && val != _selectedSeries) {
-                            setState(() {
-                              _selectedSeries = val;
-                              _isLoading = true;
-                            });
-                            _loadVouchers();
-                          }
-                        },
+      child: Focus(
+        autofocus: true,
+        onKeyEvent: _handleGlobalKeyEvent,
+        child: Scaffold(
+          backgroundColor: AppColors.background,
+          body: Column(
+            children: [
+              Container(
+                height: 56,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                decoration: const BoxDecoration(
+                  color: AppColors.surface,
+                  border: Border(bottom: BorderSide(color: AppColors.border, width: 1.2)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(colors: [AppColors.primaryAccent, AppColors.primary]),
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                    ),
-                  ),
-                  const Spacer(),
-                  TextButton.icon(onPressed: _openColumnSettingsDialog, icon: const Icon(Icons.view_column_rounded, size: 16, color: AppColors.info), label: const Text('Columns', style: TextStyle(color: AppColors.info, fontWeight: FontWeight.bold))),
-                  TextButton.icon(onPressed: _handleExcelExport, icon: const Icon(Icons.table_view_rounded, size: 16, color: AppColors.success), label: const Text('Excel', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold))),
-                  TextButton.icon(onPressed: _exportToJson, icon: const Icon(Icons.data_object_rounded, size: 16, color: AppColors.purple), label: const Text('JSON', style: TextStyle(color: AppColors.purple, fontWeight: FontWeight.bold))),
-                  TextButton.icon(onPressed: _triggerPrint, icon: const Icon(Icons.print_rounded, size: 16, color: AppColors.primary), label: const Text('Print', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold))),
-                  const SizedBox(width: 8),
-                  IconButton(icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textSecondary), onPressed: widget.onClose),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: 5,
-                    child: SizedBox(
-                      height: 38,
-                      child: TextField(
-                        controller: _searchCtrl,
-                        focusNode: _searchFocusNode,
-                        decoration: InputDecoration(
-                          hintText: 'Search by Voucher, Party, GSTIN, HSN...',
-                          prefixIcon: const Icon(Icons.search_rounded, size: 17, color: AppColors.primary),
-                          filled: true,
-                          fillColor: AppColors.surface,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.border)),
-                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.primary, width: 1.3)),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  QuickMetricBadge(label: 'Total Invoices', value: '${_summary.totalInvoices}', color: AppColors.primaryDark),
-                  const SizedBox(width: 8),
-                  QuickMetricBadge(label: 'Total Qty', value: _summary.totalQuantity.toStringAsFixed(2), color: AppColors.info),
-                  const SizedBox(width: 8),
-                  QuickMetricBadge(label: 'Taxable Val', value: '₹${_summary.totalTaxable.toStringAsFixed(2)}', color: AppColors.purple),
-                  const SizedBox(width: 8),
-                  QuickMetricBadge(label: 'Invoice Total', value: '₹${_summary.totalInvoiceValue.toStringAsFixed(2)}', color: AppColors.primary),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Container(
-                margin: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-                decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.border, width: 1.2)),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(14),
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final dynamicWidth = math.max(constraints.maxWidth, _calculateActiveMinWidth());
-                      return Column(
+                      child: Row(
                         children: [
-                          SingleChildScrollView(
-                            controller: _horizontalHeaderCtrl,
-                            scrollDirection: Axis.horizontal,
-                            child: Container(
-                              width: dynamicWidth,
-                              height: 40,
-                              decoration: const BoxDecoration(color: AppColors.cardBg, border: Border(bottom: BorderSide(color: AppColors.border, width: 1.2))),
-                              child: Row(
-                                children: [
-                                  if (_isColVisible('sno')) const RegisterHeaderCell('S.No.', width: 45),
-                                  if (_isColVisible('party')) const Expanded(flex: 3, child: RegisterHeaderCell('Party', width: double.infinity)),
-                                  if (_isColVisible('gstin')) const Expanded(flex: 2, child: RegisterHeaderCell('GSTIN', width: double.infinity)),
-                                  if (_isColVisible('pos')) const Expanded(flex: 2, child: RegisterHeaderCell('Place of Supply', width: double.infinity)),
-                                  if (_isColVisible('vchNo')) const RegisterHeaderCell('Voc. No.', width: 95),
-                                  if (_isColVisible('date')) const RegisterHeaderCell('Voc. Date', width: 85),
-                                  if (_isColVisible('qty')) const RegisterHeaderCell('Qty.', width: 65, textAlign: TextAlign.right),
-                                  if (_isColVisible('unit')) const RegisterHeaderCell('Unit', width: 50, textAlign: TextAlign.center),
-                                  if (_isColVisible('hsn')) const RegisterHeaderCell('HSN', width: 75),
-                                  if (_isColVisible('invoiceVal')) const RegisterHeaderCell('Invoice Value', width: 105, textAlign: TextAlign.right),
-                                  if (_isColVisible('taxable')) const RegisterHeaderCell('Taxable', width: 95, textAlign: TextAlign.right),
-                                  if (_isColVisible('taxRate')) const RegisterHeaderCell('Rate', width: 55, textAlign: TextAlign.right),
-                                  if (_isColVisible('igst')) const RegisterHeaderCell('IGST', width: 80, textAlign: TextAlign.right),
-                                  if (_isColVisible('cgst')) const RegisterHeaderCell('CGST', width: 80, textAlign: TextAlign.right),
-                                  if (_isColVisible('sgst')) const RegisterHeaderCell('SGST', width: 80, textAlign: TextAlign.right),
-                                  if (_isColVisible('cess')) const RegisterHeaderCell('Cess', width: 75, textAlign: TextAlign.right),
-                                ],
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: _isLoading
-                                ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-                                : _filtered.isEmpty
-                                    ? const Center(child: Text('No matching vouchers found.'))
-                                    : SingleChildScrollView(
-                                        controller: _horizontalBodyCtrl,
-                                        scrollDirection: Axis.horizontal,
-                                        child: SizedBox(
-                                          width: dynamicWidth,
-                                          child: ListView.separated(
-                                            itemCount: _filtered.length,
-                                            separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.borderLight),
-                                            itemBuilder: (context, idx) {
-                                              final v = _filtered[idx], fullParty = (v['party'] ?? '').toString(), gstin = GstPartyUtils.extractPartyGstin(fullParty);
-                                              final isInter = v['isInterState'] == true, items = v['items'] as List? ?? [];
-                                              final isFocused = _focusedIndex == idx;
-                                              if (_rowFocusNodes.length <= idx) _syncFocusNodes();
-
-                                              return Focus(
-                                                focusNode: _rowFocusNodes[idx],
-                                                onFocusChange: (f) {
-                                                  if (f) setState(() => _focusedIndex = idx);
-                                                },
-                                                onKeyEvent: (_, e) {
-                                                  if (e is KeyDownEvent) {
-                                                    if (KeyboardShortcutService.isConfirm(e.logicalKey)) {
-                                                      _openEdit(v);
-                                                      return KeyEventResult.handled;
-                                                    }
-                                                    if (KeyboardShortcutService.isDown(e.logicalKey)) {
-                                                      if (idx + 1 < _rowFocusNodes.length) {
-                                                        _rowFocusNodes[idx + 1].requestFocus();
-                                                      } else if (_rowFocusNodes.isNotEmpty) {
-                                                        _rowFocusNodes[0].requestFocus();
-                                                      }
-                                                      return KeyEventResult.handled;
-                                                    }
-                                                    if (KeyboardShortcutService.isUp(e.logicalKey)) {
-                                                      if (idx - 1 >= 0) {
-                                                        _rowFocusNodes[idx - 1].requestFocus();
-                                                      } else if (_rowFocusNodes.isNotEmpty) {
-                                                        _rowFocusNodes[_rowFocusNodes.length - 1].requestFocus();
-                                                      }
-                                                      return KeyEventResult.handled;
-                                                    }
-                                                  }
-                                                  return KeyEventResult.ignored;
-                                                },
-                                                child: GestureDetector(
-                                                  onDoubleTap: () => _openEdit(v),
-                                                  onTap: () {
-                                                    setState(() => _focusedIndex = idx);
-                                                    _rowFocusNodes[idx].requestFocus();
-                                                  },
-                                                  child: Container(
-                                                    decoration: BoxDecoration(
-                                                      color: isFocused ? AppColors.primaryLight : Colors.transparent,
-                                                      border: isFocused ? Border.all(color: AppColors.primary, width: 1.5) : null,
-                                                      borderRadius: isFocused ? BorderRadius.circular(6) : null,
-                                                    ),
-                                                    child: items.isEmpty
-                                                        ? _buildRegisterRow(
-                                                            sno: '${idx + 1}',
-                                                            party: GstPartyUtils.extractPartyName(fullParty),
-                                                            gstin: gstin,
-                                                            pos: _getPos(gstin, isInter),
-                                                            vchNo: v['voucherNumber'] ?? '',
-                                                            date: v['date'] ?? '',
-                                                            qty: '0.00',
-                                                            unit: 'Pcs',
-                                                            hsn: '',
-                                                            invoiceValue: (double.tryParse(v['grandTotal']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
-                                                            taxable: '0.00',
-                                                            taxRate: '0%',
-                                                            igst: (double.tryParse(v['igst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
-                                                            cgst: (double.tryParse(v['cgst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
-                                                            sgst: (double.tryParse(v['sgst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
-                                                            cess: GstPartyUtils.extractCessAmount(v).toStringAsFixed(2),
-                                                            rowWidth: dynamicWidth,
-                                                          )
-                                                        : Column(
-                                                            children: List.generate(items.length, (iIdx) {
-                                                              final item = items[iIdx];
-                                                              return _buildRegisterRow(
-                                                                sno: iIdx == 0 ? '${idx + 1}' : '',
-                                                                party: iIdx == 0 ? GstPartyUtils.extractPartyName(fullParty) : '',
-                                                                gstin: iIdx == 0 ? gstin : '',
-                                                                pos: iIdx == 0 ? _getPos(gstin, isInter) : '',
-                                                                vchNo: iIdx == 0 ? (v['voucherNumber'] ?? '') : '',
-                                                                date: iIdx == 0 ? (v['date'] ?? '') : '',
-                                                                qty: (double.tryParse(item['qty']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
-                                                                unit: (item['unit'] ?? 'Pcs').toString(),
-                                                                hsn: (item['hsn'] ?? '').toString(),
-                                                                invoiceValue: iIdx == 0 ? (double.tryParse(v['grandTotal']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2) : '',
-                                                                taxable: (double.tryParse(item['taxable']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
-                                                                taxRate: '${item['gstRate'] ?? 0}%',
-                                                                igst: (double.tryParse(item['igst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
-                                                                cgst: (double.tryParse(item['cgst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
-                                                                sgst: (double.tryParse(item['sgst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
-                                                                cess: iIdx == 0 ? GstPartyUtils.extractCessAmount(v).toStringAsFixed(2) : '',
-                                                                isSubRow: iIdx > 0,
-                                                                rowWidth: dynamicWidth,
-                                                              );
-                                                            }),
-                                                          ),
-                                                  ),
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                        ),
-                                      ),
-                          ),
-                          SingleChildScrollView(
-                            controller: _horizontalFooterCtrl,
-                            scrollDirection: Axis.horizontal,
-                            child: Container(
-                              width: dynamicWidth,
-                              height: 38,
-                              decoration: const BoxDecoration(
-                                color: AppColors.background,
-                                border: Border(top: BorderSide(color: AppColors.borderFocus, width: 1.2)),
-                              ),
-                              child: Row(
-                                children: [
-                                  if (_isColVisible('sno')) const RegisterFooterCell('', width: 45),
-                                  if (_isColVisible('party')) const Expanded(flex: 3, child: RegisterFooterCell('TOTAL', width: double.infinity)),
-                                  if (_isColVisible('gstin')) const Expanded(flex: 2, child: RegisterFooterCell('', width: double.infinity)),
-                                  if (_isColVisible('pos')) const Expanded(flex: 2, child: RegisterFooterCell('', width: double.infinity)),
-                                  if (_isColVisible('vchNo')) const RegisterFooterCell('', width: 95),
-                                  if (_isColVisible('date')) const RegisterFooterCell('', width: 85),
-                                  if (_isColVisible('qty')) RegisterFooterCell(_summary.totalQuantity.toStringAsFixed(2), width: 65, textAlign: TextAlign.right),
-                                  if (_isColVisible('unit')) const RegisterFooterCell('', width: 50),
-                                  if (_isColVisible('hsn')) const RegisterFooterCell('', width: 75),
-                                  if (_isColVisible('invoiceVal')) RegisterFooterCell(_summary.totalInvoiceValue.toStringAsFixed(2), width: 105, textAlign: TextAlign.right, highlight: true),
-                                  if (_isColVisible('taxable')) RegisterFooterCell(_summary.totalTaxable.toStringAsFixed(2), width: 95, textAlign: TextAlign.right),
-                                  if (_isColVisible('taxRate')) const RegisterFooterCell('', width: 55),
-                                  if (_isColVisible('igst')) RegisterFooterCell(_summary.totalIgst.toStringAsFixed(2), width: 80, textAlign: TextAlign.right),
-                                  if (_isColVisible('cgst')) RegisterFooterCell(_summary.totalCgst.toStringAsFixed(2), width: 80, textAlign: TextAlign.right),
-                                  if (_isColVisible('sgst')) RegisterFooterCell(_summary.totalSgst.toStringAsFixed(2), width: 80, textAlign: TextAlign.right),
-                                  if (_isColVisible('cess')) RegisterFooterCell(_summary.totalCess.toStringAsFixed(2), width: 75, textAlign: TextAlign.right),
-                                ],
-                              ),
+                          const Icon(Icons.format_list_bulleted_rounded, size: 16, color: AppColors.surface),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${widget.voucherType.toUpperCase()} REGISTER',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.surface,
+                              letterSpacing: 0.5,
                             ),
                           ),
                         ],
-                      );
-                    },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.background,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: AppColors.borderFocus),
+                      ),
+                      child: Text(
+                        'F.Y. $fy (${AppDateUtils.formatDate(widget.fromDate)} to ${AppDateUtils.formatDate(widget.toDate)})',
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+
+                    Container(
+                      height: 32,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.4), width: 1.2),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _availableSeries.contains(_selectedSeries) ? _selectedSeries : 'All',
+                          icon: const Icon(Icons.arrow_drop_down_rounded, size: 18, color: AppColors.primary),
+                          items: _availableSeries.map((s) => DropdownMenuItem(
+                            value: s,
+                            child: Text(
+                              s == 'All' ? 'Series: All' : 'Series: $s',
+                              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: AppColors.primary),
+                            ),
+                          )).toList(),
+                          onChanged: (val) {
+                            if (val != null && val != _selectedSeries) {
+                              setState(() {
+                                _selectedSeries = val;
+                                _isLoading = true;
+                              });
+                              _loadVouchers();
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    TextButton.icon(
+                      onPressed: _openColumnSettingsDialog,
+                      icon: const Icon(Icons.view_column_rounded, size: 16, color: AppColors.info),
+                      label: const Text('Columns (Ctrl+Q)', style: TextStyle(color: AppColors.info, fontWeight: FontWeight.bold)),
+                    ),
+                    TextButton.icon(
+                      onPressed: _handleExcelExport,
+                      icon: const Icon(Icons.table_view_rounded, size: 16, color: AppColors.success),
+                      label: const Text('Excel (Ctrl+E)', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold)),
+                    ),
+                    TextButton.icon(
+                      onPressed: _exportToJson,
+                      icon: const Icon(Icons.data_object_rounded, size: 16, color: AppColors.purple),
+                      label: const Text('JSON (Ctrl+J)', style: TextStyle(color: AppColors.purple, fontWeight: FontWeight.bold)),
+                    ),
+                    TextButton.icon(
+                      onPressed: _triggerPrint,
+                      icon: const Icon(Icons.print_rounded, size: 16, color: AppColors.primary),
+                      label: const Text('Print (Ctrl+P)', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textSecondary),
+                      onPressed: widget.onClose,
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: 5,
+                      child: SizedBox(
+                        height: 38,
+                        child: TextField(
+                          controller: _searchCtrl,
+                          focusNode: _searchFocusNode,
+                          onSubmitted: (_) {
+                            if (_rowFocusNodes.isNotEmpty && _rowFocusNodes[0].canRequestFocus) {
+                              _rowFocusNodes[0].requestFocus();
+                              setState(() => _focusedIndex = 0);
+                            }
+                          },
+                          decoration: InputDecoration(
+                            hintText: 'Search by Voucher, Party, GSTIN, HSN...',
+                            prefixIcon: const Icon(Icons.search_rounded, size: 17, color: AppColors.primary),
+                            filled: true,
+                            fillColor: AppColors.surface,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.border)),
+                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.primary, width: 1.3)),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    QuickMetricBadge(label: 'Total Invoices', value: '${_summary.totalInvoices}', color: AppColors.primaryDark),
+                    const SizedBox(width: 8),
+                    QuickMetricBadge(label: 'Total Qty', value: _summary.totalQuantity.toStringAsFixed(2), color: AppColors.info),
+                    const SizedBox(width: 8),
+                    QuickMetricBadge(label: 'Taxable Val', value: '₹${_summary.totalTaxable.toStringAsFixed(2)}', color: AppColors.purple),
+                    const SizedBox(width: 8),
+                    QuickMetricBadge(label: 'Invoice Total', value: '₹${_summary.totalInvoiceValue.toStringAsFixed(2)}', color: AppColors.primary),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Container(
+                  margin: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppColors.border, width: 1.2),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final dynamicWidth = math.max(constraints.maxWidth, _calculateActiveMinWidth());
+                        return Column(
+                          children: [
+                            SingleChildScrollView(
+                              controller: _horizontalHeaderCtrl,
+                              scrollDirection: Axis.horizontal,
+                              child: Container(
+                                width: dynamicWidth,
+                                height: 40,
+                                decoration: const BoxDecoration(
+                                  color: AppColors.cardBg,
+                                  border: Border(bottom: BorderSide(color: AppColors.border, width: 1.2)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    if (_isColVisible('sno')) const RegisterHeaderCell('S.No.', width: 45),
+                                    if (_isColVisible('party')) const Expanded(flex: 3, child: RegisterHeaderCell('Party', width: double.infinity)),
+                                    if (_isColVisible('gstin')) const Expanded(flex: 2, child: RegisterHeaderCell('GSTIN', width: double.infinity)),
+                                    if (_isColVisible('pos')) const Expanded(flex: 2, child: RegisterHeaderCell('Place of Supply', width: double.infinity)),
+                                    if (_isColVisible('vchNo')) const RegisterHeaderCell('Voc. No.', width: 95),
+                                    if (_isColVisible('date')) const RegisterHeaderCell('Voc. Date', width: 85),
+                                    if (_isColVisible('qty')) const RegisterHeaderCell('Qty.', width: 65, textAlign: TextAlign.right),
+                                    if (_isColVisible('unit')) const RegisterHeaderCell('Unit', width: 50, textAlign: TextAlign.center),
+                                    if (_isColVisible('hsn')) const RegisterHeaderCell('HSN', width: 75),
+                                    if (_isColVisible('invoiceVal')) const RegisterHeaderCell('Invoice Value', width: 105, textAlign: TextAlign.right),
+                                    if (_isColVisible('taxable')) const RegisterHeaderCell('Taxable', width: 95, textAlign: TextAlign.right),
+                                    if (_isColVisible('taxRate')) const RegisterHeaderCell('Rate', width: 55, textAlign: TextAlign.right),
+                                    if (_isColVisible('igst')) const RegisterHeaderCell('IGST', width: 80, textAlign: TextAlign.right),
+                                    if (_isColVisible('cgst')) const RegisterHeaderCell('CGST', width: 80, textAlign: TextAlign.right),
+                                    if (_isColVisible('sgst')) const RegisterHeaderCell('SGST', width: 80, textAlign: TextAlign.right),
+                                    if (_isColVisible('cess')) const RegisterHeaderCell('Cess', width: 75, textAlign: TextAlign.right),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: _isLoading
+                                  ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                                  : _filtered.isEmpty
+                                      ? const Center(child: Text('No matching vouchers found.'))
+                                      : SingleChildScrollView(
+                                          controller: _horizontalBodyCtrl,
+                                          scrollDirection: Axis.horizontal,
+                                          child: SizedBox(
+                                            width: dynamicWidth,
+                                            child: ListView.separated(
+                                              itemCount: _filtered.length,
+                                              separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.borderLight),
+                                              itemBuilder: (context, idx) {
+                                                final v = _filtered[idx];
+                                                final fullParty = (v['party'] ?? '').toString();
+                                                final gstin = GstPartyUtils.extractPartyGstin(fullParty);
+                                                final isInter = v['isInterState'] == true;
+                                                final items = v['items'] as List? ?? [];
+                                                final isFocused = _focusedIndex == idx;
+                                                if (_rowFocusNodes.length <= idx) _syncFocusNodes();
+
+                                                return Focus(
+                                                  focusNode: _rowFocusNodes[idx],
+                                                  onFocusChange: (f) {
+                                                    if (f) setState(() => _focusedIndex = idx);
+                                                  },
+                                                  onKeyEvent: (_, e) {
+                                                    if (e is KeyDownEvent) {
+                                                      if (KeyboardShortcutService.isConfirm(e.logicalKey)) {
+                                                        _openEdit(v);
+                                                        return KeyEventResult.handled;
+                                                      }
+                                                      if (KeyboardShortcutService.isDown(e.logicalKey)) {
+                                                        if (idx + 1 < _rowFocusNodes.length) {
+                                                          _rowFocusNodes[idx + 1].requestFocus();
+                                                        } else if (_rowFocusNodes.isNotEmpty) {
+                                                          _rowFocusNodes[0].requestFocus();
+                                                        }
+                                                        return KeyEventResult.handled;
+                                                      }
+                                                      if (KeyboardShortcutService.isUp(e.logicalKey)) {
+                                                        if (idx - 1 >= 0) {
+                                                          _rowFocusNodes[idx - 1].requestFocus();
+                                                        } else {
+                                                          _searchFocusNode.requestFocus();
+                                                        }
+                                                        return KeyEventResult.handled;
+                                                      }
+                                                    }
+                                                    return KeyEventResult.ignored;
+                                                  },
+                                                  child: GestureDetector(
+                                                    onDoubleTap: () => _openEdit(v),
+                                                    onTap: () {
+                                                      setState(() => _focusedIndex = idx);
+                                                      _rowFocusNodes[idx].requestFocus();
+                                                    },
+                                                    child: Container(
+                                                      decoration: BoxDecoration(
+                                                        color: isFocused ? AppColors.primaryLight : Colors.transparent,
+                                                        border: isFocused ? Border.all(color: AppColors.primary, width: 1.5) : null,
+                                                        borderRadius: isFocused ? BorderRadius.circular(6) : null,
+                                                      ),
+                                                      child: items.isEmpty
+                                                          ? _buildRegisterRow(
+                                                              sno: '${idx + 1}',
+                                                              party: GstPartyUtils.extractPartyName(fullParty),
+                                                              gstin: gstin,
+                                                              pos: _getPos(gstin, isInter),
+                                                              vchNo: v['voucherNumber'] ?? '',
+                                                              date: v['date'] ?? '',
+                                                              qty: '0.00',
+                                                              unit: 'Pcs',
+                                                              hsn: '',
+                                                              invoiceValue: (double.tryParse(v['grandTotal']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
+                                                              taxable: '0.00',
+                                                              taxRate: '0%',
+                                                              igst: (double.tryParse(v['igst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
+                                                              cgst: (double.tryParse(v['cgst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
+                                                              sgst: (double.tryParse(v['sgst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
+                                                              cess: GstPartyUtils.extractCessAmount(v).toStringAsFixed(2),
+                                                              rowWidth: dynamicWidth,
+                                                            )
+                                                          : Column(
+                                                              children: List.generate(items.length, (iIdx) {
+                                                                final item = items[iIdx];
+                                                                return _buildRegisterRow(
+                                                                  sno: iIdx == 0 ? '${idx + 1}' : '',
+                                                                  party: iIdx == 0 ? GstPartyUtils.extractPartyName(fullParty) : '',
+                                                                  gstin: iIdx == 0 ? gstin : '',
+                                                                  pos: iIdx == 0 ? _getPos(gstin, isInter) : '',
+                                                                  vchNo: iIdx == 0 ? (v['voucherNumber'] ?? '') : '',
+                                                                  date: iIdx == 0 ? (v['date'] ?? '') : '',
+                                                                  qty: (double.tryParse(item['qty']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
+                                                                  unit: (item['unit'] ?? 'Pcs').toString(),
+                                                                  hsn: (item['hsn'] ?? '').toString(),
+                                                                  invoiceValue: iIdx == 0 ? (double.tryParse(v['grandTotal']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2) : '',
+                                                                  taxable: (double.tryParse(item['taxable']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
+                                                                  taxRate: '${item['gstRate'] ?? 0}%',
+                                                                  igst: (double.tryParse(item['igst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
+                                                                  cgst: (double.tryParse(item['cgst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
+                                                                  sgst: (double.tryParse(item['sgst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
+                                                                  cess: iIdx == 0 ? GstPartyUtils.extractCessAmount(v).toStringAsFixed(2) : '',
+                                                                  isSubRow: iIdx > 0,
+                                                                  rowWidth: dynamicWidth,
+                                                                );
+                                                              }),
+                                                            ),
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                        ),
+                            ),
+                            SingleChildScrollView(
+                              controller: _horizontalFooterCtrl,
+                              scrollDirection: Axis.horizontal,
+                              child: Container(
+                                width: dynamicWidth,
+                                height: 38,
+                                decoration: const BoxDecoration(
+                                  color: AppColors.background,
+                                  border: Border(top: BorderSide(color: AppColors.borderFocus, width: 1.2)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    if (_isColVisible('sno')) const RegisterFooterCell('', width: 45),
+                                    if (_isColVisible('party')) const Expanded(flex: 3, child: RegisterFooterCell('TOTAL', width: double.infinity)),
+                                    if (_isColVisible('gstin')) const Expanded(flex: 2, child: RegisterFooterCell('', width: double.infinity)),
+                                    if (_isColVisible('pos')) const Expanded(flex: 2, child: RegisterFooterCell('', width: double.infinity)),
+                                    if (_isColVisible('vchNo')) const RegisterFooterCell('', width: 95),
+                                    if (_isColVisible('date')) const RegisterFooterCell('', width: 85),
+                                    if (_isColVisible('qty')) RegisterFooterCell(_summary.totalQuantity.toStringAsFixed(2), width: 65, textAlign: TextAlign.right),
+                                    if (_isColVisible('unit')) const RegisterFooterCell('', width: 50),
+                                    if (_isColVisible('hsn')) const RegisterFooterCell('', width: 75),
+                                    if (_isColVisible('invoiceVal')) RegisterFooterCell(_summary.totalInvoiceValue.toStringAsFixed(2), width: 105, textAlign: TextAlign.right, highlight: true),
+                                    if (_isColVisible('taxable')) RegisterFooterCell(_summary.totalTaxable.toStringAsFixed(2), width: 95, textAlign: TextAlign.right),
+                                    if (_isColVisible('taxRate')) const RegisterFooterCell('', width: 55),
+                                    if (_isColVisible('igst')) RegisterFooterCell(_summary.totalIgst.toStringAsFixed(2), width: 80, textAlign: TextAlign.right),
+                                    if (_isColVisible('cgst')) RegisterFooterCell(_summary.totalCgst.toStringAsFixed(2), width: 80, textAlign: TextAlign.right),
+                                    if (_isColVisible('sgst')) RegisterFooterCell(_summary.totalSgst.toStringAsFixed(2), width: 80, textAlign: TextAlign.right),
+                                    if (_isColVisible('cess')) RegisterFooterCell(_summary.totalCess.toStringAsFixed(2), width: 75, textAlign: TextAlign.right),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
