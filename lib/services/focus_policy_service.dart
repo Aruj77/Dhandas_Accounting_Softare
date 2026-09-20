@@ -1,4 +1,3 @@
-// lib/services/focus_policy_service.dart
 import 'package:flutter/material.dart';
 
 enum FocusTargetScreen {
@@ -63,7 +62,7 @@ enum FocusFieldNode {
 class FocusPolicyService {
   static final Map<FocusTargetScreen, FocusFieldNode> _defaultPolicies = {
     FocusTargetScreen.homeDashboard: FocusFieldNode.firstField,
-    FocusTargetScreen.voucherEntry: FocusFieldNode.seriesField,
+    FocusTargetScreen.voucherEntry: FocusFieldNode.dateField,
     FocusTargetScreen.voucherList: FocusFieldNode.searchField,
     FocusTargetScreen.voucherManageList: FocusFieldNode.searchField,
     FocusTargetScreen.mastersDashboard: FocusFieldNode.firstField,

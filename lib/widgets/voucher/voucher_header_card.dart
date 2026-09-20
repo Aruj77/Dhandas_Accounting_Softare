@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../constants/app_colors.dart';
 import '../../services/keyboard_shortcut_service.dart';
 import '../../models/party_master_model.dart';
@@ -75,7 +76,7 @@ class VoucherHeaderCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // Row 1: Series, Date, Voucher Number, Party
+          // Row 1: Series -> Voucher Date -> Voucher Number -> Party
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -91,6 +92,7 @@ class VoucherHeaderCard extends StatelessWidget {
                   labelExtractor: (s) => s,
                   onQuickAdd: () => onQuickAdd('Series'),
                   onSelected: (_) => dateFocus.requestFocus(),
+                  onFieldSubmitted: () => dateFocus.requestFocus(),
                   optionItemBuilder: (context, option) => Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     child: Row(
@@ -145,6 +147,7 @@ class VoucherHeaderCard extends StatelessWidget {
                   labelExtractor: (p) => p.name,
                   onQuickAdd: onAddParty,
                   onSelected: (_) => saleTypeFocus.requestFocus(),
+                  onFieldSubmitted: () => saleTypeFocus.requestFocus(),
                   optionItemBuilder: (context, option) => Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     child: Row(
@@ -208,7 +211,7 @@ class VoucherHeaderCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          // Row 2: Sale Type (Taxation), Material Centre, Narration
+          // Row 2: Taxation/Sale Type -> Material Centre -> Narration
           Row(
             children: [
               Expanded(
@@ -223,6 +226,7 @@ class VoucherHeaderCard extends StatelessWidget {
                   labelExtractor: (type) => type,
                   onQuickAdd: () => onQuickAdd('Sale Type'),
                   onSelected: (_) => matCenterFocus.requestFocus(),
+                  onFieldSubmitted: () => matCenterFocus.requestFocus(),
                   optionItemBuilder: (context, option) {
                     final isInterState = option.contains('InterState');
                     return Padding(
@@ -264,12 +268,25 @@ class VoucherHeaderCard extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 flex: 5,
-                child: _buildPlainField(
-                  label: 'Narration / Remarks',
-                  controller: narrationController,
-                  focusNode: narrationFocus,
-                  icon: Icons.notes_rounded,
-                  onSubmitted: onNarrationSubmitted,
+                child: Focus(
+                  canRequestFocus: false,
+                  skipTraversal: true,
+                  onKeyEvent: (node, event) {
+                    if (event is KeyDownEvent &&
+                        event.logicalKey == LogicalKeyboardKey.tab &&
+                        !HardwareKeyboard.instance.isShiftPressed) {
+                      onNarrationSubmitted();
+                      return KeyEventResult.handled;
+                    }
+                    return KeyEventResult.ignored;
+                  },
+                  child: _buildPlainField(
+                    label: 'Narration / Remarks',
+                    controller: narrationController,
+                    focusNode: narrationFocus,
+                    icon: Icons.notes_rounded,
+                    onSubmitted: onNarrationSubmitted,
+                  ),
                 ),
               ),
             ],
@@ -289,6 +306,8 @@ class VoucherHeaderCard extends StatelessWidget {
     double? width,
   }) {
     return Focus(
+      canRequestFocus: false,
+      skipTraversal: true,
       onKeyEvent: (node, event) {
         if (KeyboardShortcutService.isQuickAdd(event)) {
           onAdd();
@@ -312,12 +331,12 @@ class VoucherHeaderCard extends StatelessWidget {
                 labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
                 prefixIcon: Icon(icon, size: 14, color: AppColors.primary),
                 suffixIcon: focusNode.hasFocus
-                    ? Focus(
-                        canRequestFocus: false,
-                        descendantsAreFocusable: false,
+                    ? ExcludeFocus(
+                        excluding: true,
                         child: Container(
                           margin: const EdgeInsets.only(right: 6),
                           child: IconButton(
+                            focusNode: FocusNode(skipTraversal: true, canRequestFocus: false),
                             icon: const Icon(Icons.add_circle, size: 18, color: AppColors.primary),
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(maxWidth: 24, maxHeight: 24),

@@ -56,7 +56,7 @@ class _CompanyActionCardState extends State<CompanyActionCard> {
             icon: Icons.apartment_rounded,
             title: 'Company',
             subtitle: 'Create a new business or access an existing one',
-            badgeGradient: [AppColors.primaryAccent, AppColors.primary],
+            badgeGradient: [AppColors.primarySemiLight, AppColors.primary],
             illustrationAsset: 'assets/images/company_illustration.png',
           ),
           const SizedBox(height: 20),

@@ -1,4 +1,3 @@
-// lib/services/keyboard_shortcut_service.dart
 import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -109,11 +108,12 @@ class KeyboardShortcutService {
   static const String switchWorkspaceAction = 'switchWorkspace';
   static const String saveVoucherAction = 'saveVoucher';
 
-  // --- Fixed Hardware Action Identifiers ---
-  static const String quickAddMasterAction = 'quickAddMaster'; // Alt + C
-  static const String modifyMasterAction = 'modifyMaster';     // Alt + E
-  static const String printInvoiceAction = 'printInvoice';     // Ctrl/Cmd + P
-  static const String calculatorAction = 'calculator';         // F4
+  static const String quickAddMasterAction = 'quickAddMaster';       
+  static const String modifyMasterAction = 'modifyMaster';         
+  static const String previousVoucherAction = 'previousVoucher';     
+  static const String nextVoucherAction = 'nextVoucher';            
+  static const String printInvoiceAction = 'printInvoice';           
+  static const String calculatorAction = 'calculator';              
 
   // --- Key Code Constants ---
   static const String keyEscape = 'escape';
@@ -174,6 +174,20 @@ class KeyboardShortcutService {
     return event is KeyDownEvent &&
         HardwareKeyboard.instance.isAltPressed &&
         event.logicalKey == LogicalKeyboardKey.keyE;
+  }
+
+  /// Alt + P: Navigate to previous voucher in the active session
+  static bool isPreviousVoucher(KeyEvent event) {
+    return event is KeyDownEvent &&
+        HardwareKeyboard.instance.isAltPressed &&
+        event.logicalKey == LogicalKeyboardKey.keyP;
+  }
+
+  /// Alt + N: Navigate to next voucher in the active session
+  static bool isNextVoucher(KeyEvent event) {
+    return event is KeyDownEvent &&
+        HardwareKeyboard.instance.isAltPressed &&
+        event.logicalKey == LogicalKeyboardKey.keyN;
   }
 
   /// Ctrl + P / Cmd + P: Print Preview Studio

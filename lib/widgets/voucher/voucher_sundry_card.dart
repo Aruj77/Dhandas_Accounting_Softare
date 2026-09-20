@@ -39,8 +39,12 @@ class VoucherSundryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Focus(
+      canRequestFocus: false,
+      skipTraversal: true,
       onKeyEvent: (node, event) {
-        if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.tab) {
+        if (event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.tab &&
+            !HardwareKeyboard.instance.isShiftPressed) {
           onTabToSave();
           return KeyEventResult.handled;
         }
@@ -52,7 +56,7 @@ class VoucherSundryCard extends StatelessWidget {
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppColors.border, width: 1.2),
-          boxShadow: [
+          boxShadow: const [
             BoxShadow(color: AppColors.shadowColor, blurRadius: 8, offset: Offset(0, 2)),
           ],
         ),
@@ -90,18 +94,19 @@ class VoucherSundryCard extends StatelessWidget {
                   final s = sundries[idx];
                   return Row(
                     children: [
-                      // Sundry Name Field
+                      // Sundry Name Field - Bound explicitly to s.nameFocus
                       Expanded(
                         flex: 6,
                         child: SizedBox(
                           height: 30,
-                          child: Autocomplete<String>(
-                            initialValue: TextEditingValue(text: s.name.text),
+                          child: RawAutocomplete<String>(
+                            focusNode: s.nameFocus,
+                            textEditingController: s.name,
                             optionsBuilder: (TextEditingValue textEditingValue) {
                               return SmartFilter.filterAndSort<String>(
                                 items: _sundryOptions,
                                 query: textEditingValue.text,
-                                labelExtractor: (s) => s,
+                                labelExtractor: (val) => val,
                               );
                             },
                             onSelected: (selection) {
@@ -113,27 +118,81 @@ class VoucherSundryCard extends StatelessWidget {
                               }
                               onRowEnter(idx, 'name');
                             },
+                            optionsViewBuilder: (context, onSelect, options) {
+                              return Align(
+                                alignment: Alignment.topLeft,
+                                child: Material(
+                                  elevation: 6,
+                                  borderRadius: BorderRadius.circular(8),
+                                  color: AppColors.surface,
+                                  child: Container(
+                                    width: 220,
+                                    constraints: const BoxConstraints(maxHeight: 180),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.surface,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: AppColors.border),
+                                    ),
+                                    child: ListView.builder(
+                                      padding: const EdgeInsets.symmetric(vertical: 4),
+                                      shrinkWrap: true,
+                                      itemCount: options.length,
+                                      itemBuilder: (context, index) {
+                                        final opt = options.elementAt(index);
+                                        return InkWell(
+                                          onTap: () => onSelect(opt),
+                                          hoverColor: AppColors.primaryLight,
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                            child: Text(
+                                              opt,
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                                color: AppColors.textPrimary,
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
                             fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                              controller.addListener(() => s.name.text = controller.text);
-                              return TextField(
-                                controller: controller,
-                                focusNode: focusNode,
-                                textInputAction: TextInputAction.next,
-                                onSubmitted: (_) {
-                                  onFieldSubmitted();
-                                  onRowEnter(idx, 'name');
+                              return Focus(
+                                canRequestFocus: false,
+                                skipTraversal: true,
+                                onKeyEvent: (node, event) {
+                                  if (event is KeyDownEvent &&
+                                      event.logicalKey == LogicalKeyboardKey.tab &&
+                                      !HardwareKeyboard.instance.isShiftPressed) {
+                                    onTabToSave();
+                                    return KeyEventResult.handled;
+                                  }
+                                  return KeyEventResult.ignored;
                                 },
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
-                                decoration: InputDecoration(
-                                  hintText: 'Select sundry...',
-                                  hintStyle: const TextStyle(fontSize: 10, color: AppColors.textMuted),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-                                  filled: true,
-                                  fillColor: AppColors.cardBg,
-                                  suffixIcon: const Icon(Icons.keyboard_arrow_down_rounded, size: 15, color: AppColors.textSecondary),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.border)),
-                                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.border)),
-                                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.primary, width: 1.4)),
+                                child: TextField(
+                                  controller: controller,
+                                  focusNode: focusNode,
+                                  textInputAction: TextInputAction.next,
+                                  onSubmitted: (_) {
+                                    onFieldSubmitted();
+                                    onRowEnter(idx, 'name');
+                                  },
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
+                                  decoration: InputDecoration(
+                                    hintText: 'Select sundry...',
+                                    hintStyle: const TextStyle(fontSize: 10, color: AppColors.textMuted),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                                    filled: true,
+                                    fillColor: AppColors.cardBg,
+                                    suffixIcon: const Icon(Icons.keyboard_arrow_down_rounded, size: 15, color: AppColors.textSecondary),
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.border)),
+                                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.border)),
+                                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.primary, width: 1.4)),
+                                  ),
                                 ),
                               );
                             },
@@ -146,26 +205,39 @@ class VoucherSundryCard extends StatelessWidget {
                         flex: 2,
                         child: SizedBox(
                           height: 30,
-                          child: TextField(
-                            controller: s.percent,
-                            focusNode: s.percentFocus,
-                            textAlign: TextAlign.right,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            inputFormatters: [
-                              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
-                            ],
-                            textInputAction: TextInputAction.next,
-                            onSubmitted: (_) => onRowEnter(idx, 'percent'),
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
-                            decoration: InputDecoration(
-                              hintText: '%',
-                              hintStyle: const TextStyle(fontSize: 10, color: AppColors.textMuted),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
-                              filled: true,
-                              fillColor: AppColors.cardBg,
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.border)),
-                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.border)),
-                              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.primary, width: 1.4)),
+                          child: Focus(
+                            canRequestFocus: false,
+                            skipTraversal: true,
+                            onKeyEvent: (node, event) {
+                              if (event is KeyDownEvent &&
+                                  event.logicalKey == LogicalKeyboardKey.tab &&
+                                  !HardwareKeyboard.instance.isShiftPressed) {
+                                onTabToSave();
+                                return KeyEventResult.handled;
+                              }
+                              return KeyEventResult.ignored;
+                            },
+                            child: TextField(
+                              controller: s.percent,
+                              focusNode: s.percentFocus,
+                              textAlign: TextAlign.right,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              inputFormatters: [
+                                FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+                              ],
+                              textInputAction: TextInputAction.next,
+                              onSubmitted: (_) => onRowEnter(idx, 'percent'),
+                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
+                              decoration: InputDecoration(
+                                hintText: '%',
+                                hintStyle: const TextStyle(fontSize: 10, color: AppColors.textMuted),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
+                                filled: true,
+                                fillColor: AppColors.cardBg,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.border)),
+                                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.border)),
+                                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.primary, width: 1.4)),
+                              ),
                             ),
                           ),
                         ),
@@ -176,26 +248,39 @@ class VoucherSundryCard extends StatelessWidget {
                         flex: 4,
                         child: SizedBox(
                           height: 30,
-                          child: TextField(
-                            controller: s.amount,
-                            focusNode: s.amountFocus,
-                            textAlign: TextAlign.right,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            inputFormatters: [
-                              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
-                            ],
-                            textInputAction: TextInputAction.next,
-                            onSubmitted: (_) => onRowEnter(idx, 'amount'),
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
-                            decoration: InputDecoration(
-                              hintText: 'Amount',
-                              hintStyle: const TextStyle(fontSize: 10, color: AppColors.textMuted),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-                              filled: true,
-                              fillColor: AppColors.cardBg,
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.border)),
-                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.border)),
-                              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.primary, width: 1.4)),
+                          child: Focus(
+                            canRequestFocus: false,
+                            skipTraversal: true,
+                            onKeyEvent: (node, event) {
+                              if (event is KeyDownEvent &&
+                                  event.logicalKey == LogicalKeyboardKey.tab &&
+                                  !HardwareKeyboard.instance.isShiftPressed) {
+                                onTabToSave();
+                                return KeyEventResult.handled;
+                              }
+                              return KeyEventResult.ignored;
+                            },
+                            child: TextField(
+                              controller: s.amount,
+                              focusNode: s.amountFocus,
+                              textAlign: TextAlign.right,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              inputFormatters: [
+                                FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+                              ],
+                              textInputAction: TextInputAction.next,
+                              onSubmitted: (_) => onRowEnter(idx, 'amount'),
+                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
+                              decoration: InputDecoration(
+                                hintText: 'Amount',
+                                hintStyle: const TextStyle(fontSize: 10, color: AppColors.textMuted),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                                filled: true,
+                                fillColor: AppColors.cardBg,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.border)),
+                                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.border)),
+                                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.primary, width: 1.4)),
+                              ),
                             ),
                           ),
                         ),

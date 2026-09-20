@@ -439,8 +439,8 @@ class _AddItemDialogState extends State<AddItemDialog> {
       screen: FocusTargetScreen.addItemDialog,
       nodeMap: {
         FocusFieldNode.hsnField: _hsnFocusNode,
-        FocusFieldNode.itemNameField: _nameFocusNode,
         FocusFieldNode.unitField: _unitFocusNode,
+        FocusFieldNode.itemNameField: _nameFocusNode,
         FocusFieldNode.salesPriceField: _salesPriceFocusNode,
       },
       child: Dialog(
@@ -609,7 +609,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
   Widget _buildIdentificationSection() {
     return _buildSectionCard(
       title: 'Item Identification',
-      subtitle: 'Define the item code, name, unit and tax category',
+      subtitle: 'Define the item code, unit, tax category and name',
       icon: Icons.badge_outlined,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -660,6 +660,19 @@ class _AddItemDialogState extends State<AddItemDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
+                child: _buildUnitAutocompleteField(),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: _buildTaxCategoryAutocompleteField(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
                 child: _buildTextField(
                   controller: _nameController,
                   focusNode: _nameFocusNode,
@@ -675,19 +688,6 @@ class _AddItemDialogState extends State<AddItemDialog> {
                     return null;
                   },
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _buildUnitAutocompleteField(),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: _buildTaxCategoryAutocompleteField(),
               ),
             ],
           ),

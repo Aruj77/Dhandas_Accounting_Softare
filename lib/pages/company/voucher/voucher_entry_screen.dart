@@ -68,6 +68,9 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   final _narrationFocus = FocusNode();
   final _saveButtonFocusNode = FocusNode();
 
+  final List<Map<String, dynamic>> _sessionSavedVouchers = [];
+  int _sessionIndex = -1;
+
   final List<VoucherItemRow> _items = [];
   final List<VoucherSundryRow> _sundries = [];
   final List<String> _availableSeries = ['Main'];
@@ -103,6 +106,8 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
 
   bool get _isSalesVoucher => widget.voucherType.toLowerCase().contains('sale');
   List<PartyMasterModel> get _currentAvailableParties => _isSalesVoucher ? _debtorsList : _creditorsList;
+
+  bool get _isViewingExistingVoucher => widget.isEdit || _sessionIndex != -1;
 
   Color get _themeColor => _isSalesVoucher ? AppColors.warning : AppColors.primary;
   Color get _screenBg => _isSalesVoucher ? AppColors.salesScreenBg : AppColors.generalScreenBg;
@@ -151,11 +156,50 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     super.dispose();
   }
 
+  bool _isAnyMainTableCellFocused() {
+    for (final r in _items) {
+      if (r.itemFocus.hasFocus ||
+          r.qtyFocus.hasFocus ||
+          r.unitFocus.hasFocus ||
+          r.priceFocus.hasFocus ||
+          r.taxableFocus.hasFocus ||
+          r.cgstFocus.hasFocus ||
+          r.sgstFocus.hasFocus ||
+          r.igstFocus.hasFocus ||
+          r.amountFocus.hasFocus) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool _isAnySundryCellFocused() {
+    for (final s in _sundries) {
+      if (s.nameFocus.hasFocus || s.percentFocus.hasFocus || s.amountFocus.hasFocus) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   bool _handleGlobalHardwareKey(KeyEvent event) {
     if (!mounted) return false;
     if (ModalRoute.of(context)?.isCurrent != true) return false;
 
     if (event is! KeyDownEvent) return false;
+
+    // Direct Tab traversal overrides across entire screen
+    if (event.logicalKey == LogicalKeyboardKey.tab && !HardwareKeyboard.instance.isShiftPressed) {
+      if (_isAnyMainTableCellFocused()) {
+        _sundries.firstOrNull?.nameFocus.requestFocus();
+        return true;
+      }
+
+      if (_isAnySundryCellFocused()) {
+        _saveButtonFocusNode.requestFocus();
+        return true;
+      }
+    }
 
     if (KeyboardShortcutService.matchesAction(
       widget.keyboardSettings,
@@ -253,7 +297,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   }
 
   Future<void> _loadCompanyMastersOnly() async {
-    await LoadingService.wrap(() async {  
+    await LoadingService.wrap(() async {
       final folderPath = widget.company['folderPath'];
       if (folderPath == null) return;
       final rawMasters = await StorageService.loadCompanyMasters(folderPath: folderPath);
@@ -299,7 +343,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
       }
 
       if (mounted) setState(() {});
-    }, message:'Loading Master Records...');
+    }, message: 'Loading Master Records...');
   }
 
   Future<void> _syncMastersToFile() async {
@@ -325,7 +369,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
           'accountGroups': _availableAccountGroups,
         },
       );
-    }, message:'Updating Masters Records...');
+    }, message: 'Updating Masters Records...');
   }
 
   Future<void> _autogenerateVoucherNumber(String seriesName) async {
@@ -337,7 +381,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
         seriesSettings: _seriesSettings[seriesName] ?? {},
       );
       if (nextNo != null && mounted) setState(() => _vchNoController.text = nextNo);
-    }, message:'');
+    }, message: '');
   }
 
   void _attachItemRowListeners(VoucherItemRow row) {
@@ -658,7 +702,14 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     }
 
     _autogenerateVoucherNumber(_seriesController.text);
-    if (mounted) setState(() {});
+    if (mounted) {
+      setState(() {});
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_dateFocusNode.canRequestFocus) {
+          _dateFocusNode.requestFocus();
+        }
+      });
+    }
   }
 
   String _getCompanyStateCode() {
@@ -1032,56 +1083,91 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   }
 
   Future<void> _executeVoucherPersistence() async {
-    await LoadingService.wrap(() async {
-      final payload = _buildCurrentVoucherPayload();
-      final folderPath = widget.company['folderPath'];
-      if (folderPath == null) return;
+    final payload = _buildCurrentVoucherPayload();
+    final folderPath = widget.company['folderPath'];
+    if (folderPath == null) return;
 
-      await StorageService.saveVoucher(
-        folderPath: folderPath,
-        financialYear: widget.company['activeFinancialYear']?.toString() ?? AppDateUtils.defaultFinancialYear,
-        voucherData: payload,
+    await StorageService.saveVoucher(
+      folderPath: folderPath,
+      financialYear: widget.company['activeFinancialYear']?.toString() ?? AppDateUtils.defaultFinancialYear,
+      voucherData: payload,
+    );
+    if (!mounted) return;
+    _notify('${widget.voucherType} [${_vchNoController.text}] saved!');
+
+    if (!widget.isEdit) {
+      final existingIdx = _sessionSavedVouchers.indexWhere(
+        (v) => (v['id'] ?? v['voucherNumber']) == (payload['id'] ?? payload['voucherNumber']),
       );
-      if (!mounted) return;
-      _notify('${widget.voucherType} [${_vchNoController.text}] saved!');
-
-      if (_isSalesVoucher) {
-        final shouldPrint = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            backgroundColor: AppColors.surface,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: Row(children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-                child: const Icon(Icons.print_rounded, color: AppColors.primary, size: 20),
-              ),
-              const SizedBox(width: 10),
-              const Text('Print Invoice', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
-            ]),
-            content: Text('Sales invoice [${_vchNoController.text}] saved successfully.\n\nOpen Print Studio preview now?', style: const TextStyle(color: AppColors.textSecondary)),
-            actions: [
-              OutlinedButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-                child: const Text('Open Print Studio', style: TextStyle(color: AppColors.surface, fontWeight: FontWeight.w800)),
-              ),
-            ],
-          ),
-        );
-        if ((shouldPrint ?? false) && mounted) {
-          await showDialog(
-            context: context,
-            builder: (_) => SalesInvoicePrintPreviewDialog(company: widget.company, voucherData: payload),
-          );
-        }
+      if (existingIdx != -1) {
+        _sessionSavedVouchers[existingIdx] = payload;
+      } else {
+        _sessionSavedVouchers.add(payload);
       }
-      widget.isEdit ? widget.onClose() : _initializeNewVoucher();
-    }, message:'Saving ${widget.voucherType}...');
+      _sessionIndex = -1;
+    }
+
+    if (_isSalesVoucher) {
+      final shouldPrint = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+              child: const Icon(Icons.print_rounded, color: AppColors.primary, size: 20),
+            ),
+            const SizedBox(width: 10),
+            const Text('Print Invoice', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+          ]),
+          content: Text('Sales invoice [${_vchNoController.text}] saved successfully.\n\nOpen Print Studio preview now?', style: const TextStyle(color: AppColors.textSecondary)),
+          actions: [
+            OutlinedButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+              child: const Text('Open Print Studio', style: TextStyle(color: AppColors.surface, fontWeight: FontWeight.w800)),
+            ),
+          ],
+        ),
+      );
+      if ((shouldPrint ?? false) && mounted) {
+        await showDialog(
+          context: context,
+          builder: (_) => SalesInvoicePrintPreviewDialog(company: widget.company, voucherData: payload),
+        );
+      }
+    }
+    widget.isEdit ? widget.onClose() : _initializeNewVoucher();
   }
 
+  void _navigateToPreviousVoucher() {
+    if (_sessionSavedVouchers.isEmpty) return;
+    if (_sessionIndex == -1) {
+      _sessionIndex = _sessionSavedVouchers.length - 1;
+      _loadExistingVoucherData(_sessionSavedVouchers[_sessionIndex]);
+    } else if (_sessionIndex > 0) {
+      _sessionIndex--;
+      _loadExistingVoucherData(_sessionSavedVouchers[_sessionIndex]);
+    }
+    setState(() {});
+  }
+
+  void _navigateToNextVoucher() {
+    if (_sessionSavedVouchers.isEmpty || _sessionIndex == -1) return;
+    if (_sessionIndex < _sessionSavedVouchers.length - 1) {
+      _sessionIndex++;
+      _loadExistingVoucherData(_sessionSavedVouchers[_sessionIndex]);
+    } else if (_sessionIndex == _sessionSavedVouchers.length - 1) {
+      _sessionIndex = -1;
+      _initializeNewVoucher();
+    }
+    setState(() {});
+  }
+
+  // Row navigation on ENTER: continues horizontal progression cell by cell
   void _handleItemRowEnter(int index, String field) {
     final r = _items[index];
     switch (field) {
@@ -1131,6 +1217,16 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
           autofocus: true,
           onKeyEvent: (_, event) {
             if (event is! KeyDownEvent) return KeyEventResult.ignored;
+
+            if (KeyboardShortcutService.isPreviousVoucher(event)) {
+              _navigateToPreviousVoucher();
+              return KeyEventResult.handled;
+            }
+
+            if (KeyboardShortcutService.isNextVoucher(event)) {
+              _navigateToNextVoucher();
+              return KeyEventResult.handled;
+            }
 
             if (KeyboardShortcutService.isPrint(event)) {
               _openPrintPreview();
@@ -1202,7 +1298,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
                       Icon(Icons.edit_document, size: 20, color: _themeColor),
                       const SizedBox(width: 8),
                       Text(
-                        '${widget.isEdit ? "EDIT" : "NEW"} ${widget.voucherType.toUpperCase()}',
+                        '${_isViewingExistingVoucher ? "EDIT" : "NEW"} ${widget.voucherType.toUpperCase()}',
                         style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: _themeColor, letterSpacing: 0.5),
                       ),
                       const SizedBox(width: 12),
@@ -1216,7 +1312,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
                         borderColor: _isInterState ? AppColors.purpleBorder : AppColors.successBorder,
                       ),
                       const Spacer(),
-                      if (widget.isEdit) ...[
+                      if (_isViewingExistingVoucher) ...[
                         OutlinedButton.icon(
                           onPressed: _openPrintPreview,
                           style: OutlinedButton.styleFrom(
@@ -1296,20 +1392,34 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
                           onNarrationSubmitted: () => _items.firstOrNull?.itemFocus.requestFocus(),
                         ),
                         const SizedBox(height: 10),
+                        // Wrap items table with direct Tab interception
                         Expanded(
-                          child: VoucherItemsTable(
-                            items: _items,
-                            availableItems: _itemsMasterList,
-                            isInterState: _isInterState,
-                            totalQty: _totalQty,
-                            totalTaxable: _itemSubTotal,
-                            totalAmount: _totalItemAmount,
-                            onAddRow: () => setState(_addItemRow),
-                            onRowEnter: _handleItemRowEnter,
-                            onAddItem: _openAddItemDialog,
-                            onItemSelected: _onItemMasterSelected,
-                            onOpenTaxDetails: _openTaxDetailsDialog,
-                            onTabToSundry: () => _sundries.firstOrNull?.nameFocus.requestFocus(),
+                          child: Focus(
+                            canRequestFocus: false,
+                            skipTraversal: true,
+                            onKeyEvent: (node, event) {
+                              if (event is KeyDownEvent &&
+                                  event.logicalKey == LogicalKeyboardKey.tab &&
+                                  !HardwareKeyboard.instance.isShiftPressed) {
+                                _sundries.firstOrNull?.nameFocus.requestFocus();
+                                return KeyEventResult.handled;
+                              }
+                              return KeyEventResult.ignored;
+                            },
+                            child: VoucherItemsTable(
+                              items: _items,
+                              availableItems: _itemsMasterList,
+                              isInterState: _isInterState,
+                              totalQty: _totalQty,
+                              totalTaxable: _itemSubTotal,
+                              totalAmount: _totalItemAmount,
+                              onAddRow: () => setState(_addItemRow),
+                              onRowEnter: _handleItemRowEnter,
+                              onAddItem: _openAddItemDialog,
+                              onItemSelected: _onItemMasterSelected,
+                              onOpenTaxDetails: _openTaxDetailsDialog,
+                              onTabToSundry: () => _sundries.firstOrNull?.nameFocus.requestFocus(),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 10),
@@ -1368,7 +1478,9 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
                     children: [
                       const Text('Shortcuts: ', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppColors.textSecondary)),
                       _buildShortcutHint('[F2] Save'),
-                      if (widget.isEdit) _buildShortcutHint('[Ctrl+P] Print'),
+                      _buildShortcutHint('[Alt+P] Prev Vch'),
+                      _buildShortcutHint('[Alt+N] Next Vch'),
+                      if (_isViewingExistingVoucher) _buildShortcutHint('[Ctrl+P] Print'),
                       _buildShortcutHint('[F4] Calculator'),
                       _buildShortcutHint('[Alt+C] Quick Add Master'),
                       _buildShortcutHint('[Alt+E] Edit Master / Tax Details'),

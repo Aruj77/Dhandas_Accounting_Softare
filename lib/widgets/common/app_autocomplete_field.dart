@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../constants/app_colors.dart';
 import '../../services/keyboard_shortcut_service.dart';
 import '../../utils/smart_filter.dart';
@@ -48,6 +49,8 @@ class AppAutocompleteField<T extends Object> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Focus(
+      canRequestFocus: false,
+      skipTraversal: true,
       onKeyEvent: (node, event) {
         if (onQuickAdd != null && KeyboardShortcutService.isQuickAdd(event)) {
           onQuickAdd!();
@@ -186,12 +189,12 @@ class AppAutocompleteField<T extends Object> extends StatelessWidget {
 
   Widget? _buildSuffixIcon(bool hasFocus) {
     if (hasFocus && onQuickAdd != null) {
-      return Focus(
-        canRequestFocus: false,
-        descendantsAreFocusable: false,
+      return ExcludeFocus(
+        excluding: true,
         child: Container(
           margin: const EdgeInsets.only(right: 6),
           child: IconButton(
+            focusNode: FocusNode(skipTraversal: true, canRequestFocus: false),
             icon: const Icon(Icons.add_circle, size: 17, color: AppColors.primary),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(maxWidth: 22, maxHeight: 22),
