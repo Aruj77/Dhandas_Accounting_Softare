@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
+import '../services/focus_policy_service.dart';
 import '../services/keyboard_shortcut_service.dart';
 import '../services/loading_service.dart';
 
@@ -28,10 +29,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _selectedChannel = 'Stable';
   late KeyboardShortcutSettings _keyboardSettings;
 
+  final FocusNode _updateBtnFocusNode = FocusNode();
+
   @override
   void initState() {
     super.initState();
     _keyboardSettings = widget.keyboardSettings;
+  }
+
+  @override
+  void dispose() {
+    _updateBtnFocusNode.dispose();
+    super.dispose();
   }
 
   @override
@@ -112,339 +121,346 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final hasDir =
         widget.currentDirectory != null && widget.currentDirectory!.isNotEmpty;
 
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 44, vertical: 28),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Settings & Preferences',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w900,
-              color: AppColors.primaryDark,
-              letterSpacing: -0.6,
-            ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Manage storage locations, application updates, runtime configurations, and keyboard-first controls.',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 28),
-
-          _buildSettingsCard(
-            icon: Icons.system_update_rounded,
-            badgeColor: AppColors.success,
-            title: 'Application Updates',
-            subtitle: 'Check for software upgrades, bug fixes, and feature releases',
-            child: Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: AppColors.cardBg,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
+    return AutoScreenFocus(
+      screen: FocusTargetScreen.settings,
+      nodeMap: {
+        FocusFieldNode.firstField: _updateBtnFocusNode,
+      },
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 44, vertical: 28),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Settings & Preferences',
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w900,
+                color: AppColors.primaryDark,
+                letterSpacing: -0.6,
               ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Manage storage locations, application updates, runtime configurations, and keyboard-first controls.',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 28),
+
+            _buildSettingsCard(
+              icon: Icons.system_update_rounded,
+              badgeColor: AppColors.success,
+              title: 'Application Updates',
+              subtitle: 'Check for software upgrades, bug fixes, and feature releases',
+              child: Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: AppColors.cardBg,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: AppColors.successLight,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.verified_rounded,
+                            color: AppColors.success,
+                            size: 22,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    'Dhandas Desktop v$_currentVersion',
+                                    style: const TextStyle(
+                                      fontSize: 14.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.primaryDark,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.successBorder,
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: const Text(
+                                      'Latest',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppColors.successDark,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                'Last verified: $_lastCheckedTime',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        ElevatedButton.icon(
+                          focusNode: _updateBtnFocusNode,
+                          onPressed: _checkForUpdates,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            elevation: 0,
+                          ),
+                          icon: const Icon(Icons.refresh_rounded, size: 16, color: AppColors.surface),
+                          label: const Text(
+                            'Check for Updates',
+                            style: TextStyle(color: AppColors.surface, fontWeight: FontWeight.w700, fontSize: 13),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Divider(color: AppColors.border, height: 26),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Release Channel',
+                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Receive verified production releases or early previews',
+                              style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+                            ),
+                          ],
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: _selectedChannel,
+                              icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppColors.textSecondary),
+                              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                              items: ['Stable', 'Beta (Preview)']
+                                  .map((channel) => DropdownMenuItem(value: channel, child: Text(channel)))
+                                  .toList(),
+                              onChanged: (val) {
+                                if (val != null) setState(() => _selectedChannel = val);
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            _buildSettingsCard(
+              icon: Icons.folder_shared_rounded,
+              badgeColor: AppColors.primary,
+              title: 'Storage & Database Location',
+              subtitle: 'Configure the root path where all organization data is saved',
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.cardBg,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.dns_rounded, color: AppColors.primary, size: 20),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Current Database Directory',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            hasDir ? widget.currentDirectory! : 'No directory configured',
+                            style: TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w700,
+                              color: hasDir ? AppColors.primaryDark : AppColors.error,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: widget.onChangeDirectory,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        elevation: 0,
+                      ),
+                      icon: const Icon(Icons.edit_location_alt_rounded, size: 16, color: AppColors.surface),
+                      label: const Text(
+                        'Change',
+                        style: TextStyle(color: AppColors.surface, fontWeight: FontWeight.w700, fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            _buildSettingsCard(
+              icon: Icons.keyboard_alt_rounded,
+              badgeColor: AppColors.primary,
+              title: 'Keyboard & Shortcuts',
+              subtitle: 'Navigate faster with arrow keys, numpad keys, Enter, Esc, and accounting-style shortcut actions.',
               child: Column(
                 children: [
                   Row(
                     children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: AppColors.successLight,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(
-                          Icons.verified_rounded,
-                          color: AppColors.success,
-                          size: 22,
+                      Expanded(
+                        child: _buildKeyboardToggleTile(
+                          title: 'Keyboard Intensive Mode',
+                          description: 'Keeps navigation optimized for keyboard-heavy workflow across the app.',
+                          value: _keyboardSettings.keyboardIntensiveMode,
+                          onChanged: _updateKeyboardMode,
                         ),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: _buildKeyboardToggleTile(
+                          title: 'Use Numeric Keypad Navigation',
+                          description: 'Treat NumPad 8 / 2 and NumPad Enter like arrow navigation and select.',
+                          value: _keyboardSettings.useNumpadNavigation,
+                          onChanged: _updateNumpadMode,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.cardBg,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
                           children: [
-                            Row(
-                              children: [
-                                Text(
-                                  'Dhandas Desktop v$_currentVersion',
-                                  style: const TextStyle(
-                                    fontSize: 14.5,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.primaryDark,
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Shortcut Mapping',
+                                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
                                   ),
-                                ),
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.successBorder,
-                                    borderRadius: BorderRadius.circular(20),
+                                  SizedBox(height: 2),
+                                  Text(
+                                    'Choose the primary key for each action. Changes apply immediately.',
+                                    style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
                                   ),
-                                  child: const Text(
-                                    'Latest',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppColors.successDark,
-                                    ),
-                                  ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                            const SizedBox(height: 3),
-                            Text(
-                              'Last verified: $_lastCheckedTime',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
-                                fontWeight: FontWeight.w500,
+                            OutlinedButton.icon(
+                              onPressed: _resetShortcuts,
+                              icon: const Icon(Icons.restart_alt_rounded, size: 16),
+                              label: const Text('Reset', style: TextStyle(fontWeight: FontWeight.w700)),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppColors.textSecondary,
+                                side: const BorderSide(color: AppColors.border),
                               ),
                             ),
                           ],
                         ),
-                      ),
-                      ElevatedButton.icon(
-                        onPressed: _checkForUpdates,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          elevation: 0,
-                        ),
-                        icon: const Icon(Icons.refresh_rounded, size: 16, color: AppColors.surface),
-                        label: const Text(
-                          'Check for Updates',
-                          style: TextStyle(color: AppColors.surface, fontWeight: FontWeight.w700, fontSize: 13),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Divider(color: AppColors.border, height: 26),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Release Channel',
-                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-                          ),
-                          SizedBox(height: 2),
-                          Text(
-                            'Receive verified production releases or early previews',
-                            style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
-                          ),
-                        ],
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: AppColors.border),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: _selectedChannel,
-                            icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppColors.textSecondary),
-                            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-                            items: ['Stable', 'Beta (Preview)']
-                                .map((channel) => DropdownMenuItem(value: channel, child: Text(channel)))
-                                .toList(),
-                            onChanged: (val) {
-                              if (val != null) setState(() => _selectedChannel = val);
-                            },
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          _buildSettingsCard(
-            icon: Icons.folder_shared_rounded,
-            badgeColor: AppColors.primary,
-            title: 'Storage & Database Location',
-            subtitle: 'Configure the root path where all organization data is saved',
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.cardBg,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.dns_rounded, color: AppColors.primary, size: 20),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Current Database Directory',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          hasDir ? widget.currentDirectory! : 'No directory configured',
-                          style: TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w700,
-                            color: hasDir ? AppColors.primaryDark : AppColors.error,
+                        const SizedBox(height: 16),
+                        ...KeyboardShortcutService.definitions.map(
+                          (definition) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _buildShortcutSelectorRow(definition),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  ElevatedButton.icon(
-                    onPressed: widget.onChangeDirectory,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      elevation: 0,
-                    ),
-                    icon: const Icon(Icons.edit_location_alt_rounded, size: 16, color: AppColors.surface),
-                    label: const Text(
-                      'Change',
-                      style: TextStyle(color: AppColors.surface, fontWeight: FontWeight.w700, fontSize: 13),
+                  const SizedBox(height: 16),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _KeyboardHintChip(label: 'Enter', description: 'Next Field'),
+                        _KeyboardHintChip(label: 'Tab', description: 'Forward'),
+                        _KeyboardHintChip(label: 'Shift+Tab', description: 'Back'),
+                        _KeyboardHintChip(label: 'Esc', description: 'Go Back'),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-          const SizedBox(height: 20),
+            const SizedBox(height: 20),
 
-          _buildSettingsCard(
-            icon: Icons.keyboard_alt_rounded,
-            badgeColor: AppColors.primary,
-            title: 'Keyboard & Shortcuts',
-            subtitle: 'Navigate faster with arrow keys, numpad keys, Enter, Esc, and accounting-style shortcut actions.',
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildKeyboardToggleTile(
-                        title: 'Keyboard Intensive Mode',
-                        description: 'Keeps navigation optimized for keyboard-heavy workflow across the app.',
-                        value: _keyboardSettings.keyboardIntensiveMode,
-                        onChanged: _updateKeyboardMode,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: _buildKeyboardToggleTile(
-                        title: 'Use Numeric Keypad Navigation',
-                        description: 'Treat NumPad 8 / 2 and NumPad Enter like arrow navigation and select.',
-                        value: _keyboardSettings.useNumpadNavigation,
-                        onChanged: _updateNumpadMode,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.cardBg,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          const Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Shortcut Mapping',
-                                  style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
-                                ),
-                                SizedBox(height: 2),
-                                Text(
-                                  'Choose the primary key for each action. Changes apply immediately.',
-                                  style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
-                                ),
-                              ],
-                            ),
-                          ),
-                          OutlinedButton.icon(
-                            onPressed: _resetShortcuts,
-                            icon: const Icon(Icons.restart_alt_rounded, size: 16),
-                            label: const Text('Reset', style: TextStyle(fontWeight: FontWeight.w700)),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.textSecondary,
-                              side: const BorderSide(color: AppColors.border),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      ...KeyboardShortcutService.definitions.map(
-                        (definition) => Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _buildShortcutSelectorRow(definition),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _KeyboardHintChip(label: 'Enter', description: 'Next Field'),
-                      _KeyboardHintChip(label: 'Tab', description: 'Forward'),
-                      _KeyboardHintChip(label: 'Shift+Tab', description: 'Back'),
-                      _KeyboardHintChip(label: 'Esc', description: 'Go Back'),
-                    ],
-                  ),
-                ),
-              ],
+            _buildSettingsCard(
+              icon: Icons.info_outline_rounded,
+              badgeColor: AppColors.purple,
+              title: 'Application Information',
+              subtitle: 'Dhandas build details, licensing, and dependencies',
+              child: Column(
+                children: [
+                  _buildInfoRow('Product Name', 'Dhandas Desktop Accounting'),
+                  const Divider(color: AppColors.border, height: 16),
+                  _buildInfoRow('Current Version', '$_currentVersion (Release)'),
+                  const Divider(color: AppColors.border, height: 16),
+                  _buildInfoRow('Engine Architecture', 'Windows x64 Native / Flutter Desktop'),
+                  const Divider(color: AppColors.border, height: 16),
+                  _buildInfoRow('Storage Driver', 'Local File JSON / Sequential FIN-Index'),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
-
-          _buildSettingsCard(
-            icon: Icons.info_outline_rounded,
-            badgeColor: AppColors.purple,
-            title: 'Application Information',
-            subtitle: 'Dhandas build details, licensing, and dependencies',
-            child: Column(
-              children: [
-                _buildInfoRow('Product Name', 'Dhandas Desktop Accounting'),
-                const Divider(color: AppColors.border, height: 16),
-                _buildInfoRow('Current Version', '$_currentVersion (Release)'),
-                const Divider(color: AppColors.border, height: 16),
-                _buildInfoRow('Engine Architecture', 'Windows x64 Native / Flutter Desktop'),
-                const Divider(color: AppColors.border, height: 16),
-                _buildInfoRow('Storage Driver', 'Local File JSON / Sequential FIN-Index'),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

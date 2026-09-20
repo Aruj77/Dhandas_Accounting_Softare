@@ -2,7 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../constants/app_colors.dart';
 import '../../../models/item_master_model.dart';
+import '../../../services/focus_policy_service.dart';
 import '../../../services/storage_service.dart';
+import '../../../utils/smart_filter.dart';
+import '../../common/app_confirm_dialog.dart';
 
 class AddItemDialog extends StatefulWidget {
   final FutureOr<void> Function(Map<String, dynamic> itemData)? onItemCreated;
@@ -28,11 +31,18 @@ class _AddItemDialogState extends State<AddItemDialog> {
   final _formKey = GlobalKey<FormState>();
 
   final TextEditingController _hsnController = TextEditingController();
+  final FocusNode _hsnFocusNode = FocusNode();
+
   final TextEditingController _nameController = TextEditingController();
+  final FocusNode _nameFocusNode = FocusNode();
+
   final TextEditingController _unitController = TextEditingController();
   final FocusNode _unitFocusNode = FocusNode();
   final ScrollController _unitOptionsScrollController = ScrollController();
+
   final TextEditingController _salesPriceController = TextEditingController();
+  final FocusNode _salesPriceFocusNode = FocusNode();
+
   final TextEditingController _purchasePriceController = TextEditingController();
   final TextEditingController _mrpController = TextEditingController();
 
@@ -144,55 +154,17 @@ class _AddItemDialogState extends State<AddItemDialog> {
     if (!_formKey.currentState!.validate()) return;
 
     if (widget.isEdit) {
-      final shouldContinue = await showDialog<bool>(
+      final shouldContinue = await AppConfirmDialog.show(
         context: context,
         barrierDismissible: false,
-        builder: (ctx) => AlertDialog(
-          backgroundColor: AppColors.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: AppColors.badgeYellowBg,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 22),
-              ),
-              const SizedBox(width: 10),
-              const Text(
-                'Warning',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
-              ),
-            ],
-          ),
-          content: const Text(
-            'All previous transactions will be changed accordingly. Do you want to continue?',
-            style: TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.4),
-          ),
-          actions: [
-            OutlinedButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.textSecondary,
-                side: const BorderSide(color: AppColors.borderMedium),
-              ),
-              child: const Text('No', style: TextStyle(fontWeight: FontWeight.w600)),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                elevation: 0,
-              ),
-              child: const Text('Yes', style: TextStyle(color: AppColors.surface, fontWeight: FontWeight.w800)),
-            ),
-          ],
-        ),
+        title: 'Warning',
+        message: 'All previous transactions will be changed accordingly. Do you want to continue?',
+        confirmLabel: 'Yes',
+        cancelLabel: 'No',
+        type: ConfirmDialogType.warning,
       );
 
-      if (shouldContinue != true) return;
+      if (!shouldContinue) return;
     }
 
     setState(() => _isSaving = true);
@@ -254,11 +226,14 @@ class _AddItemDialogState extends State<AddItemDialog> {
   @override
   void dispose() {
     _hsnController.dispose();
+    _hsnFocusNode.dispose();
     _nameController.dispose();
+    _nameFocusNode.dispose();
     _unitController.dispose();
     _unitFocusNode.dispose();
     _unitOptionsScrollController.dispose();
     _salesPriceController.dispose();
+    _salesPriceFocusNode.dispose();
     _purchasePriceController.dispose();
     _mrpController.dispose();
     super.dispose();
@@ -266,197 +241,209 @@ class _AddItemDialogState extends State<AddItemDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: AppColors.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        width: 650,
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryLight,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(
-                      widget.isEdit ? Icons.edit_note_rounded : Icons.inventory_2_rounded,
-                      size: 20,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.isEdit ? 'Edit Item Master' : 'Add New Item Master',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+    return AutoScreenFocus(
+      screen: FocusTargetScreen.addItemDialog,
+      nodeMap: {
+        FocusFieldNode.hsnField: _hsnFocusNode,
+        FocusFieldNode.itemNameField: _nameFocusNode,
+        FocusFieldNode.unitField: _unitFocusNode,
+        FocusFieldNode.salesPriceField: _salesPriceFocusNode,
+      },
+      child: Dialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Container(
+          width: 650,
+          padding: const EdgeInsets.all(24),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryLight,
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      Text(
-                        widget.isEdit
-                            ? 'Update inventory and tariff configuration'
-                            : 'Inventory and tariff configuration',
-                        style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
+                      child: Icon(
+                        widget.isEdit ? Icons.edit_note_rounded : Icons.inventory_2_rounded,
+                        size: 20,
+                        color: AppColors.primary,
                       ),
-                    ],
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textSecondary),
-                    onPressed: () => Navigator.of(context).pop(),
+                    ),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.isEdit ? 'Edit Item Master' : 'Add New Item Master',
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                        ),
+                        Text(
+                          widget.isEdit
+                              ? 'Update inventory and tariff configuration'
+                              : 'Inventory and tariff configuration',
+                          style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textSecondary),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 7,
+                      child: _buildTextField(
+                        controller: _hsnController,
+                        focusNode: _hsnFocusNode,
+                        label: 'HSN / SAC Code *',
+                        hintText: 'e.g. 3304',
+                        validator: (val) => val == null || val.trim().isEmpty ? 'HSN code is required' : null,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 22),
+                      child: ElevatedButton.icon(
+                        onPressed: _validateHsn,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: AppColors.surface,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        icon: const Icon(Icons.verified_outlined, size: 16),
+                        label: const Text('Validate', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                  ],
+                ),
+                if (_hsnStatusMessage != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    _hsnStatusMessage!,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: _isHsnValid ? AppColors.successDark : AppColors.errorDark,
+                    ),
                   ),
                 ],
-              ),
-              const SizedBox(height: 18),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    flex: 7,
-                    child: _buildTextField(
-                      controller: _hsnController,
-                      label: 'HSN / SAC Code *',
-                      hintText: 'e.g. 3304',
-                      validator: (val) => val == null || val.trim().isEmpty ? 'HSN code is required' : null,
+                const SizedBox(height: 14),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: _buildUnitAutocompleteField(),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 22),
-                    child: ElevatedButton.icon(
-                      onPressed: _validateHsn,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildDropdown(
+                        label: 'Tax Category *',
+                        value: _selectedTaxCategory,
+                        items: _taxCategories,
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() {
+                              _selectedTaxCategory = val;
+                              _autoGenerateName();
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                _buildTextField(
+                  controller: _nameController,
+                  focusNode: _nameFocusNode,
+                  label: 'Item Name *',
+                  hintText: 'Enter item master name',
+                  validator: (val) => val == null || val.trim().isEmpty ? 'Item name cannot be empty' : null,
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _salesPriceController,
+                        focusNode: _salesPriceFocusNode,
+                        label: 'Sales Price (₹)',
+                        hintText: '0.00',
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _purchasePriceController,
+                        label: 'Purchase Price (₹)',
+                        hintText: '0.00',
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _mrpController,
+                        label: 'MRP (₹)',
+                        hintText: '0.00',
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    OutlinedButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        side: const BorderSide(color: AppColors.border),
+                        foregroundColor: AppColors.textPrimary,
+                      ),
+                      child: const Text('Cancel'),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton(
+                      onPressed: _isSaving ? null : _handleSubmit,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: AppColors.surface,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
-                      icon: const Icon(Icons.verified_outlined, size: 16),
-                      label: const Text('Validate', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                      child: _isSaving
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(color: AppColors.surface, strokeWidth: 2),
+                            )
+                          : Text(
+                              widget.isEdit ? 'Save Changes' : 'Save & Select Item',
+                              style: const TextStyle(fontWeight: FontWeight.w700),
+                            ),
                     ),
-                  ),
-                ],
-              ),
-              if (_hsnStatusMessage != null) ...[
-                const SizedBox(height: 4),
-                Text(
-                  _hsnStatusMessage!,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: _isHsnValid ? AppColors.successDark : AppColors.errorDark,
-                  ),
+                  ],
                 ),
               ],
-              const SizedBox(height: 14),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: _buildUnitAutocompleteField(),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildDropdown(
-                      label: 'Tax Category *',
-                      value: _selectedTaxCategory,
-                      items: _taxCategories,
-                      onChanged: (val) {
-                        if (val != null) {
-                          setState(() {
-                            _selectedTaxCategory = val;
-                            _autoGenerateName();
-                          });
-                        }
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              _buildTextField(
-                controller: _nameController,
-                label: 'Item Name *',
-                hintText: 'Enter item master name',
-                validator: (val) => val == null || val.trim().isEmpty ? 'Item name cannot be empty' : null,
-              ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _salesPriceController,
-                      label: 'Sales Price (₹)',
-                      hintText: '0.00',
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _purchasePriceController,
-                      label: 'Purchase Price (₹)',
-                      hintText: '0.00',
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _mrpController,
-                      label: 'MRP (₹)',
-                      hintText: '0.00',
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  OutlinedButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      side: const BorderSide(color: AppColors.border),
-                      foregroundColor: AppColors.textPrimary,
-                    ),
-                    child: const Text('Cancel'),
-                  ),
-                  const SizedBox(width: 12),
-                  ElevatedButton(
-                    onPressed: _isSaving ? null : _handleSubmit,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.surface,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                    child: _isSaving
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(color: AppColors.surface, strokeWidth: 2),
-                          )
-                        : Text(
-                            widget.isEdit ? 'Save Changes' : 'Save & Select Item',
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -478,11 +465,11 @@ class _AddItemDialogState extends State<AddItemDialog> {
               textEditingController: _unitController,
               focusNode: _unitFocusNode,
               optionsBuilder: (TextEditingValue textEditingValue) {
-                final query = textEditingValue.text.trim().toLowerCase();
-                if (query.isEmpty) {
-                  return _units;
-                }
-                return _units.where((u) => u.toLowerCase().contains(query));
+                return SmartFilter.filterAndSort<String>(
+                  items: _units,
+                  query: textEditingValue.text,
+                  labelExtractor: (u) => u,
+                );
               },
               onSelected: (String selection) {
                 _unitController.text = selection;
@@ -603,6 +590,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
 
   Widget _buildTextField({
     required TextEditingController controller,
+    FocusNode? focusNode,
     required String label,
     String? hintText,
     String? Function(String?)? validator,
@@ -617,6 +605,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
           height: 38,
           child: TextFormField(
             controller: controller,
+            focusNode: focusNode,
             validator: validator,
             keyboardType: keyboardType,
             style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),

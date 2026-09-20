@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../constants/app_colors.dart';
+import '../../services/focus_policy_service.dart';
 import '../../widgets/company/date_range_dialog.dart';
 import '../../widgets/voucher/popup/voucher_modify_dialog.dart';
 
@@ -171,30 +172,36 @@ class TransactionsDashboardState extends State<TransactionsDashboard> {
     final companyName = (widget.company['companyName'] ?? 'Workspace').toString();
     final activeFy = (widget.company['activeFinancialYear'] ?? '2026-27').toString();
 
-    return Container(
-      color: AppColors.background,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final contentWidth = constraints.maxWidth - 64;
-          final cols = contentWidth > 1000 ? 3 : (contentWidth > 650 ? 2 : 1);
+    return AutoScreenFocus(
+      screen: FocusTargetScreen.homeDashboard,
+      nodeMap: {
+        FocusFieldNode.firstField: _focusNodes.first,
+      },
+      child: Container(
+        color: AppColors.background,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final contentWidth = constraints.maxWidth - 64;
+            final cols = contentWidth > 1000 ? 3 : (contentWidth > 650 ? 2 : 1);
 
-          return SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(32, 28, 32, 40),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(companyName: companyName, financialYear: activeFy),
-                const SizedBox(height: 30),
-                _buildCategorySection('Sales', 'Customer invoices, returns and receipts', Icons.trending_up_rounded, AppColors.primaryAccent, _sections[0], cols),
-                const SizedBox(height: 22),
-                _buildCategorySection('Purchases', 'Supplier bills, returns and payments', Icons.shopping_bag_outlined, AppColors.purple, _sections[1], cols),
-                const SizedBox(height: 22),
-                _buildCategorySection('Banking & Journal', 'Cash transfers and accounting adjustments', Icons.account_balance_rounded, AppColors.primary, _sections[2], cols),
-              ],
-            ),
-          );
-        },
+            return SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(32, 28, 32, 40),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(companyName: companyName, financialYear: activeFy),
+                  const SizedBox(height: 30),
+                  _buildCategorySection('Sales', 'Customer invoices, returns and receipts', Icons.trending_up_rounded, AppColors.primaryAccent, _sections[0], cols),
+                  const SizedBox(height: 22),
+                  _buildCategorySection('Purchases', 'Supplier bills, returns and payments', Icons.shopping_bag_outlined, AppColors.purple, _sections[1], cols),
+                  const SizedBox(height: 22),
+                  _buildCategorySection('Banking & Journal', 'Cash transfers and accounting adjustments', Icons.account_balance_rounded, AppColors.primary, _sections[2], cols),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }

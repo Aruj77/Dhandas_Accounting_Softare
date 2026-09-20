@@ -1,5 +1,5 @@
+// lib/services/keyboard_shortcut_service.dart
 import 'dart:convert';
-
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -97,6 +97,7 @@ class KeyboardShortcutDefinition {
 class KeyboardShortcutService {
   static const String _prefsKey = 'dhandas_keyboard_shortcut_settings';
 
+  // --- Reconfigurable Action Identifiers ---
   static const String goBackAction = 'goBack';
   static const String moveUpAction = 'moveUp';
   static const String moveDownAction = 'moveDown';
@@ -108,39 +109,110 @@ class KeyboardShortcutService {
   static const String switchWorkspaceAction = 'switchWorkspace';
   static const String saveVoucherAction = 'saveVoucher';
 
+  // --- Fixed Hardware Action Identifiers ---
+  static const String quickAddMasterAction = 'quickAddMaster'; // Alt + C
+  static const String modifyMasterAction = 'modifyMaster';     // Alt + E
+  static const String printInvoiceAction = 'printInvoice';     // Ctrl/Cmd + P
+  static const String calculatorAction = 'calculator';         // F4
+
+  // --- Key Code Constants ---
   static const String keyEscape = 'escape';
   static const String keyArrowUp = 'arrowUp';
   static const String keyArrowDown = 'arrowDown';
+  static const String keyArrowLeft = 'arrowLeft';
+  static const String keyArrowRight = 'arrowRight';
   static const String keyEnter = 'enter';
   static const String keyNumpad8 = 'numpad8';
   static const String keyNumpad2 = 'numpad2';
+  static const String keyNumpad4 = 'numpad4';
+  static const String keyNumpad6 = 'numpad6';
   static const String keyNumpadEnter = 'numpadEnter';
   static const String keyF2 = 'f2';
   static const String keyF3 = 'f3';
   static const String keyF4 = 'f4';
+  static const String keyF5 = 'f5';
   static const String keyF6 = 'f6';
+  static const String keyF7 = 'f7';
   static const String keyF8 = 'f8';
+  static const String keyF9 = 'f9';
   static const String keyF10 = 'f10';
   static const String keyF12 = 'f12';
   static const String keySpace = 'space';
 
+  // --- Directional & Confirm Navigation Helpers ---
   static bool isUp(LogicalKeyboardKey key) =>
-    key == LogicalKeyboardKey.arrowUp || key == LogicalKeyboardKey.numpad8;
+      key == LogicalKeyboardKey.arrowUp || key == LogicalKeyboardKey.numpad8;
 
   static bool isDown(LogicalKeyboardKey key) =>
-    key == LogicalKeyboardKey.arrowDown || key == LogicalKeyboardKey.numpad2;
+      key == LogicalKeyboardKey.arrowDown || key == LogicalKeyboardKey.numpad2;
 
   static bool isLeft(LogicalKeyboardKey key) =>
-    key == LogicalKeyboardKey.arrowLeft || key == LogicalKeyboardKey.numpad4;
+      key == LogicalKeyboardKey.arrowLeft || key == LogicalKeyboardKey.numpad4;
 
   static bool isRight(LogicalKeyboardKey key) =>
-    key == LogicalKeyboardKey.arrowRight || key == LogicalKeyboardKey.numpad6;
+      key == LogicalKeyboardKey.arrowRight || key == LogicalKeyboardKey.numpad6;
 
   static bool isConfirm(LogicalKeyboardKey key) =>
-    key == LogicalKeyboardKey.enter ||
-    key == LogicalKeyboardKey.numpadEnter ||
-    key == LogicalKeyboardKey.space;
+      key == LogicalKeyboardKey.enter ||
+      key == LogicalKeyboardKey.numpadEnter ||
+      key == LogicalKeyboardKey.space;
 
+  static bool isExit(LogicalKeyboardKey key) =>
+      key == LogicalKeyboardKey.escape;
+
+  // --- Universal Event-Level Matching Helpers ---
+
+  /// Alt + C: Quick add an item, party, or master ledger
+  static bool isQuickAdd(KeyEvent event) {
+    return event is KeyDownEvent &&
+        HardwareKeyboard.instance.isAltPressed &&
+        event.logicalKey == LogicalKeyboardKey.keyC;
+  }
+
+  /// Alt + E: Edit active master or open line-level tax details
+  static bool isModifyOrTaxDetails(KeyEvent event) {
+    return event is KeyDownEvent &&
+        HardwareKeyboard.instance.isAltPressed &&
+        event.logicalKey == LogicalKeyboardKey.keyE;
+  }
+
+  /// Ctrl + P / Cmd + P: Print Preview Studio
+  static bool isPrint(KeyEvent event) {
+    if (event is! KeyDownEvent) return false;
+    final hw = HardwareKeyboard.instance;
+    return (hw.isControlPressed || hw.isMetaPressed) &&
+        event.logicalKey == LogicalKeyboardKey.keyP;
+  }
+
+  /// F4: Quick Calculator
+  static bool isCalculator(KeyEvent event) {
+    return event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.f4;
+  }
+
+  /// F2 or Ctrl + S: Standard Save
+  static bool isSave(KeyEvent event) {
+    if (event is! KeyDownEvent) return false;
+    final hw = HardwareKeyboard.instance;
+    final isCtrlS = (hw.isControlPressed || hw.isMetaPressed) &&
+        event.logicalKey == LogicalKeyboardKey.keyS;
+    return event.logicalKey == LogicalKeyboardKey.f2 || isCtrlS;
+  }
+
+  /// Check any Alt + [Key] combination
+  static bool isAltKey(KeyEvent event, LogicalKeyboardKey key) {
+    return event is KeyDownEvent &&
+        HardwareKeyboard.instance.isAltPressed &&
+        event.logicalKey == key;
+  }
+
+  /// Check any Ctrl / Cmd + [Key] combination
+  static bool isControlKey(KeyEvent event, LogicalKeyboardKey key) {
+    if (event is! KeyDownEvent) return false;
+    final hw = HardwareKeyboard.instance;
+    return (hw.isControlPressed || hw.isMetaPressed) && event.logicalKey == key;
+  }
+
+  // --- Defaults & Settings ---
   static const Map<String, String> defaultShortcuts = {
     goBackAction: keyEscape,
     moveUpAction: keyArrowUp,
@@ -249,9 +321,7 @@ class KeyboardShortcutService {
       }
       if (decoded is Map) {
         return KeyboardShortcutSettings.fromJson(
-          decoded.map(
-            (key, value) => MapEntry(key.toString(), value),
-          ),
+          decoded.map((key, value) => MapEntry(key.toString(), value)),
         );
       }
     } catch (_) {}
@@ -270,10 +340,7 @@ class KeyboardShortcutService {
     return settings;
   }
 
-  static String shortcutFor(
-    KeyboardShortcutSettings settings,
-    String actionId,
-  ) {
+  static String shortcutFor(KeyboardShortcutSettings settings, String actionId) {
     return settings.shortcuts[actionId] ?? defaultShortcuts[actionId] ?? keyEnter;
   }
 
@@ -301,15 +368,22 @@ class KeyboardShortcutService {
     if (key == LogicalKeyboardKey.escape) return keyEscape;
     if (key == LogicalKeyboardKey.arrowUp) return keyArrowUp;
     if (key == LogicalKeyboardKey.arrowDown) return keyArrowDown;
+    if (key == LogicalKeyboardKey.arrowLeft) return keyArrowLeft;
+    if (key == LogicalKeyboardKey.arrowRight) return keyArrowRight;
     if (key == LogicalKeyboardKey.enter) return keyEnter;
     if (key == LogicalKeyboardKey.numpadEnter) return keyNumpadEnter;
     if (key == LogicalKeyboardKey.numpad8) return keyNumpad8;
     if (key == LogicalKeyboardKey.numpad2) return keyNumpad2;
+    if (key == LogicalKeyboardKey.numpad4) return keyNumpad4;
+    if (key == LogicalKeyboardKey.numpad6) return keyNumpad6;
     if (key == LogicalKeyboardKey.f2) return keyF2;
     if (key == LogicalKeyboardKey.f3) return keyF3;
     if (key == LogicalKeyboardKey.f4) return keyF4;
+    if (key == LogicalKeyboardKey.f5) return keyF5;
     if (key == LogicalKeyboardKey.f6) return keyF6;
+    if (key == LogicalKeyboardKey.f7) return keyF7;
     if (key == LogicalKeyboardKey.f8) return keyF8;
+    if (key == LogicalKeyboardKey.f9) return keyF9;
     if (key == LogicalKeyboardKey.f10) return keyF10;
     if (key == LogicalKeyboardKey.f12) return keyF12;
     if (key == LogicalKeyboardKey.space) return keySpace;

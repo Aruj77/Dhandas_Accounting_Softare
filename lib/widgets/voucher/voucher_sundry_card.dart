@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../../../constants/app_colors.dart';
 import '../../../services/storage_service.dart';
 import 'voucher_sundry_row.dart';
+import '../../../utils/smart_filter.dart';
 
 class VoucherSundryCard extends StatelessWidget {
   final List<VoucherSundryRow> sundries;
@@ -97,9 +98,11 @@ class VoucherSundryCard extends StatelessWidget {
                           child: Autocomplete<String>(
                             initialValue: TextEditingValue(text: s.name.text),
                             optionsBuilder: (TextEditingValue textEditingValue) {
-                              final options = _sundryOptions;
-                              if (textEditingValue.text == '') return options;
-                              return options.where((opt) => opt.toLowerCase().contains(textEditingValue.text.toLowerCase()));
+                              return SmartFilter.filterAndSort<String>(
+                                items: _sundryOptions,
+                                query: textEditingValue.text,
+                                labelExtractor: (s) => s,
+                              );
                             },
                             onSelected: (selection) {
                               s.name.text = selection;

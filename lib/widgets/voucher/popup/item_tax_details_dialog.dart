@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../constants/app_colors.dart';
+import '../../../services/focus_policy_service.dart';
 import '../voucher_item_row.dart';
 
 class ItemTaxDetailsDialog extends StatefulWidget {
@@ -24,6 +25,8 @@ class _ItemTaxDetailsDialogState extends State<ItemTaxDetailsDialog> {
   late TextEditingController _sgstCtrl;
   late TextEditingController _igstCtrl;
   late TextEditingController _taxableCtrl;
+
+  final FocusNode _taxableFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -55,6 +58,7 @@ class _ItemTaxDetailsDialogState extends State<ItemTaxDetailsDialog> {
   @override
   void dispose() {
     _taxableCtrl.dispose();
+    _taxableFocusNode.dispose();
     _cgstCtrl.dispose();
     _sgstCtrl.dispose();
     _igstCtrl.dispose();
@@ -65,98 +69,104 @@ class _ItemTaxDetailsDialogState extends State<ItemTaxDetailsDialog> {
   Widget build(BuildContext context) {
     final itemName = widget.row.item.text.isNotEmpty ? widget.row.item.text : 'Item Line';
 
-    return Dialog(
-      backgroundColor: AppColors.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        width: 420,
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryLight,
-                    borderRadius: BorderRadius.circular(8),
+    return AutoScreenFocus(
+      screen: FocusTargetScreen.itemTaxDetailsDialog,
+      nodeMap: {
+        FocusFieldNode.firstField: _taxableFocusNode,
+      },
+      child: Dialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Container(
+          width: 420,
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryLight,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.calculate_outlined, color: AppColors.primary, size: 18),
                   ),
-                  child: const Icon(Icons.calculate_outlined, color: AppColors.primary, size: 18),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Tax Details: $itemName',
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        widget.isInterState ? 'Inter-State Transaction (IGST)' : 'Intra-State Transaction (CGST + SGST)',
-                        style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                      ),
-                    ],
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Tax Details: $itemName',
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          widget.isInterState ? 'Inter-State Transaction (IGST)' : 'Intra-State Transaction (CGST + SGST)',
+                          style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.textMuted),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildTaxInput(
-              label: 'Taxable Value (₹)',
-              controller: _taxableCtrl,
-              autofocus: true,
-            ),
-            const SizedBox(height: 10),
-            if (!widget.isInterState) ...[
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.textMuted),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
               _buildTaxInput(
-                label: 'Central GST (CGST ₹)',
-                controller: _cgstCtrl,
+                label: 'Taxable Value (₹)',
+                controller: _taxableCtrl,
+                focusNode: _taxableFocusNode,
               ),
               const SizedBox(height: 10),
-              _buildTaxInput(
-                label: 'State GST (SGST ₹)',
-                controller: _sgstCtrl,
-              ),
-            ] else ...[
-              _buildTaxInput(
-                label: 'Integrated GST (IGST ₹)',
-                controller: _igstCtrl,
-              ),
-            ],
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                OutlinedButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppColors.border),
-                    foregroundColor: AppColors.textPrimary,
-                  ),
-                  child: const Text('Cancel'),
+              if (!widget.isInterState) ...[
+                _buildTaxInput(
+                  label: 'Central GST (CGST ₹)',
+                  controller: _cgstCtrl,
                 ),
-                const SizedBox(width: 10),
-                ElevatedButton(
-                  onPressed: _applyChanges,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.surface,
-                  ),
-                  child: const Text('Apply Details', style: TextStyle(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 10),
+                _buildTaxInput(
+                  label: 'State GST (SGST ₹)',
+                  controller: _sgstCtrl,
+                ),
+              ] else ...[
+                _buildTaxInput(
+                  label: 'Integrated GST (IGST ₹)',
+                  controller: _igstCtrl,
                 ),
               ],
-            ),
-          ],
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  OutlinedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: AppColors.border),
+                      foregroundColor: AppColors.textPrimary,
+                    ),
+                    child: const Text('Cancel'),
+                  ),
+                  const SizedBox(width: 10),
+                  ElevatedButton(
+                    onPressed: _applyChanges,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.surface,
+                    ),
+                    child: const Text('Apply Details', style: TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -165,7 +175,7 @@ class _ItemTaxDetailsDialogState extends State<ItemTaxDetailsDialog> {
   Widget _buildTaxInput({
     required String label,
     required TextEditingController controller,
-    bool autofocus = false,
+    FocusNode? focusNode,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -176,7 +186,7 @@ class _ItemTaxDetailsDialogState extends State<ItemTaxDetailsDialog> {
           height: 36,
           child: TextField(
             controller: controller,
-            autofocus: autofocus,
+            focusNode: focusNode,
             textAlign: TextAlign.right,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [

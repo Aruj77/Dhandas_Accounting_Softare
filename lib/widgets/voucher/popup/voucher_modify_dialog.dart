@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../constants/app_colors.dart';
+import '../../../services/focus_policy_service.dart';
 import '../../../services/keyboard_shortcut_service.dart';
 import '../../../services/storage_service.dart';
 import '../../../pages/company/voucher/voucher_entry_screen.dart';
@@ -133,101 +134,106 @@ class _VoucherModifyDialogState extends State<VoucherModifyDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: AppColors.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        width: 360,
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
+    return AutoScreenFocus(
+      screen: FocusTargetScreen.voucherModifyDialog,
+      nodeMap: {
+        FocusFieldNode.voucherNumberField: _vchNoFocus,
+      },
+      child: Dialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Container(
+          width: 360,
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.edit_note_rounded, color: AppColors.primary, size: 20),
                   ),
-                  child: const Icon(Icons.edit_note_rounded, color: AppColors.primary, size: 20),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  'Modify ${widget.voucherType}',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
-                ),
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textSecondary),
-                  onPressed: () => Navigator.pop(context),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
-              ],
-            ),
-            const SizedBox(height: 18),
-            const Text(
-              'Voucher No.',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 6),
-            _isLoading
-                ? const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator()))
-                : TextField(
-                    controller: _vchNoCtrl,
-                    focusNode: _vchNoFocus,
-                    autofocus: true,
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-                    decoration: InputDecoration(
-                      hintText: 'Enter Voucher Number',
-                      filled: true,
-                      fillColor: AppColors.cardBg,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: AppColors.border),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Modify ${widget.voucherType}',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textSecondary),
+                    onPressed: () => Navigator.pop(context),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              const Text(
+                'Voucher No.',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 6),
+              _isLoading
+                  ? const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator()))
+                  : TextField(
+                      controller: _vchNoCtrl,
+                      focusNode: _vchNoFocus,
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                      decoration: InputDecoration(
+                        hintText: 'Enter Voucher Number',
+                        filled: true,
+                        fillColor: AppColors.cardBg,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: AppColors.border),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                        ),
                       ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                      onSubmitted: (val) => _openEditForVoucherNumber(val),
+                    ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _openManageList,
+                      icon: const Icon(Icons.list_alt_rounded, size: 16),
+                      label: const Text('List', style: TextStyle(fontWeight: FontWeight.w700)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        side: const BorderSide(color: AppColors.primary),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
                     ),
-                    onSubmitted: (val) => _openEditForVoucherNumber(val),
                   ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _openManageList,
-                    icon: const Icon(Icons.list_alt_rounded, size: 16),
-                    label: const Text('List', style: TextStyle(fontWeight: FontWeight.w700)),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.primary,
-                      side: const BorderSide(color: AppColors.primary),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => _openEditForVoucherNumber(_vchNoCtrl.text),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.surface,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: const Text('OK', style: TextStyle(fontWeight: FontWeight.w800)),
                     ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => _openEditForVoucherNumber(_vchNoCtrl.text),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.surface,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                    child: const Text('OK', style: TextStyle(fontWeight: FontWeight.w800)),
-                  ),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

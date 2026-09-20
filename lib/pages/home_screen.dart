@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../constants/app_colors.dart';
+import '../services/focus_policy_service.dart';
 import '../services/keyboard_shortcut_service.dart';
 import '../services/storage_service.dart';
 import '../services/loading_service.dart';
@@ -73,9 +74,13 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadStoredDirectoryAndData();
     _loadKeyboardSettings();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _sidebarKey.currentState?.focusActiveItem();
-    });
+    FocusPolicyService.requestScreenFocus(
+      screen: FocusTargetScreen.homeDashboard,
+      nodeMap: {
+        FocusFieldNode.firstField: _openCompanyBtnFocus,
+        FocusFieldNode.secondaryAction: _createCompanyBtnFocus,
+      },
+    );
   }
 
   @override

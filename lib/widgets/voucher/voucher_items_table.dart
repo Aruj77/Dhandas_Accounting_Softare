@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'voucher_item_row.dart';
 import '../../constants/app_colors.dart';
-import '../../constants/app_shortcuts.dart';
+import '../../services/keyboard_shortcut_service.dart';
 import '../../models/item_master_model.dart';
+import '../common/app_autocomplete_field.dart';
 
 class VoucherItemsTable extends StatelessWidget {
   final List<VoucherItemRow> items;
@@ -46,7 +47,7 @@ class VoucherItemsTable extends StatelessWidget {
   Widget build(BuildContext context) {
     return Focus(
       onKeyEvent: (node, event) {
-        if (AppShortcuts.isQuickAdd(event)) {
+        if (KeyboardShortcutService.isQuickAdd(event)) {
           onAddItem(items.length);
           return KeyEventResult.handled;
         }
@@ -57,7 +58,7 @@ class VoucherItemsTable extends StatelessWidget {
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppColors.border, width: 1.2),
-          boxShadow: [
+          boxShadow: const [
             BoxShadow(color: AppColors.shadowColor, blurRadius: 8, offset: Offset(0, 2)),
           ],
         ),
@@ -97,7 +98,7 @@ class VoucherItemsTable extends StatelessWidget {
             Expanded(
               child: ListView.separated(
                 itemCount: items.length,
-                separatorBuilder: (_, _) => const Divider(height: 1, color: AppColors.background),
+                separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.background),
                 itemBuilder: (context, index) {
                   final row = items[index];
                   return Padding(
@@ -110,10 +111,55 @@ class VoucherItemsTable extends StatelessWidget {
                         ),
                         Expanded(
                           flex: 6,
-                          child: _buildItemAutocomplete(
-                            row: row,
-                            index: index,
-                            onSubmitted: () => onRowEnter(index, 'item'),
+                          child: AppAutocompleteField<ItemMasterModel>(
+                            controller: row.item,
+                            focusNode: row.itemFocus,
+                            items: availableItems,
+                            hintText: 'Type or select item...',
+                            dropdownWidth: 380,
+                            showDropdownArrow: false,
+                            labelExtractor: (item) => item.name,
+                            onQuickAdd: () => onAddItem(index),
+                            onSelected: (selected) => onItemSelected(index, selected),
+                            onFieldSubmitted: () => onRowEnter(index, 'item'),
+                            optionItemBuilder: (context, item) => Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 26,
+                                    height: 26,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primaryLight,
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: const Icon(Icons.inventory_2_outlined, size: 14, color: AppColors.primary),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          item.name,
+                                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Row(
+                                          children: [
+                                            Text('HSN: ${item.hsn}', style: const TextStyle(fontSize: 10, color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
+                                            const SizedBox(width: 8),
+                                            Text(item.taxCategory, style: const TextStyle(fontSize: 10, color: AppColors.successDark, fontWeight: FontWeight.w700)),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -214,147 +260,6 @@ class VoucherItemsTable extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildItemAutocomplete({
-    required VoucherItemRow row,
-    required int index,
-    required VoidCallback onSubmitted,
-  }) {
-    return SizedBox(
-      height: 36,
-      child: RawAutocomplete<ItemMasterModel>(
-        focusNode: row.itemFocus,
-        textEditingController: row.item,
-        displayStringForOption: (item) => item.name,
-        optionsBuilder: (TextEditingValue textEditingValue) {
-          final query = textEditingValue.text.trim().toLowerCase();
-          if (query.isEmpty) return availableItems;
-          return availableItems.where((item) {
-            return item.name.toLowerCase().contains(query) ||
-                item.hsn.toLowerCase().contains(query) ||
-                item.taxCategory.toLowerCase().contains(query);
-          });
-        },
-        onSelected: (ItemMasterModel selection) {
-          row.item.text = selection.name;
-          onItemSelected(index, selection);
-          onSubmitted();
-        },
-        optionsViewBuilder: (context, onSelected, options) {
-          return Align(
-            alignment: Alignment.topLeft,
-            child: Material(
-              elevation: 8,
-              borderRadius: BorderRadius.circular(10),
-              color: AppColors.surface,
-              child: Container(
-                width: 380,
-                constraints: const BoxConstraints(maxHeight: 220),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.border, width: 1.2),
-                ),
-                child: ListView.separated(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  shrinkWrap: true,
-                  itemCount: options.length,
-                  separatorBuilder: (_, _) => const Divider(height: 1, color: AppColors.background),
-                  itemBuilder: (context, idx) {
-                    final ItemMasterModel item = options.elementAt(idx);
-                    return InkWell(
-                      onTap: () => onSelected(item),
-                      hoverColor: AppColors.primaryLight,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 26,
-                              height: 26,
-                              decoration: BoxDecoration(
-                                color: AppColors.primaryLight,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: const Icon(Icons.inventory_2_outlined, size: 14, color: AppColors.primary),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    item.name,
-                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Row(
-                                    children: [
-                                      Text('HSN: ${item.hsn}', style: const TextStyle(fontSize: 10, color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
-                                      const SizedBox(width: 8),
-                                      Text(item.taxCategory, style: const TextStyle(fontSize: 10, color: AppColors.successDark, fontWeight: FontWeight.w700)),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-          );
-        },
-        fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-          return ListenableBuilder(
-            listenable: focusNode,
-            builder: (context, _) {
-              return TextField(
-                controller: controller,
-                focusNode: focusNode,
-                textInputAction: TextInputAction.next,
-                onSubmitted: (_) {
-                  onFieldSubmitted();
-                  onSubmitted();
-                },
-                style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
-                decoration: InputDecoration(
-                  hintText: 'Type or select item...',
-                  hintStyle: const TextStyle(fontSize: 10, color: AppColors.textMuted, fontWeight: FontWeight.w400),
-                  suffixIcon: focusNode.hasFocus
-                      ? Focus(
-                          canRequestFocus: false,
-                          descendantsAreFocusable: false,
-                          child: Container(
-                            margin: const EdgeInsets.only(right: 4),
-                            child: IconButton(
-                              icon: const Icon(Icons.add_circle, size: 16, color: AppColors.primary),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(maxWidth: 20, maxHeight: 20),
-                              onPressed: () => onAddItem(index),
-                            ),
-                          ),
-                        )
-                      : null,
-                  suffixIconConstraints: const BoxConstraints(minWidth: 26, minHeight: 20),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                  filled: true,
-                  fillColor: AppColors.cardBg,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.border, width: 1.0)),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.border, width: 1.0)),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
-                ),
-              );
-            },
-          );
-        },
       ),
     );
   }

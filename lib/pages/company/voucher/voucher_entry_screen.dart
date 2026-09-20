@@ -2,11 +2,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../constants/app_colors.dart';
-import '../../../constants/app_shortcuts.dart';
+import '../../../services/focus_policy_service.dart';
+import '../../../services/keyboard_shortcut_service.dart';
 import '../../../constants/gst_constants.dart';
 import '../../../models/item_master_model.dart';
 import '../../../models/party_master_model.dart';
-import '../../../services/keyboard_shortcut_service.dart';
 import '../../../services/storage_service.dart';
 import '../../../services/voucher_calculation_service.dart';
 import '../../../services/voucher_numbering_service.dart';
@@ -94,6 +94,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   bool _isHandlingVchNoWarning = false;
   bool _isHandlingTaxMismatch = false;
   bool _allowEmptyVchNo = false;
+  bool _isExitDialogOpen = false;
   String? _dateError;
 
   DateTime _fyStartDate = DateTime(2026, 4, 1);
@@ -109,11 +110,70 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   @override
   void initState() {
     super.initState();
+    HardwareKeyboard.instance.addHandler(_handleGlobalHardwareKey);
     _attachControllerListeners();
     if (widget.isEdit && widget.voucherToEdit != null) {
       _loadExistingVoucherData(widget.voucherToEdit!);
     } else {
       _loadCompanyMastersOnly().then((_) => _initializeNewVoucher());
+    }
+  }
+
+  @override
+  void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleGlobalHardwareKey);
+    for (final c in [
+      _seriesController,
+      _dateController,
+      _vchNoController,
+      _saleTypeController,
+      _partyController,
+      _matCenterController,
+      _narrationController
+    ]) {
+      c.dispose();
+    }
+    for (final f in [
+      _seriesFocus,
+      _dateFocusNode,
+      _vchNoFocus,
+      _saleTypeFocus,
+      _partyFocus,
+      _matCenterFocus,
+      _narrationFocus,
+      _saveButtonFocusNode
+    ]) {
+      f.dispose();
+    }
+    for (final i in _items) i.dispose();
+    for (final s in _sundries) s.dispose();
+    super.dispose();
+  }
+
+  bool _handleGlobalHardwareKey(KeyEvent event) {
+    if (!mounted) return false;
+    if (ModalRoute.of(context)?.isCurrent != true) return false;
+
+    if (event is! KeyDownEvent) return false;
+
+    if (KeyboardShortcutService.matchesAction(
+      widget.keyboardSettings,
+      KeyboardShortcutService.goBackAction,
+      event,
+    )) {
+      _requestExit();
+      return true;
+    }
+    return false;
+  }
+
+  Future<void> _requestExit() async {
+    if (_isExitDialogOpen) return;
+    _isExitDialogOpen = true;
+    final shouldExit = await VoucherDialogUtils.showUnsavedChangesDialog(context);
+    _isExitDialogOpen = false;
+    if (shouldExit && mounted) {
+      widget.onClose();
     }
   }
 
@@ -1038,307 +1098,280 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   }
 
   @override
-  void dispose() {
-    for (final c in [
-      _seriesController,
-      _dateController,
-      _vchNoController,
-      _saleTypeController,
-      _partyController,
-      _matCenterController,
-      _narrationController
-    ]) {
-      c.dispose();
-    }
-    for (final f in [
-      _seriesFocus,
-      _dateFocusNode,
-      _vchNoFocus,
-      _saleTypeFocus,
-      _partyFocus,
-      _matCenterFocus,
-      _narrationFocus,
-      _saveButtonFocusNode
-    ]) {
-      f.dispose();
-    }
-    for (final i in _items) i.dispose();
-    for (final s in _sundries) s.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final fy = widget.company['activeFinancialYear']?.toString() ?? AppDateUtils.defaultFinancialYear;
 
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) async {
-        if (didPop) return;
-        if (await VoucherDialogUtils.showUnsavedChangesDialog(context)) widget.onClose();
+    return AutoScreenFocus(
+      screen: FocusTargetScreen.voucherEntry,
+      nodeMap: {
+        FocusFieldNode.seriesField: _seriesFocus,
+        FocusFieldNode.dateField: _dateFocusNode,
+        FocusFieldNode.voucherNumberField: _vchNoFocus,
+        FocusFieldNode.partyField: _partyFocus,
+        FocusFieldNode.saleTypeField: _saleTypeFocus,
+        FocusFieldNode.materialCenterField: _matCenterFocus,
+        FocusFieldNode.narrationField: _narrationFocus,
       },
-      child: Focus(
-        autofocus: true,
-        onKeyEvent: (_, event) {
-          if (event is! KeyDownEvent) return KeyEventResult.ignored;
-          final hardware = HardwareKeyboard.instance;
+      child: PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (didPop) return;
+          _requestExit();
+        },
+        child: Focus(
+          autofocus: true,
+          onKeyEvent: (_, event) {
+            if (event is! KeyDownEvent) return KeyEventResult.ignored;
 
-          if ((hardware.isControlPressed || hardware.isMetaPressed) && event.logicalKey == LogicalKeyboardKey.keyP) {
-            _openPrintPreview();
-            return KeyEventResult.handled;
-          }
-
-          if (hardware.isAltPressed && event.logicalKey == LogicalKeyboardKey.keyE) {
-            if (_partyFocus.hasFocus) {
-              if (_handleAltE()) return KeyEventResult.handled;
-              return KeyEventResult.ignored;
+            if (KeyboardShortcutService.isPrint(event)) {
+              _openPrintPreview();
+              return KeyEventResult.handled;
             }
 
-            for (int i = 0; i < _items.length; i++) {
-              final r = _items[i];
-              if (r.itemFocus.hasFocus) {
+            if (KeyboardShortcutService.isModifyOrTaxDetails(event)) {
+              if (_partyFocus.hasFocus) {
                 if (_handleAltE()) return KeyEventResult.handled;
                 return KeyEventResult.ignored;
               }
-              if (r.amountFocus.hasFocus) {
-                _openTaxDetailsDialog(i);
-                return KeyEventResult.handled;
-              }
-            }
-            return KeyEventResult.ignored;
-          }
 
-          if (event.logicalKey == LogicalKeyboardKey.f4) {
-            for (final r in _items) {
-              final targets = [
-                MapEntry(r.qtyFocus, ('qty', r.qty)),
-                MapEntry(r.priceFocus, ('price', r.price)),
-                MapEntry(r.taxableFocus, ('taxable', r.taxable)),
-                MapEntry(r.amountFocus, ('amount', r.amount)),
-              ];
-              for (final e in targets) {
-                if (e.key.hasFocus) {
-                  _openCalculatorForController(e.value.$2, r, e.value.$1);
+              for (int i = 0; i < _items.length; i++) {
+                final r = _items[i];
+                if (r.itemFocus.hasFocus) {
+                  if (_handleAltE()) return KeyEventResult.handled;
+                  return KeyEventResult.ignored;
+                }
+                if (r.amountFocus.hasFocus) {
+                  _openTaxDetailsDialog(i);
                   return KeyEventResult.handled;
                 }
               }
+              return KeyEventResult.ignored;
             }
-          }
 
-          if (AppShortcuts.isQuickAdd(event)) {
-            if (_partyFocus.hasFocus) { _openAddPartyDialog(); return KeyEventResult.handled; }
-            if (_seriesFocus.hasFocus) { _openQuickAddDialog('Series'); return KeyEventResult.handled; }
-            if (_saleTypeFocus.hasFocus) { _openQuickAddDialog('Sale Type'); return KeyEventResult.handled; }
-            if (_matCenterFocus.hasFocus) { _openQuickAddDialog('Material Centre'); return KeyEventResult.handled; }
-            final idx = _items.indexWhere((i) => i.itemFocus.hasFocus);
-            if (idx != -1) { _openAddItemDialog(idx); return KeyEventResult.handled; }
-          }
+            if (KeyboardShortcutService.isCalculator(event)) {
+              for (final r in _items) {
+                final targets = [
+                  MapEntry(r.qtyFocus, ('qty', r.qty)),
+                  MapEntry(r.priceFocus, ('price', r.price)),
+                  MapEntry(r.taxableFocus, ('taxable', r.taxable)),
+                  MapEntry(r.amountFocus, ('amount', r.amount)),
+                ];
+                for (final e in targets) {
+                  if (e.key.hasFocus) {
+                    _openCalculatorForController(e.value.$2, r, e.value.$1);
+                    return KeyEventResult.handled;
+                  }
+                }
+              }
+            }
 
-          if (KeyboardShortcutService.matchesAction(widget.keyboardSettings, KeyboardShortcutService.goBackAction, event)) {
-            VoucherDialogUtils.showUnsavedChangesDialog(context).then((ok) { if (ok) widget.onClose(); });
-            return KeyEventResult.handled;
-          }
-          if (KeyboardShortcutService.matchesAction(widget.keyboardSettings, KeyboardShortcutService.saveVoucherAction, event)) {
-            _saveVoucher();
-            return KeyEventResult.handled;
-          }
-          return KeyEventResult.ignored;
-        },
-        child: Scaffold(
-          backgroundColor: _screenBg,
-          body: Column(
-            children: [
-              Container(
-                height: 52,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                color: _topBarBg,
-                child: Row(
-                  children: [
-                    Icon(Icons.edit_document, size: 20, color: _themeColor),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${widget.isEdit ? "EDIT" : "NEW"} ${widget.voucherType.toUpperCase()}',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: _themeColor, letterSpacing: 0.5),
-                    ),
-                    const SizedBox(width: 12),
-                    _buildTag('FY $fy', AppColors.background, AppColors.textPrimary),
-                    const SizedBox(width: 8),
-                    _buildTag(
-                      _isInterState ? 'Inter-State (IGST)' : 'Intra-State (CGST+SGST)',
-                      _isInterState ? AppColors.purpleLight : AppColors.successLight,
-                      _isInterState ? AppColors.purple : AppColors.successDark,
-                      icon: _isInterState ? Icons.alt_route_rounded : Icons.check_circle_outline_rounded,
-                      borderColor: _isInterState ? AppColors.purpleBorder : AppColors.successBorder,
-                    ),
-                    const Spacer(),
-                    if (widget.isEdit) ...[
-                      OutlinedButton.icon(
-                        onPressed: _openPrintPreview,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.primary,
-                          side: const BorderSide(color: AppColors.borderFocus),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        icon: const Icon(Icons.print_rounded, size: 15, color: AppColors.primary),
-                        label: const Text('Print (Ctrl+P)', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800)),
-                      ),
-                      const SizedBox(width: 8),
-                    ],
-                    _buildScanButton(),
-                    const SizedBox(width: 6),
-                    TextButton.icon(
-                      onPressed: () => _openCalculatorForController(TextEditingController()),
-                      icon: const Icon(Icons.calculate_outlined, size: 16, color: AppColors.textSecondary),
-                      label: const Text('Calc (F4)', style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary, fontWeight: FontWeight.w700)),
-                    ),
-                    const SizedBox(width: 6),
-                    TextButton.icon(
-                      onPressed: () => showDialog(
-                        context: context,
-                        builder: (ctx) => AlertDialog(
-                          backgroundColor: AppColors.surface,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          title: const Text('Clear Voucher Data?', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
-                          content: const Text('This will reset all line items and headers for a fresh voucher entry.', style: TextStyle(color: AppColors.textSecondary)),
-                          actions: [
-                            OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-                            ElevatedButton(
-                              onPressed: () { Navigator.pop(ctx); _initializeNewVoucher(); },
-                              style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-                              child: const Text('Reset', style: TextStyle(color: AppColors.surface)),
-                            ),
-                          ],
-                        ),
-                      ),
-                      icon: const Icon(Icons.restart_alt_rounded, size: 16, color: AppColors.textSecondary),
-                      label: const Text('Clear', style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary, fontWeight: FontWeight.w700)),
-                    ),
-                    const SizedBox(width: 12),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textSecondary),
-                      onPressed: () async {
-                        if (await VoucherDialogUtils.showUnsavedChangesDialog(context)) widget.onClose();
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                  child: Column(
+            if (KeyboardShortcutService.isQuickAdd(event)) {
+              if (_partyFocus.hasFocus) { _openAddPartyDialog(); return KeyEventResult.handled; }
+              if (_seriesFocus.hasFocus) { _openQuickAddDialog('Series'); return KeyEventResult.handled; }
+              if (_saleTypeFocus.hasFocus) { _openQuickAddDialog('Sale Type'); return KeyEventResult.handled; }
+              if (_matCenterFocus.hasFocus) { _openQuickAddDialog('Material Centre'); return KeyEventResult.handled; }
+              final idx = _items.indexWhere((i) => i.itemFocus.hasFocus);
+              if (idx != -1) { _openAddItemDialog(idx); return KeyEventResult.handled; }
+            }
+
+            if (KeyboardShortcutService.matchesAction(widget.keyboardSettings, KeyboardShortcutService.saveVoucherAction, event)) {
+              _saveVoucher();
+              return KeyEventResult.handled;
+            }
+            return KeyEventResult.ignored;
+          },
+          child: Scaffold(
+            backgroundColor: _screenBg,
+            body: Column(
+              children: [
+                Container(
+                  height: 52,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  color: _topBarBg,
+                  child: Row(
                     children: [
-                      VoucherHeaderCard(
-                        seriesController: _seriesController,
-                        seriesFocus: _seriesFocus,
-                        availableSeries: _availableSeries,
-                        dateController: _dateController,
-                        dateFocus: _dateFocusNode,
-                        dateError: _dateError,
-                        vchNoController: _vchNoController,
-                        vchNoFocus: _vchNoFocus,
-                        partyController: _partyController,
-                        partyFocus: _partyFocus,
-                        availableParties: _currentAvailableParties,
-                        saleTypeController: _saleTypeController,
-                        saleTypeFocus: _saleTypeFocus,
-                        matCenterController: _matCenterController,
-                        matCenterFocus: _matCenterFocus,
-                        narrationController: _narrationController,
-                        narrationFocus: _narrationFocus,
-                        onValidateDate: _parseAndValidateDate,
-                        onQuickAdd: _openQuickAddDialog,
-                        onAddParty: _openAddPartyDialog,
-                        onNarrationSubmitted: () => _items.firstOrNull?.itemFocus.requestFocus(),
+                      Icon(Icons.edit_document, size: 20, color: _themeColor),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${widget.isEdit ? "EDIT" : "NEW"} ${widget.voucherType.toUpperCase()}',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: _themeColor, letterSpacing: 0.5),
                       ),
-                      const SizedBox(height: 10),
-                      Expanded(
-                        child: VoucherItemsTable(
-                          items: _items,
-                          availableItems: _itemsMasterList,
-                          isInterState: _isInterState,
-                          totalQty: _totalQty,
-                          totalTaxable: _itemSubTotal,
-                          totalAmount: _totalItemAmount,
-                          onAddRow: () => setState(_addItemRow),
-                          onRowEnter: _handleItemRowEnter,
-                          onAddItem: _openAddItemDialog,
-                          onItemSelected: _onItemMasterSelected,
-                          onOpenTaxDetails: _openTaxDetailsDialog,
-                          onTabToSundry: () => _sundries.firstOrNull?.nameFocus.requestFocus(),
+                      const SizedBox(width: 12),
+                      _buildTag('FY $fy', AppColors.background, AppColors.textPrimary),
+                      const SizedBox(width: 8),
+                      _buildTag(
+                        _isInterState ? 'Inter-State (IGST)' : 'Intra-State (CGST+SGST)',
+                        _isInterState ? AppColors.purpleLight : AppColors.successLight,
+                        _isInterState ? AppColors.purple : AppColors.successDark,
+                        icon: _isInterState ? Icons.alt_route_rounded : Icons.check_circle_outline_rounded,
+                        borderColor: _isInterState ? AppColors.purpleBorder : AppColors.successBorder,
+                      ),
+                      const Spacer(),
+                      if (widget.isEdit) ...[
+                        OutlinedButton.icon(
+                          onPressed: _openPrintPreview,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                            side: const BorderSide(color: AppColors.borderFocus),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          icon: const Icon(Icons.print_rounded, size: 15, color: AppColors.primary),
+                          label: const Text('Print (Ctrl+P)', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800)),
                         ),
+                        const SizedBox(width: 8),
+                      ],
+                      _buildScanButton(),
+                      const SizedBox(width: 6),
+                      TextButton.icon(
+                        onPressed: () => _openCalculatorForController(TextEditingController()),
+                        icon: const Icon(Icons.calculate_outlined, size: 16, color: AppColors.textSecondary),
+                        label: const Text('Calc (F4)', style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary, fontWeight: FontWeight.w700)),
                       ),
-                      const SizedBox(height: 10),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            flex: 55,
-                            child: VoucherSundryCard(
-                              sundries: _sundries,
-                              availableSundries: _availableSundries,
-                              autoRoundOff: _autoRoundOff,
-                              roundOff: _roundOff,
-                              onAddSundry: () => setState(_addSundryRow),
-                              onToggleRoundOff: () => setState(() {
-                                _autoRoundOff = !_autoRoundOff;
-                                _calculateAllTotals();
-                              }),
-                              onRowEnter: _handleSundryRowEnter,
-                              onTabToSave: () => _saveButtonFocusNode.requestFocus(),
-                            ),
+                      const SizedBox(width: 6),
+                      TextButton.icon(
+                        onPressed: () => showDialog(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            backgroundColor: AppColors.surface,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            title: const Text('Clear Voucher Data?', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                            content: const Text('This will reset all line items and headers for a fresh voucher entry.', style: TextStyle(color: AppColors.textSecondary)),
+                            actions: [
+                              OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                              ElevatedButton(
+                                onPressed: () { Navigator.pop(ctx); _initializeNewVoucher(); },
+                                style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+                                child: const Text('Reset', style: TextStyle(color: AppColors.surface)),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            flex: 45,
-                            child: VoucherSummaryCard(
-                              isInterState: _isInterState,
-                              subTotal: _itemSubTotal,
-                              totalCgst: _totalCgst,
-                              totalSgst: _totalSgst,
-                              totalIgst: _totalIgst,
-                              sundryTotal: _sundryTotal,
-                              roundOff: _roundOff,
-                              grandTotal: _grandTotal,
-                              saveButtonFocusNode: _saveButtonFocusNode,
-                              onSave: _saveVoucher,
-                              onClose: () async {
-                                if (await VoucherDialogUtils.showUnsavedChangesDialog(context)) widget.onClose();
-                              },
-                              saveShortcutLabel: KeyboardShortcutService.labelForAction(widget.keyboardSettings, KeyboardShortcutService.saveVoucherAction),
-                              quitShortcutLabel: KeyboardShortcutService.labelForAction(widget.keyboardSettings, KeyboardShortcutService.goBackAction),
-                            ),
-                          ),
-                        ],
+                        ),
+                        icon: const Icon(Icons.restart_alt_rounded, size: 16, color: AppColors.textSecondary),
+                        label: const Text('Clear', style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary, fontWeight: FontWeight.w700)),
+                      ),
+                      const SizedBox(width: 12),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textSecondary),
+                        onPressed: _requestExit,
                       ),
                     ],
                   ),
                 ),
-              ),
-              Container(
-                height: 30,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: const BoxDecoration(
-                  color: AppColors.surface,
-                  border: Border(top: BorderSide(color: AppColors.border)),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                    child: Column(
+                      children: [
+                        VoucherHeaderCard(
+                          seriesController: _seriesController,
+                          seriesFocus: _seriesFocus,
+                          availableSeries: _availableSeries,
+                          dateController: _dateController,
+                          dateFocus: _dateFocusNode,
+                          dateError: _dateError,
+                          vchNoController: _vchNoController,
+                          vchNoFocus: _vchNoFocus,
+                          partyController: _partyController,
+                          partyFocus: _partyFocus,
+                          availableParties: _currentAvailableParties,
+                          saleTypeController: _saleTypeController,
+                          saleTypeFocus: _saleTypeFocus,
+                          matCenterController: _matCenterController,
+                          matCenterFocus: _matCenterFocus,
+                          narrationController: _narrationController,
+                          narrationFocus: _narrationFocus,
+                          onValidateDate: _parseAndValidateDate,
+                          onQuickAdd: _openQuickAddDialog,
+                          onAddParty: _openAddPartyDialog,
+                          onNarrationSubmitted: () => _items.firstOrNull?.itemFocus.requestFocus(),
+                        ),
+                        const SizedBox(height: 10),
+                        Expanded(
+                          child: VoucherItemsTable(
+                            items: _items,
+                            availableItems: _itemsMasterList,
+                            isInterState: _isInterState,
+                            totalQty: _totalQty,
+                            totalTaxable: _itemSubTotal,
+                            totalAmount: _totalItemAmount,
+                            onAddRow: () => setState(_addItemRow),
+                            onRowEnter: _handleItemRowEnter,
+                            onAddItem: _openAddItemDialog,
+                            onItemSelected: _onItemMasterSelected,
+                            onOpenTaxDetails: _openTaxDetailsDialog,
+                            onTabToSundry: () => _sundries.firstOrNull?.nameFocus.requestFocus(),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              flex: 55,
+                              child: VoucherSundryCard(
+                                sundries: _sundries,
+                                availableSundries: _availableSundries,
+                                autoRoundOff: _autoRoundOff,
+                                roundOff: _roundOff,
+                                onAddSundry: () => setState(_addSundryRow),
+                                onToggleRoundOff: () => setState(() {
+                                  _autoRoundOff = !_autoRoundOff;
+                                  _calculateAllTotals();
+                                }),
+                                onRowEnter: _handleSundryRowEnter,
+                                onTabToSave: () => _saveButtonFocusNode.requestFocus(),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              flex: 45,
+                              child: VoucherSummaryCard(
+                                isInterState: _isInterState,
+                                subTotal: _itemSubTotal,
+                                totalCgst: _totalCgst,
+                                totalSgst: _totalSgst,
+                                totalIgst: _totalIgst,
+                                sundryTotal: _sundryTotal,
+                                roundOff: _roundOff,
+                                grandTotal: _grandTotal,
+                                saveButtonFocusNode: _saveButtonFocusNode,
+                                onSave: _saveVoucher,
+                                onClose: _requestExit,
+                                saveShortcutLabel: KeyboardShortcutService.labelForAction(widget.keyboardSettings, KeyboardShortcutService.saveVoucherAction),
+                                quitShortcutLabel: KeyboardShortcutService.labelForAction(widget.keyboardSettings, KeyboardShortcutService.goBackAction),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                child: Row(
-                  children: [
-                    const Text('Shortcuts: ', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppColors.textSecondary)),
-                    _buildShortcutHint('[F2] Save'),
-                    if (widget.isEdit) _buildShortcutHint('[Ctrl+P] Print'),
-                    _buildShortcutHint('[F4] Calculator'),
-                    _buildShortcutHint('[Alt+C] Quick Add Master'),
-                    _buildShortcutHint('[Alt+E] Edit Master / Tax Details'),
-                    _buildShortcutHint('[Tab / Enter] Next Field'),
-                    _buildShortcutHint('[Esc] Exit'),
-                    const Spacer(),
-                    const Text('Dhandas Modern Engine Active', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: AppColors.textMuted)),
-                  ],
+                Container(
+                  height: 30,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: const BoxDecoration(
+                    color: AppColors.surface,
+                    border: Border(top: BorderSide(color: AppColors.border)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Text('Shortcuts: ', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppColors.textSecondary)),
+                      _buildShortcutHint('[F2] Save'),
+                      if (widget.isEdit) _buildShortcutHint('[Ctrl+P] Print'),
+                      _buildShortcutHint('[F4] Calculator'),
+                      _buildShortcutHint('[Alt+C] Quick Add Master'),
+                      _buildShortcutHint('[Alt+E] Edit Master / Tax Details'),
+                      _buildShortcutHint('[Tab / Enter] Next Field'),
+                      _buildShortcutHint('[Esc] Exit'),
+                      const Spacer(),
+                      const Text('Dhandas Modern Engine Active', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: AppColors.textMuted)),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

@@ -20,6 +20,4 @@ class VoucherSundryRow {
     amount.dispose();
     amountFocus.dispose();
   }
-
-  let(void Function(VoucherSundryRow row) attachSundryRowListeners) {}
 }

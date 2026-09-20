@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
+import '../widgets/common/app_confirm_dialog.dart';
 
 class ExportDialogUtils {
   static void openFile(String filePath) {
@@ -12,43 +13,18 @@ class ExportDialogUtils {
       Process.run('xdg-open', [filePath]);
     }
   }
-
   static Future<bool> confirmOverwrite(BuildContext context, String filePath) async {
     if (!await File(filePath).exists()) return true;
 
     final fileName = filePath.split(Platform.pathSeparator).last;
-    final result = await showDialog<bool>(
+return AppConfirmDialog.show(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 24),
-            SizedBox(width: 8),
-            Text('File Already Exists', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-          ],
-        ),
-        content: Text(
-          'A file named "$fileName" already exists in this folder.\n\nDo you want to overwrite it?',
-          style: const TextStyle(fontSize: 13, color: AppColors.textPrimary, height: 1.4),
-        ),
-        actions: [
-          OutlinedButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.warning),
-            child: const Text('Overwrite', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-          ),
-        ],
-      ),
+      title: 'File Already Exists',
+      message: 'A file named "$fileName" already exists in this folder.\n\nDo you want to overwrite it?',
+      confirmLabel: 'Overwrite',
+      type: ConfirmDialogType.warning,
     );
-    return result ?? false;
   }
-
   static void showSuccessDialog(BuildContext context, String filePath, String fileType) {
     showDialog(
       context: context,

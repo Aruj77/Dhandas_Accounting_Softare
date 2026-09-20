@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../constants/app_colors.dart';
 import '../../services/storage_service.dart';
+import '../../widgets/common/app_confirm_dialog.dart';
 
 class OpenCompanyDialog extends StatefulWidget {
   final String directoryPath;
@@ -290,38 +291,12 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
     final companyName = company['companyName'] ?? 'Untitled Company';
     final folderLabel = (company['companyId'] ?? company['folderName'] ?? '').toString();
 
-    final shouldDelete = await showDialog<bool>(
+    final shouldDelete = await AppConfirmDialog.show(
       context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-          title: const Row(
-            children: [
-              Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 24),
-              SizedBox(width: 10),
-              Text(
-                'Delete Company',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-              ),
-            ],
-          ),
-          content: Text(
-            'Are you sure you want to permanently delete "$companyName" ($folderLabel)?',
-            style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-          ),
-          actions: [
-            OutlinedButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(ctx).pop(true),
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-              child: const Text('Delete', style: TextStyle(color: AppColors.surface)),
-            ),
-          ],
-        );
-      },
+      title: 'Delete Company',
+      message: 'Are you sure you want to permanently delete "$companyName" ($folderLabel)?',
+      confirmLabel: 'Delete',
+      type: ConfirmDialogType.danger,
     );
 
     if (shouldDelete == true) {
@@ -330,7 +305,6 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
       _onSearchChanged();
     }
   }
-
   @override
   void dispose() {
     _searchController.dispose();
@@ -456,7 +430,7 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                               height: 74,
                               decoration: BoxDecoration(
                                 gradient: const LinearGradient(
-                                  colors: [AppColors.primaryAccent, AppColors.primaryDark],
+                                  colors: [AppColors.primarySemiLight, AppColors.primary],
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                 ),

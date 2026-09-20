@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
+import '../../services/focus_policy_service.dart';
 import '../../services/storage_service.dart';
 
 class AdministrationScreen extends StatefulWidget {
@@ -19,12 +20,19 @@ class AdministrationScreen extends StatefulWidget {
 class _AdministrationScreenState extends State<AdministrationScreen> {
   late String _activeFy;
   late List<String> _allFys;
+  final FocusNode _addFyBtnFocusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
     _activeFy = (widget.company['activeFinancialYear'] ?? '2026-27').toString();
     _allFys = List<String>.from(widget.company['financialYears'] ?? ['2024-25', '2025-26', '2026-27']);
+  }
+
+  @override
+  void dispose() {
+    _addFyBtnFocusNode.dispose();
+    super.dispose();
   }
 
   Future<void> _changeFy(String newFy) async {
@@ -88,111 +96,118 @@ class _AdministrationScreenState extends State<AdministrationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 44, vertical: 28),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Company Administration',
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: AppColors.primaryDark),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Manage financial periods, accounting parameters, and data partitions.',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.textSecondary),
-          ),
-          const SizedBox(height: 28),
-
-          // FINANCIAL YEAR MANAGEMENT
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.border),
+    return AutoScreenFocus(
+      screen: FocusTargetScreen.administration,
+      nodeMap: {
+        FocusFieldNode.firstField: _addFyBtnFocusNode,
+      },
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 44, vertical: 28),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Company Administration',
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: AppColors.primaryDark),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryLight,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(Icons.date_range_rounded, color: AppColors.primary),
-                    ),
-                    const SizedBox(width: 14),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Financial Year Selection', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
-                          Text('Select the current accounting year. All transactions will be isolated to this FY.', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                        ],
-                      ),
-                    ),
-                    ElevatedButton.icon(
-                      onPressed: _showAddFyDialog,
-                      icon: const Icon(Icons.add, size: 16),
-                      label: const Text('Add F.Y.'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: AppColors.surface,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: _allFys.map((fy) {
-                    final isCurrent = _activeFy == fy;
-                    return InkWell(
-                      onTap: () => _changeFy(fy),
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            const SizedBox(height: 6),
+            const Text(
+              'Manage financial periods, accounting parameters, and data partitions.',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 28),
+
+            // FINANCIAL YEAR MANAGEMENT
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: isCurrent ? AppColors.primaryLight : AppColors.cardBg,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: isCurrent ? AppColors.primary : AppColors.border,
-                            width: isCurrent ? 1.5 : 1.0,
-                          ),
+                          color: AppColors.primaryLight,
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                        child: const Icon(Icons.date_range_rounded, color: AppColors.primary),
+                      ),
+                      const SizedBox(width: 14),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(
-                              isCurrent ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
-                              size: 18,
-                              color: isCurrent ? AppColors.primary : AppColors.textMuted,
-                            ),
-                            const SizedBox(width: 10),
-                            Text(
-                              'F.Y. $fy',
-                              style: TextStyle(
-                                fontSize: 13.5,
-                                fontWeight: isCurrent ? FontWeight.w800 : FontWeight.w600,
-                                color: isCurrent ? AppColors.primary : AppColors.textPrimary,
-                              ),
-                            ),
+                            Text('Financial Year Selection', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                            Text('Select the current accounting year. All transactions will be isolated to this FY.', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                           ],
                         ),
                       ),
-                    );
-                  }).toList(),
-                ),
-              ],
+                      ElevatedButton.icon(
+                        focusNode: _addFyBtnFocusNode,
+                        onPressed: _showAddFyDialog,
+                        icon: const Icon(Icons.add, size: 16),
+                        label: const Text('Add F.Y.'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: AppColors.surface,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: _allFys.map((fy) {
+                      final isCurrent = _activeFy == fy;
+                      return InkWell(
+                        onTap: () => _changeFy(fy),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                          decoration: BoxDecoration(
+                            color: isCurrent ? AppColors.primaryLight : AppColors.cardBg,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isCurrent ? AppColors.primary : AppColors.border,
+                              width: isCurrent ? 1.5 : 1.0,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                isCurrent ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
+                                size: 18,
+                                color: isCurrent ? AppColors.primary : AppColors.textMuted,
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                'F.Y. $fy',
+                                style: TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: isCurrent ? FontWeight.w800 : FontWeight.w600,
+                                  color: isCurrent ? AppColors.primary : AppColors.textPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

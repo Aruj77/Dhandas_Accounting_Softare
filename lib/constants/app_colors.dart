@@ -5,6 +5,7 @@ class AppColors {
   static const Color primary = Color(0xFF0F62FE);
   static const Color primaryDark = Color(0xFF101B3A);
   static const Color primaryLight = Color(0xFFEFF6FE);
+  static const Color primarySemiLight = Color(0xFFA5CFE7);
   static const Color primaryAccent = Color(0xFF2563EB);
 
   // Success Greens
