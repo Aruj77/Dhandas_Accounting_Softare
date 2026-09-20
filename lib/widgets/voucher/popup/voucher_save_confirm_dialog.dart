@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../constants/app_colors.dart';
 import '../../../services/focus_policy_service.dart';
 
@@ -19,6 +20,16 @@ class VoucherSaveConfirmDialog extends StatefulWidget {
 class _VoucherSaveConfirmDialogState extends State<VoucherSaveConfirmDialog> {
   final FocusNode _saveFocusNode = FocusNode();
   final FocusNode _cancelFocusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _saveFocusNode.canRequestFocus) {
+        _saveFocusNode.requestFocus();
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -67,9 +78,9 @@ class _VoucherSaveConfirmDialogState extends State<VoucherSaveConfirmDialog> {
                         'Confirm ${s['voucherType']}',
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                       ),
-                      Text(
+                      const Text(
                         'Verify summary details before persisting',
-                        style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
+                        style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
                       ),
                     ],
                   ),
@@ -92,11 +103,11 @@ class _VoucherSaveConfirmDialogState extends State<VoucherSaveConfirmDialog> {
                 ),
                 child: Column(
                   children: [
-                    _buildSummaryRow('Voucher No.', s['voucherNumber']),
+                    _buildSummaryRow('Voucher No.', s['voucherNumber']?.toString() ?? ''),
                     const SizedBox(height: 6),
-                    _buildSummaryRow('Date', s['date']),
+                    _buildSummaryRow('Date', s['date']?.toString() ?? ''),
                     const SizedBox(height: 6),
-                    _buildSummaryRow('Party', s['party']),
+                    _buildSummaryRow('Party', s['party']?.toString() ?? ''),
                     const SizedBox(height: 6),
                     _buildSummaryRow(
                       'GST Nature',
@@ -173,29 +184,57 @@ class _VoucherSaveConfirmDialogState extends State<VoucherSaveConfirmDialog> {
                   const SizedBox(width: 12),
                   Focus(
                     focusNode: _saveFocusNode,
+                    autofocus: true,
+                    onKeyEvent: (_, event) {
+                      if (event is KeyDownEvent &&
+                          (event.logicalKey == LogicalKeyboardKey.enter ||
+                           event.logicalKey == LogicalKeyboardKey.numpadEnter ||
+                           event.logicalKey == LogicalKeyboardKey.space)) {
+                        Navigator.of(context).pop();
+                        widget.onConfirm();
+                        return KeyEventResult.handled;
+                      }
+                      return KeyEventResult.ignored;
+                    },
                     child: Builder(builder: (context) {
                       final hasFocus = Focus.of(context).hasFocus;
-                      return ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                          widget.onConfirm();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: AppColors.surface,
-                          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            side: BorderSide(
-                              color: hasFocus ? AppColors.primaryDark : Colors.transparent,
-                              width: 2.0,
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 140),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: hasFocus ? AppColors.primary : Colors.transparent,
+                            width: 2.2,
+                          ),
+                          boxShadow: hasFocus
+                              ? [
+                                  BoxShadow(
+                                    color: AppColors.primary.withValues(alpha: 0.28),
+                                    blurRadius: 8,
+                                    spreadRadius: 1,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            widget.onConfirm();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: AppColors.surface,
+                            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
                             ),
                           ),
-                        ),
-                        icon: const Icon(Icons.check_circle_outline_rounded, size: 16),
-                        label: const Text(
-                          'Confirm & Save (Enter)',
-                          style: TextStyle(fontWeight: FontWeight.w800),
+                          icon: const Icon(Icons.check_circle_outline_rounded, size: 16),
+                          label: const Text(
+                            'Confirm & Save (Enter)',
+                            style: TextStyle(fontWeight: FontWeight.w800),
+                          ),
                         ),
                       );
                     }),

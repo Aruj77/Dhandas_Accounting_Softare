@@ -188,7 +188,6 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
 
     if (event is! KeyDownEvent) return false;
 
-    // Direct Tab traversal overrides across entire screen
     if (event.logicalKey == LogicalKeyboardKey.tab && !HardwareKeyboard.instance.isShiftPressed) {
       if (_isAnyMainTableCellFocused()) {
         _sundries.firstOrNull?.nameFocus.requestFocus();
@@ -1110,27 +1109,8 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     if (_isSalesVoucher) {
       final shouldPrint = await showDialog<bool>(
         context: context,
-        builder: (ctx) => AlertDialog(
-          backgroundColor: AppColors.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Row(children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-              child: const Icon(Icons.print_rounded, color: AppColors.primary, size: 20),
-            ),
-            const SizedBox(width: 10),
-            const Text('Print Invoice', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
-          ]),
-          content: Text('Sales invoice [${_vchNoController.text}] saved successfully.\n\nOpen Print Studio preview now?', style: const TextStyle(color: AppColors.textSecondary)),
-          actions: [
-            OutlinedButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-              child: const Text('Open Print Studio', style: TextStyle(color: AppColors.surface, fontWeight: FontWeight.w800)),
-            ),
-          ],
+        builder: (ctx) => _PrintStudioConfirmDialog(
+          vchNo: _vchNoController.text,
         ),
       );
       if ((shouldPrint ?? false) && mounted) {
@@ -1167,7 +1147,6 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     setState(() {});
   }
 
-  // Row navigation on ENTER: continues horizontal progression cell by cell
   void _handleItemRowEnter(int index, String field) {
     final r = _items[index];
     switch (field) {
@@ -1392,7 +1371,6 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
                           onNarrationSubmitted: () => _items.firstOrNull?.itemFocus.requestFocus(),
                         ),
                         const SizedBox(height: 10),
-                        // Wrap items table with direct Tab interception
                         Expanded(
                           child: Focus(
                             canRequestFocus: false,
@@ -1562,6 +1540,106 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     return Padding(
       padding: const EdgeInsets.only(right: 10),
       child: Text(label, style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: AppColors.primary)),
+    );
+  }
+}
+
+class _PrintStudioConfirmDialog extends StatefulWidget {
+  final String vchNo;
+
+  const _PrintStudioConfirmDialog({required this.vchNo});
+
+  @override
+  State<_PrintStudioConfirmDialog> createState() => _PrintStudioConfirmDialogState();
+}
+
+class _PrintStudioConfirmDialogState extends State<_PrintStudioConfirmDialog> {
+  final FocusNode _openStudioFocus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _openStudioFocus.canRequestFocus) {
+        _openStudioFocus.requestFocus();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _openStudioFocus.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: AppColors.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Row(children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+          child: const Icon(Icons.print_rounded, color: AppColors.primary, size: 20),
+        ),
+        const SizedBox(width: 10),
+        const Text('Print Invoice', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+      ]),
+      content: Text('Sales invoice [${widget.vchNo}] saved successfully.\n\nOpen Print Studio preview now?', style: const TextStyle(color: AppColors.textSecondary)),
+      actions: [
+        OutlinedButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancel'),
+        ),
+        const SizedBox(width: 8),
+        Focus(
+          focusNode: _openStudioFocus,
+          autofocus: true,
+          onKeyEvent: (_, event) {
+            if (event is KeyDownEvent &&
+                (event.logicalKey == LogicalKeyboardKey.enter ||
+                 event.logicalKey == LogicalKeyboardKey.numpadEnter ||
+                 event.logicalKey == LogicalKeyboardKey.space)) {
+              Navigator.pop(context, true);
+              return KeyEventResult.handled;
+            }
+            return KeyEventResult.ignored;
+          },
+          child: Builder(builder: (ctx) {
+            final hasFocus = Focus.of(ctx).hasFocus;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 140),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: hasFocus ? AppColors.primary : Colors.transparent,
+                  width: 2.2,
+                ),
+                boxShadow: hasFocus
+                    ? [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.28),
+                          blurRadius: 8,
+                          spreadRadius: 1,
+                          offset: const Offset(0, 2),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: const Text('Open Print Studio', style: TextStyle(color: AppColors.surface, fontWeight: FontWeight.w800)),
+              ),
+            );
+          }),
+        ),
+      ],
     );
   }
 }
