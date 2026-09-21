@@ -211,7 +211,7 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [AppColors.primaryAccent, AppColors.primaryDark],
+                colors: [AppColors.primaryAccent, AppColors.primarySemiLight],
               ),
               borderRadius: BorderRadius.circular(14),
               boxShadow: [
