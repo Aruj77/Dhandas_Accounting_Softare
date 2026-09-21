@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../constants/app_colors.dart';
+import '../../services/keyboard_shortcut_service.dart';
 import '../action_button.dart';
 import 'glass_card.dart';
 
@@ -43,12 +45,9 @@ class _CompanyActionCardState extends State<CompanyActionCard> {
   @override
   Widget build(BuildContext context) {
     return ModernGlassCard(
-      gradientColors: const [
-        Color(0xFFEFF5FF),
-        Color(0xFFDCEBFF),
-      ],
-      borderColor: const Color(0xFFC3DCFF),
-      glowColor: const Color(0x180F62FE),
+      gradientColors: AppColors.companyGlassGradient.colors,
+      borderColor: AppColors.borderSubtle,
+      glowColor: AppColors.primary.withValues(alpha: 0.1),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -57,10 +56,7 @@ class _CompanyActionCardState extends State<CompanyActionCard> {
             icon: Icons.apartment_rounded,
             title: 'Company',
             subtitle: 'Create a new business or access an existing one',
-            badgeGradient: [
-              Color(0xFF4C93F5),
-              Color(0xFF0F62FE),
-            ],
+            badgeGradient: [AppColors.primarySemiLight, AppColors.primary],
             illustrationAsset: 'assets/images/company_illustration.png',
           ),
           const SizedBox(height: 20),
@@ -72,18 +68,17 @@ class _CompanyActionCardState extends State<CompanyActionCard> {
                   onFocusChange: (val) => setState(() => _isOpenFocused = val),
                   onKeyEvent: (node, event) {
                     if (event is! KeyDownEvent && event is! KeyRepeatEvent) return KeyEventResult.ignored;
-
                     final key = event.logicalKey;
-                    if (key == LogicalKeyboardKey.arrowRight || key == LogicalKeyboardKey.numpad6) {
+                    if (KeyboardShortcutService.isRight(key)) {
                       _createNode.requestFocus();
                       return KeyEventResult.handled;
-                    } else if (key == LogicalKeyboardKey.arrowLeft || key == LogicalKeyboardKey.numpad4) {
+                    } else if (KeyboardShortcutService.isLeft(key)) {
                       widget.onMoveToSidebar?.call();
                       return KeyEventResult.handled;
-                    } else if (key == LogicalKeyboardKey.arrowDown || key == LogicalKeyboardKey.numpad2) {
+                    } else if (KeyboardShortcutService.isDown(key)) {
                       widget.onMoveDown?.call();
                       return KeyEventResult.handled;
-                    } else if (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.numpadEnter) {
+                    } else if (KeyboardShortcutService.isConfirm(key)) {
                       widget.onOpenCompany();
                       return KeyEventResult.handled;
                     }
@@ -94,17 +89,17 @@ class _CompanyActionCardState extends State<CompanyActionCard> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: _isOpenFocused ? const Color(0xFF0F62FE) : Colors.transparent,
+                        color: _isOpenFocused ? AppColors.primary : Colors.transparent,
                         width: 2.5,
                       ),
                       boxShadow: _isOpenFocused
-                          ? const [
+                          ? [
                               BoxShadow(
-                                color: Color(0x330F62FE),
+                                color: AppColors.primary.withValues(alpha: 0.2),
                                 blurRadius: 10,
                                 spreadRadius: 1,
-                                offset: Offset(0, 2),
-                              )
+                                offset: const Offset(0, 2),
+                              ),
                             ]
                           : null,
                     ),
@@ -112,8 +107,8 @@ class _CompanyActionCardState extends State<CompanyActionCard> {
                       icon: Icons.folder_open_rounded,
                       title: 'Open Company',
                       subtitle: 'Open an existing workspace',
-                      iconColor: const Color(0xFF0F62FE),
-                      iconBackground: const Color(0xFFE5EFFF),
+                      iconColor: AppColors.primary,
+                      iconBackground: AppColors.primaryLight,
                       onTap: widget.onOpenCompany,
                     ),
                   ),
@@ -126,18 +121,17 @@ class _CompanyActionCardState extends State<CompanyActionCard> {
                   onFocusChange: (val) => setState(() => _isCreateFocused = val),
                   onKeyEvent: (node, event) {
                     if (event is! KeyDownEvent && event is! KeyRepeatEvent) return KeyEventResult.ignored;
-
                     final key = event.logicalKey;
-                    if (key == LogicalKeyboardKey.arrowLeft || key == LogicalKeyboardKey.numpad4) {
+                    if (KeyboardShortcutService.isLeft(key)) {
                       _openNode.requestFocus();
                       return KeyEventResult.handled;
-                    } else if (key == LogicalKeyboardKey.arrowRight || key == LogicalKeyboardKey.numpad6) {
+                    } else if (KeyboardShortcutService.isRight(key)) {
                       widget.onMoveRight?.call();
                       return KeyEventResult.handled;
-                    } else if (key == LogicalKeyboardKey.arrowDown || key == LogicalKeyboardKey.numpad2) {
+                    } else if (KeyboardShortcutService.isDown(key)) {
                       widget.onMoveDown?.call();
                       return KeyEventResult.handled;
-                    } else if (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.numpadEnter) {
+                    } else if (KeyboardShortcutService.isConfirm(key)) {
                       widget.onCreateCompany();
                       return KeyEventResult.handled;
                     }
@@ -148,17 +142,17 @@ class _CompanyActionCardState extends State<CompanyActionCard> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: _isCreateFocused ? const Color(0xFF0FA75D) : Colors.transparent,
+                        color: _isCreateFocused ? AppColors.success : Colors.transparent,
                         width: 2.5,
                       ),
                       boxShadow: _isCreateFocused
-                          ? const [
+                          ? [
                               BoxShadow(
-                                color: Color(0x330FA75D),
+                                color: AppColors.success.withValues(alpha: 0.2),
                                 blurRadius: 10,
                                 spreadRadius: 1,
-                                offset: Offset(0, 2),
-                              )
+                                offset: const Offset(0, 2),
+                              ),
                             ]
                           : null,
                     ),
@@ -166,8 +160,8 @@ class _CompanyActionCardState extends State<CompanyActionCard> {
                       icon: Icons.add_circle_outline_rounded,
                       title: 'Create Company',
                       subtitle: 'Set up a new organization',
-                      iconColor: const Color(0xFF0FA75D),
-                      iconBackground: const Color(0xFFE2F8ED),
+                      iconColor: AppColors.success,
+                      iconBackground: AppColors.successLight,
                       onTap: widget.onCreateCompany,
                     ),
                   ),

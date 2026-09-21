@@ -1,11 +1,19 @@
 import 'package:flutter/material.dart';
+import '../../constants/app_colors.dart';
+import '../../services/focus_policy_service.dart';
+import '../../services/storage_service.dart';
+import '../../utils/app_date_utils.dart';
+import '../common/app_dialog_frame.dart';
+import '../../../services/loading_service.dart';
 
 class DateRangeDialog extends StatefulWidget {
+  final Map<String, dynamic> company;
   final String financialYear;
   final String voucherType;
 
   const DateRangeDialog({
     super.key,
+    required this.company,
     required this.financialYear,
     required this.voucherType,
   });
@@ -17,284 +25,350 @@ class DateRangeDialog extends StatefulWidget {
 class _DateRangeDialogState extends State<DateRangeDialog> {
   late final TextEditingController _fromCtrl;
   late final TextEditingController _toCtrl;
-  late DateTime _fyStartDate;
-  late DateTime _fyEndDate;
+  final FocusNode _fromFocusNode = FocusNode();
+  final FocusNode _toFocusNode = FocusNode();
   String? _errorMessage;
+
+  late final DateTime _fyStartDate;
+  late final DateTime _fyEndDate;
+
+  List<String> _availableSeries = ['All'];
+  String _selectedSeries = 'All';
+  bool _isLoadingSeries = true;
 
   @override
   void initState() {
     super.initState();
-    _parseFinancialYearBounds(widget.financialYear);
-    _fromCtrl = TextEditingController(text: _formatDate(_fyStartDate));
-    _toCtrl = TextEditingController(text: _formatDate(_fyEndDate));
+    final bounds = AppDateUtils.parseFinancialYearBounds(widget.financialYear);
+    _fyStartDate = bounds.startDate;
+    _fyEndDate = bounds.endDate;
+
+    _fromCtrl = TextEditingController(text: AppDateUtils.formatDate(_fyStartDate));
+    _toCtrl = TextEditingController(text: AppDateUtils.formatDate(_fyEndDate));
+    _loadSeries();
+
+    _fromFocusNode.addListener(() {
+      if (!_fromFocusNode.hasFocus) {
+        _formatAndValidateDate(_fromCtrl, isFromDate: true);
+      }
+    });
+
+    _toFocusNode.addListener(() {
+      if (!_toFocusNode.hasFocus) {
+        _formatAndValidateDate(_toCtrl, isFromDate: false);
+      }
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _fromFocusNode.canRequestFocus) {
+        _fromFocusNode.requestFocus();
+      }
+    });
+  }
+
+  Future<void> _loadSeries() async {
+    await LoadingService.wrap(() async {
+      try {
+        final folderPath = widget.company['folderPath']?.toString();
+        final seriesList = <String>['All'];
+        if (folderPath != null) {
+          final rawMasters = await StorageService.loadCompanyMasters(folderPath: folderPath);
+          final loadedSeries = rawMasters['series'] as List? ?? ['Main'];
+          for (final s in loadedSeries) {
+            if (s != null && s.toString().trim().isNotEmpty) {
+              final name = s.toString().trim();
+              if (!seriesList.contains(name)) {
+                seriesList.add(name);
+              }
+            }
+          }
+        }
+        if (!seriesList.contains('Main')) {
+          seriesList.add('Main');
+        }
+        if (mounted) {
+          setState(() {
+            _availableSeries = seriesList;
+            _isLoadingSeries = false;
+          });
+        }
+      } catch (_) {
+        if (mounted) setState(() => _isLoadingSeries = false);
+      }
+    }, message: '');
   }
 
   @override
   void dispose() {
     _fromCtrl.dispose();
     _toCtrl.dispose();
+    _fromFocusNode.dispose();
+    _toFocusNode.dispose();
     super.dispose();
   }
 
-  void _parseFinancialYearBounds(String fyStr) {
-    try {
-      final parts = fyStr.trim().split(RegExp(r'[-/]'));
-      var startY = int.parse(parts[0].trim());
-      if (startY < 100) startY += 2000;
+  /// Parses date with support for shortcuts like 1-5, 1/5, 0105, 1.5, etc.
+  /// Also ensures the year resolved belongs inside the active financial year.
+  DateTime? _resolveDate(String raw) {
+    DateTime? parsed = AppDateUtils.parseDate(raw);
+    if (parsed == null) return null;
 
-      var endY = startY + 1;
-      if (parts.length > 1) {
-        final parsedEnd = int.tryParse(parts[1].trim());
-        if (parsedEnd != null) {
-          endY = parsedEnd < 100 ? 2000 + parsedEnd : parsedEnd;
-        }
-      }
-
-      _fyStartDate = DateTime(startY, 4, 1);
-      _fyEndDate = DateTime(endY, 3, 31);
-    } catch (_) {
-      _fyStartDate = DateTime(2026, 4, 1);
-      _fyEndDate = DateTime(2027, 3, 31);
+    // If no year was explicitly typed (or defaulted to current calendar year),
+    // align it into the company's active financial year range
+    if (!raw.contains(RegExp(r'[-/.](20\d\d|\d\d)$'))) {
+      final month = parsed.month;
+      final year = (month >= 4) ? _fyStartDate.year : _fyEndDate.year;
+      parsed = DateTime(year, month, parsed.day);
     }
+
+    return parsed;
   }
 
-  String _formatDate(DateTime d) {
-    return '${d.day.toString().padLeft(2, '0')}-${d.month.toString().padLeft(2, '0')}-${d.year}';
-  }
+  bool _formatAndValidateDate(TextEditingController ctrl, {required bool isFromDate}) {
+    final text = ctrl.text.trim();
+    if (text.isEmpty) {
+      setState(() => _errorMessage = '${isFromDate ? "Starting" : "Ending"} date cannot be empty');
+      return false;
+    }
 
-  DateTime? _parseDate(String raw) {
-    final sanitized = raw.trim().replaceAll('/', '-').replaceAll('.', '-');
-    final parts = sanitized.split('-');
-    if (parts.length != 3) return null;
-    final day = int.tryParse(parts[0]);
-    final month = int.tryParse(parts[1]);
-    var year = int.tryParse(parts[2]);
-    if (day == null || month == null || year == null) return null;
-    if (year < 100) year += 2000;
-    try {
-      final dt = DateTime(year, month, day);
-      if (dt.day == day && dt.month == month) return dt;
-    } catch (_) {}
-    return null;
+    final parsed = _resolveDate(text);
+    if (parsed == null) {
+      setState(() => _errorMessage = 'Invalid date format (${ctrl.text})');
+      return false;
+    }
+
+    if (parsed.isBefore(_fyStartDate) || parsed.isAfter(_fyEndDate)) {
+      setState(() => _errorMessage = 'Date must be within F.Y. ${widget.financialYear}');
+      return false;
+    }
+
+    ctrl.text = AppDateUtils.formatDate(parsed);
+    setState(() => _errorMessage = null);
+    return true;
   }
 
   void _submit() {
-    final from = _parseDate(_fromCtrl.text);
-    final to = _parseDate(_toCtrl.text);
+    final fromValid = _formatAndValidateDate(_fromCtrl, isFromDate: true);
+    final toValid = _formatAndValidateDate(_toCtrl, isFromDate: false);
+
+    if (!fromValid || !toValid) return;
+
+    final from = _resolveDate(_fromCtrl.text);
+    final to = _resolveDate(_toCtrl.text);
 
     if (from == null || to == null) {
-      setState(() => _errorMessage = 'Please enter valid dates (DD-MM-YYYY)');
+      setState(() => _errorMessage = 'Please enter valid dates');
       return;
     }
 
     if (from.isAfter(to)) {
-      setState(() => _errorMessage = 'From Date cannot be after To Date');
+      setState(() => _errorMessage = 'Starting Date cannot be after Ending Date');
       return;
     }
 
     Navigator.of(context).pop({
       'from': from,
       'to': to,
+      'series': _selectedSeries,
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      child: Container(
-        width: 460,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: const Color(0xFFDCE6F5), width: 1.2),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x220A1838),
-              blurRadius: 36,
-              offset: Offset(0, 14),
+    return AutoScreenFocus(
+      screen: FocusTargetScreen.dateRangeDialog,
+      nodeMap: {
+        FocusFieldNode.firstField: _fromFocusNode,
+      },
+      child: AppDialogFrame(
+        title: 'Select Register Options',
+        subtitle: '${widget.voucherType} Register • F.Y. ${widget.financialYear}',
+        icon: Icons.date_range_rounded,
+        maxWidth: 480,
+        content: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Voucher Series',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+            ),
+            const SizedBox(height: 6),
+            _isLoadingSeries
+                ? const SizedBox(
+                    height: 38,
+                    child: Center(child: LinearProgressIndicator(minHeight: 2, color: AppColors.primary)),
+                  )
+                : DropdownButtonFormField<String>(
+                    value: _selectedSeries,
+                    items: _availableSeries
+                        .map((s) => DropdownMenuItem(
+                              value: s,
+                              child: Text(s, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                            ))
+                        .toList(),
+                    onChanged: (val) {
+                      if (val != null) setState(() => _selectedSeries = val);
+                    },
+                    decoration: InputDecoration(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      filled: true,
+                      fillColor: AppColors.cardBg,
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: AppColors.borderMedium),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: AppColors.primary, width: 1.3),
+                      ),
+                    ),
+                  ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildDateField(
+                    label: 'Starting Date',
+                    ctrl: _fromCtrl,
+                    focusNode: _fromFocusNode,
+                    autofocus: true,
+                    onSubmitted: () {
+                      if (_formatAndValidateDate(_fromCtrl, isFromDate: true)) {
+                        _toFocusNode.requestFocus();
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildDateField(
+                    label: 'Ending Date',
+                    ctrl: _toCtrl,
+                    focusNode: _toFocusNode,
+                    autofocus: false,
+                    onSubmitted: _submit,
+                  ),
+                ),
+              ],
+            ),
+            if (_errorMessage != null) ...[
+              const SizedBox(height: 10),
+              Text(
+                _errorMessage!,
+                style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.error),
+              ),
+            ],
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.primaryLight,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.borderSubtle),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline_rounded, size: 16, color: AppColors.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Supports quick date formats like 1-5, 1/5, 0105. Select a series or leave as "All" for F.Y. ${widget.financialYear}.',
+                      style: const TextStyle(fontSize: 11, color: AppColors.primaryDark, height: 1.3),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(22),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // HEADER
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFFAFBFD),
-                  border: Border(bottom: BorderSide(color: Color(0xFFE5EDF7))),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF2C7BF6), Color(0xFF0F62FE)],
-                        ),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(Icons.date_range_rounded, color: Colors.white, size: 20),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Select Date Range',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF101C38),
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '${widget.voucherType} Register • F.Y. ${widget.financialYear}',
-                            style: const TextStyle(fontSize: 12, color: Color(0xFF657593)),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded, size: 18),
-                      onPressed: () => Navigator.of(context).pop(),
-                      color: const Color(0xFF64748B),
-                    ),
-                  ],
-                ),
-              ),
-
-              // DATE INPUTS
-              Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildDateField('Starting Date', _fromCtrl),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _buildDateField('Ending Date', _toCtrl),
-                        ),
-                      ],
-                    ),
-                    if (_errorMessage != null) ...[
-                      const SizedBox(height: 10),
-                      Text(
-                        _errorMessage!,
-                        style: const TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFFEE4343),
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 14),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF1F6FE),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFFD6E4FA)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.info_outline_rounded, size: 16, color: Color(0xFF0F62FE)),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Pre-filled with F.Y. ${widget.financialYear} period. You can narrow this range to view specific monthly or quarterly registers.',
-                              style: const TextStyle(fontSize: 11, color: Color(0xFF274375), height: 1.3),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // FOOTER ACTIONS
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFFAFBFD),
-                  border: Border(top: BorderSide(color: Color(0xFFE5EDF7))),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    OutlinedButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                      ),
-                      child: const Text('Cancel'),
-                    ),
-                    const SizedBox(width: 12),
-                    ElevatedButton.icon(
-                      onPressed: _submit,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0F62FE),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        elevation: 0,
-                      ),
-                      icon: const Icon(Icons.table_view_rounded, size: 16),
-                      label: const Text('Show List (Enter)', style: TextStyle(fontWeight: FontWeight.w800)),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+        actions: [
+          OutlinedButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
           ),
-        ),
+          const SizedBox(width: 12),
+          ElevatedButton.icon(
+            onPressed: _submit,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.surface,
+            ),
+            icon: const Icon(Icons.table_view_rounded, size: 16),
+            label: const Text('Show List (Enter)', style: TextStyle(fontWeight: FontWeight.w800)),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildDateField(String label, TextEditingController ctrl) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
-        ),
-        const SizedBox(height: 6),
-        TextField(
-          controller: ctrl,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF101B3A)),
-          decoration: InputDecoration(
-            prefixIcon: const Icon(Icons.calendar_today_rounded, size: 15, color: Color(0xFF0F62FE)),
-            filled: true,
-            fillColor: const Color(0xFFF8FAFD),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+  Widget _buildDateField({
+    required String label,
+    required TextEditingController ctrl,
+    required FocusNode focusNode,
+    bool autofocus = false,
+    VoidCallback? onSubmitted,
+  }) {
+    return ListenableBuilder(
+      listenable: focusNode,
+      builder: (context, _) {
+        final hasFocus = focusNode.hasFocus;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: hasFocus ? AppColors.primary : AppColors.textPrimary,
+              ),
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.3),
+            const SizedBox(height: 6),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 140),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: hasFocus
+                    ? [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.2),
+                          blurRadius: 8,
+                          spreadRadius: 1,
+                          offset: const Offset(0, 1),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: TextField(
+                controller: ctrl,
+                focusNode: focusNode,
+                autofocus: autofocus,
+                textInputAction: TextInputAction.next,
+                onSubmitted: (_) => onSubmitted?.call(),
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                decoration: InputDecoration(
+                  prefixIcon: Icon(
+                    Icons.calendar_today_rounded,
+                    size: 15,
+                    color: hasFocus ? AppColors.primary : AppColors.textSecondary,
+                  ),
+                  filled: true,
+                  fillColor: AppColors.cardBg,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: AppColors.borderMedium),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: AppColors.primary, width: 1.8),
+                  ),
+                ),
+              ),
             ),
-          ),
-        ),
-      ],
+          ],
+        );
+      },
     );
   }
 }

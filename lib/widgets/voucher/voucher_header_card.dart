@@ -1,33 +1,24 @@
 import 'package:flutter/material.dart';
-import '../../../constants/app_shortcuts.dart';
-
-class PartyMasterModel {
-  final String name;
-  final String gstin;
-  final String group;
-
-  const PartyMasterModel({
-    required this.name,
-    required this.gstin,
-    required this.group,
-  });
-
-  String get displayName => gstin.isNotEmpty ? '$name [$gstin]' : name;
-}
+import 'package:flutter/services.dart';
+import '../../constants/app_colors.dart';
+import '../../services/keyboard_shortcut_service.dart';
+import '../../models/party_master_model.dart';
+import '../common/app_autocomplete_field.dart';
 
 class VoucherHeaderCard extends StatelessWidget {
   final TextEditingController seriesController;
   final FocusNode seriesFocus;
+  final List<String> availableSeries;
   final TextEditingController dateController;
   final FocusNode dateFocus;
   final String? dateError;
   final TextEditingController vchNoController;
   final FocusNode vchNoFocus;
-  final TextEditingController saleTypeController;
-  final FocusNode saleTypeFocus;
   final TextEditingController partyController;
   final FocusNode partyFocus;
   final List<PartyMasterModel> availableParties;
+  final TextEditingController saleTypeController;
+  final FocusNode saleTypeFocus;
   final TextEditingController matCenterController;
   final FocusNode matCenterFocus;
   final TextEditingController narrationController;
@@ -41,16 +32,17 @@ class VoucherHeaderCard extends StatelessWidget {
     super.key,
     required this.seriesController,
     required this.seriesFocus,
+    required this.availableSeries,
     required this.dateController,
     required this.dateFocus,
     required this.dateError,
     required this.vchNoController,
     required this.vchNoFocus,
-    required this.saleTypeController,
-    required this.saleTypeFocus,
     required this.partyController,
     required this.partyFocus,
     required this.availableParties,
+    required this.saleTypeController,
+    required this.saleTypeFocus,
     required this.matCenterController,
     required this.matCenterFocus,
     required this.narrationController,
@@ -75,26 +67,50 @@ class VoucherHeaderCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2EAF5), width: 1.2),
+        border: Border.all(color: AppColors.border, width: 1.2),
         boxShadow: const [
-          BoxShadow(color: Color(0x04092B60), blurRadius: 8, offset: Offset(0, 2)),
+          BoxShadow(color: AppColors.shadowColor, blurRadius: 8, offset: Offset(0, 2)),
         ],
       ),
       child: Column(
         children: [
+          // Row 1: Series -> Voucher Date -> Voucher Number -> Party
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildFieldWithAction(
-                label: 'Series',
-                controller: seriesController,
-                focusNode: seriesFocus,
-                width: 110,
-                icon: Icons.tag_rounded,
-                onAdd: () => onQuickAdd('Series'),
-                onSubmitted: () => dateFocus.requestFocus(),
+              SizedBox(
+                width: 140,
+                child: AppAutocompleteField<String>(
+                  controller: seriesController,
+                  focusNode: seriesFocus,
+                  items: availableSeries,
+                  label: 'Series',
+                  prefixIcon: Icons.tag_rounded,
+                  dropdownWidth: 180,
+                  labelExtractor: (s) => s,
+                  onQuickAdd: () => onQuickAdd('Series'),
+                  onSelected: (_) => dateFocus.requestFocus(),
+                  onFieldSubmitted: () => dateFocus.requestFocus(),
+                  optionItemBuilder: (context, option) => Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.tag_rounded, size: 14, color: AppColors.primary),
+                        const SizedBox(width: 8),
+                        Text(
+                          option,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
               const SizedBox(width: 10),
               _buildDateInput(
@@ -102,7 +118,7 @@ class VoucherHeaderCard extends StatelessWidget {
                 controller: dateController,
                 focusNode: dateFocus,
                 errorText: dateError,
-                width: 145,
+                width: 135,
                 onSubmitted: () {
                   onValidateDate();
                   vchNoFocus.requestFocus();
@@ -113,22 +129,129 @@ class VoucherHeaderCard extends StatelessWidget {
                 label: 'Voucher Number',
                 controller: vchNoController,
                 focusNode: vchNoFocus,
-                width: 145,
+                width: 180,
                 icon: Icons.confirmation_number_outlined,
-                onSubmitted: () => saleTypeFocus.requestFocus(),
+                onSubmitted: () => partyFocus.requestFocus(),
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: _buildSaleTypeField(),
+                flex: 4,
+                child: AppAutocompleteField<PartyMasterModel>(
+                  controller: partyController,
+                  focusNode: partyFocus,
+                  items: availableParties,
+                  label: 'Party / Account Ledger',
+                  prefixIcon: Icons.person_outline_rounded,
+                  dropdownWidth: 420,
+                  showDropdownArrow: false,
+                  labelExtractor: (p) => p.name,
+                  onQuickAdd: onAddParty,
+                  onSelected: (_) => saleTypeFocus.requestFocus(),
+                  onFieldSubmitted: () => saleTypeFocus.requestFocus(),
+                  optionItemBuilder: (context, option) => Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryLight,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Icon(Icons.business_rounded, size: 15, color: AppColors.primary),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                option.name,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.textPrimary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
+                              Row(
+                                children: [
+                                  if (option.gstin.isNotEmpty) ...[
+                                    Text(
+                                      option.gstin,
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.successDark,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                  ],
+                                  Text(
+                                    option.group,
+                                    style: const TextStyle(
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 8),
+          // Row 2: Taxation/Sale Type -> Material Centre -> Narration
           Row(
             children: [
               Expanded(
-                flex: 5,
-                child: _buildPartyField(),
+                flex: 4,
+                child: AppAutocompleteField<String>(
+                  controller: saleTypeController,
+                  focusNode: saleTypeFocus,
+                  items: taxationSaleTypes,
+                  label: 'Taxation / Sale Type',
+                  prefixIcon: Icons.account_tree_outlined,
+                  dropdownWidth: 280,
+                  labelExtractor: (type) => type,
+                  onQuickAdd: () => onQuickAdd('Sale Type'),
+                  onSelected: (_) => matCenterFocus.requestFocus(),
+                  onFieldSubmitted: () => matCenterFocus.requestFocus(),
+                  optionItemBuilder: (context, option) {
+                    final isInterState = option.contains('InterState');
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      child: Row(
+                        children: [
+                          Icon(
+                            isInterState ? Icons.alt_route_rounded : Icons.sync_alt_rounded,
+                            size: 15,
+                            color: isInterState ? AppColors.purple : AppColors.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            option,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: isInterState ? AppColors.purple : AppColors.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -144,303 +267,31 @@ class VoucherHeaderCard extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Expanded(
-                flex: 4,
-                child: _buildPlainField(
-                  label: 'Narration / Remarks',
-                  controller: narrationController,
-                  focusNode: narrationFocus,
-                  icon: Icons.notes_rounded,
-                  onSubmitted: onNarrationSubmitted,
+                flex: 5,
+                child: Focus(
+                  canRequestFocus: false,
+                  skipTraversal: true,
+                  onKeyEvent: (node, event) {
+                    if (event is KeyDownEvent &&
+                        event.logicalKey == LogicalKeyboardKey.tab &&
+                        !HardwareKeyboard.instance.isShiftPressed) {
+                      onNarrationSubmitted();
+                      return KeyEventResult.handled;
+                    }
+                    return KeyEventResult.ignored;
+                  },
+                  child: _buildPlainField(
+                    label: 'Narration / Remarks',
+                    controller: narrationController,
+                    focusNode: narrationFocus,
+                    icon: Icons.notes_rounded,
+                    onSubmitted: onNarrationSubmitted,
+                  ),
                 ),
               ),
             ],
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildSaleTypeField() {
-    return Focus(
-      onKeyEvent: (node, event) {
-        if (AppShortcuts.isQuickAdd(event)) {
-          onQuickAdd('Sale Type');
-          return KeyEventResult.handled;
-        }
-        return KeyEventResult.ignored;
-      },
-      child: SizedBox(
-        height: 36,
-        child: RawAutocomplete<String>(
-          focusNode: saleTypeFocus,
-          textEditingController: saleTypeController,
-          optionsBuilder: (TextEditingValue textEditingValue) {
-            final query = textEditingValue.text.trim().toLowerCase();
-            if (query.isEmpty) return taxationSaleTypes;
-            return taxationSaleTypes.where((type) => type.toLowerCase().contains(query));
-          },
-          onSelected: (String selection) {
-            saleTypeController.text = selection;
-            partyFocus.requestFocus();
-          },
-          optionsViewBuilder: (context, onSelected, options) {
-            return Align(
-              alignment: Alignment.topLeft,
-              child: Material(
-                elevation: 8,
-                borderRadius: BorderRadius.circular(10),
-                color: Colors.white,
-                child: Container(
-                  width: 280,
-                  constraints: const BoxConstraints(maxHeight: 250),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFD6E4F5), width: 1.2),
-                  ),
-                  child: ListView.separated(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    shrinkWrap: true,
-                    itemCount: options.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5FB)),
-                    itemBuilder: (BuildContext context, int index) {
-                      final String option = options.elementAt(index);
-                      final isInterState = option.contains('InterState');
-                      return InkWell(
-                        onTap: () => onSelected(option),
-                        hoverColor: const Color(0xFFF4F8FE),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          child: Row(
-                            children: [
-                              Icon(
-                                isInterState ? Icons.alt_route_rounded : Icons.sync_alt_rounded,
-                                size: 15,
-                                color: isInterState ? const Color(0xFF7E22CE) : const Color(0xFF0F62FE),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                option,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: isInterState ? const Color(0xFF7E22CE) : const Color(0xFF101C38),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-            );
-          },
-          fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-            return ListenableBuilder(
-              listenable: focusNode,
-              builder: (context, _) {
-                return TextField(
-                  controller: controller,
-                  focusNode: focusNode,
-                  textInputAction: TextInputAction.next,
-                  onSubmitted: (_) {
-                    onFieldSubmitted();
-                    partyFocus.requestFocus();
-                  },
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF101B3A),
-                  ),
-                  decoration: InputDecoration(
-                    labelText: 'Taxation / Sale Type',
-                    labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6B7B9B)),
-                    prefixIcon: const Icon(Icons.account_tree_outlined, size: 14, color: Color(0xFF0F62FE)),
-                    suffixIcon: focusNode.hasFocus
-                        ? Focus(
-                            canRequestFocus: false,
-                            descendantsAreFocusable: false,
-                            child: Container(
-                              margin: const EdgeInsets.only(right: 6),
-                              child: IconButton(
-                                icon: const Icon(Icons.add_circle, size: 18, color: Color(0xFF0F62FE)),
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(maxWidth: 24, maxHeight: 24),
-                                onPressed: () => onQuickAdd('Sale Type'),
-                              ),
-                            ),
-                          )
-                        : const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF64748B)),
-                    suffixIconConstraints: const BoxConstraints(minWidth: 32, minHeight: 24),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    filled: true,
-                    fillColor: const Color(0xFFF8FAFD),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2EAF5))),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.3)),
-                  ),
-                );
-              },
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPartyField() {
-    return Focus(
-      onKeyEvent: (node, event) {
-        if (AppShortcuts.isQuickAdd(event)) {
-          onAddParty();
-          return KeyEventResult.handled;
-        }
-        return KeyEventResult.ignored;
-      },
-      child: SizedBox(
-        height: 36,
-        child: RawAutocomplete<PartyMasterModel>(
-          focusNode: partyFocus,
-          textEditingController: partyController,
-          displayStringForOption: (option) => option.displayName,
-          optionsBuilder: (TextEditingValue textEditingValue) {
-            final query = textEditingValue.text.trim().toLowerCase();
-            if (query.isEmpty) return availableParties;
-            return availableParties.where((p) {
-              return p.name.toLowerCase().contains(query) ||
-                  p.gstin.toLowerCase().contains(query) ||
-                  p.group.toLowerCase().contains(query);
-            });
-          },
-          onSelected: (PartyMasterModel selection) {
-            partyController.text = selection.displayName;
-            matCenterFocus.requestFocus();
-          },
-          optionsViewBuilder: (context, onSelected, options) {
-            return Align(
-              alignment: Alignment.topLeft,
-              child: Material(
-                elevation: 8,
-                borderRadius: BorderRadius.circular(10),
-                color: Colors.white,
-                child: Container(
-                  width: 420,
-                  constraints: const BoxConstraints(maxHeight: 250),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFD6E4F5), width: 1.2),
-                  ),
-                  child: ListView.separated(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    shrinkWrap: true,
-                    itemCount: options.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5FB)),
-                    itemBuilder: (BuildContext context, int index) {
-                      final PartyMasterModel option = options.elementAt(index);
-                      return InkWell(
-                        onTap: () => onSelected(option),
-                        hoverColor: const Color(0xFFF4F8FE),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 28,
-                                height: 28,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFEFF6FE),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: const Icon(Icons.business_rounded, size: 15, color: Color(0xFF0F62FE)),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      option.name,
-                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF101C38)),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Row(
-                                      children: [
-                                        if (option.gstin.isNotEmpty) ...[
-                                          Text(
-                                            option.gstin,
-                                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF15803D)),
-                                          ),
-                                          const SizedBox(width: 8),
-                                        ],
-                                        Text(
-                                          option.group,
-                                          style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-            );
-          },
-          fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-            return ListenableBuilder(
-              listenable: focusNode,
-              builder: (context, _) {
-                return TextField(
-                  controller: controller,
-                  focusNode: focusNode,
-                  textInputAction: TextInputAction.next,
-                  onSubmitted: (_) {
-                    onFieldSubmitted();
-                    matCenterFocus.requestFocus();
-                  },
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF101B3A),
-                  ),
-                  decoration: InputDecoration(
-                    labelText: 'Party / Account Ledger',
-                    labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6B7B9B)),
-                    prefixIcon: const Icon(Icons.person_outline_rounded, size: 14, color: Color(0xFF0F62FE)),
-                    suffixIcon: focusNode.hasFocus
-                        ? Focus(
-                            canRequestFocus: false,
-                            descendantsAreFocusable: false,
-                            child: Container(
-                              margin: const EdgeInsets.only(right: 6),
-                              child: IconButton(
-                                icon: const Icon(Icons.add_circle, size: 18, color: Color(0xFF0F62FE)),
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(maxWidth: 24, maxHeight: 24),
-                                onPressed: onAddParty,
-                              ),
-                            ),
-                          )
-                        : null,
-                    suffixIconConstraints: const BoxConstraints(minWidth: 32, minHeight: 24),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    filled: true,
-                    fillColor: const Color(0xFFF8FAFD),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2EAF5))),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.3)),
-                  ),
-                );
-              },
-            );
-          },
-        ),
       ),
     );
   }
@@ -455,8 +306,10 @@ class VoucherHeaderCard extends StatelessWidget {
     double? width,
   }) {
     return Focus(
+      canRequestFocus: false,
+      skipTraversal: true,
       onKeyEvent: (node, event) {
-        if (AppShortcuts.isQuickAdd(event)) {
+        if (KeyboardShortcutService.isQuickAdd(event)) {
           onAdd();
           return KeyEventResult.handled;
         }
@@ -472,19 +325,19 @@ class VoucherHeaderCard extends StatelessWidget {
               focusNode: focusNode,
               textInputAction: TextInputAction.next,
               onSubmitted: (_) => onSubmitted?.call(),
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF101B3A)),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
               decoration: InputDecoration(
                 labelText: label,
-                labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6B7B9B)),
-                prefixIcon: Icon(icon, size: 14, color: const Color(0xFF0F62FE)),
+                labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+                prefixIcon: Icon(icon, size: 14, color: AppColors.primary),
                 suffixIcon: focusNode.hasFocus
-                    ? Focus(
-                        canRequestFocus: false,
-                        descendantsAreFocusable: false,
+                    ? ExcludeFocus(
+                        excluding: true,
                         child: Container(
                           margin: const EdgeInsets.only(right: 6),
                           child: IconButton(
-                            icon: const Icon(Icons.add_circle, size: 18, color: Color(0xFF0F62FE)),
+                            focusNode: FocusNode(skipTraversal: true, canRequestFocus: false),
+                            icon: const Icon(Icons.add_circle, size: 18, color: AppColors.primary),
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(maxWidth: 24, maxHeight: 24),
                             onPressed: onAdd,
@@ -495,9 +348,9 @@ class VoucherHeaderCard extends StatelessWidget {
                 suffixIconConstraints: const BoxConstraints(minWidth: 32, minHeight: 24),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 filled: true,
-                fillColor: const Color(0xFFF8FAFD),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2EAF5))),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.3)),
+                fillColor: AppColors.cardBg,
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.border)),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.primary, width: 1.3)),
               ),
             ),
           );
@@ -523,21 +376,21 @@ class VoucherHeaderCard extends StatelessWidget {
         focusNode: focusNode,
         textInputAction: TextInputAction.next,
         onSubmitted: (_) => onSubmitted(),
-        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF101B3A)),
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6B7B9B)),
-          prefixIcon: const Icon(Icons.calendar_today_rounded, size: 14, color: Color(0xFF0F62FE)),
+          labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+          prefixIcon: const Icon(Icons.calendar_today_rounded, size: 14, color: AppColors.primary),
           contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           filled: true,
-          fillColor: const Color(0xFFF8FAFD),
+          fillColor: AppColors.cardBg,
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: errorText != null ? const Color(0xFFEE4343) : const Color(0xFFE2EAF5)),
+            borderSide: BorderSide(color: errorText != null ? AppColors.error : AppColors.border),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: errorText != null ? const Color(0xFFEE4343) : const Color(0xFF0F62FE), width: 1.3),
+            borderSide: BorderSide(color: errorText != null ? AppColors.error : AppColors.primary, width: 1.3),
           ),
         ),
       ),
@@ -554,7 +407,7 @@ class VoucherHeaderCard extends StatelessWidget {
               width: width ?? 145,
               child: Text(
                 errorText,
-                style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: Color(0xFFEE4343)),
+                style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: AppColors.error),
                 maxLines: 1,
               ),
             ),
@@ -578,16 +431,16 @@ class VoucherHeaderCard extends StatelessWidget {
         focusNode: focusNode,
         textInputAction: TextInputAction.next,
         onSubmitted: (_) => onSubmitted?.call(),
-        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF101B3A)),
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6B7B9B)),
-          prefixIcon: Icon(icon, size: 14, color: const Color(0xFF0F62FE)),
+          labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+          prefixIcon: Icon(icon, size: 14, color: AppColors.primary),
           contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           filled: true,
-          fillColor: const Color(0xFFF8FAFD),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2EAF5))),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F62FE), width: 1.3)),
+          fillColor: AppColors.cardBg,
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.border)),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.primary, width: 1.3)),
         ),
       ),
     );

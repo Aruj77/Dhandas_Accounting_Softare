@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../constants/app_colors.dart';
+import '../../services/keyboard_shortcut_service.dart';
 import '../action_button.dart';
 import 'glass_card.dart';
 
@@ -43,12 +45,9 @@ class _DataActionCardState extends State<DataActionCard> {
   @override
   Widget build(BuildContext context) {
     return ModernGlassCard(
-      gradientColors: const [
-        Color(0xFFFBF4FF),
-        Color(0xFFF3E4FF),
-      ],
-      borderColor: const Color(0xFFE5CCFF),
-      glowColor: const Color(0x187034E6),
+      gradientColors: const [AppColors.purpleSemiLight, AppColors.purpleSemiLight],
+      borderColor: AppColors.purpleBorder,
+      glowColor: AppColors.purple.withValues(alpha: 0.1),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -57,10 +56,7 @@ class _DataActionCardState extends State<DataActionCard> {
             icon: Icons.layers_rounded,
             title: 'Data Management',
             subtitle: 'Secure backups and restore company records',
-            badgeGradient: [
-              Color(0xFF8E54F7),
-              Color(0xFF7034E6),
-            ],
+            badgeGradient: [AppColors.purpleLight, AppColors.purple],
             illustrationAsset: 'assets/images/data_illustration.png',
           ),
           const SizedBox(height: 20),
@@ -71,20 +67,18 @@ class _DataActionCardState extends State<DataActionCard> {
                   focusNode: _backupNode,
                   onFocusChange: (val) => setState(() => _isBackupFocused = val),
                   onKeyEvent: (node, event) {
-                    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
-                      return KeyEventResult.ignored;
-                    }
+                    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return KeyEventResult.ignored;
                     final key = event.logicalKey;
-                    if (key == LogicalKeyboardKey.arrowRight || key == LogicalKeyboardKey.numpad6) {
+                    if (KeyboardShortcutService.isRight(key)) {
                       _restoreNode.requestFocus();
                       return KeyEventResult.handled;
-                    } else if (key == LogicalKeyboardKey.arrowLeft || key == LogicalKeyboardKey.numpad4) {
+                    } else if (KeyboardShortcutService.isLeft(key)) {
                       widget.onMoveLeft?.call();
                       return KeyEventResult.handled;
-                    } else if (key == LogicalKeyboardKey.arrowDown || key == LogicalKeyboardKey.numpad2) {
+                    } else if (KeyboardShortcutService.isDown(key)) {
                       widget.onMoveDown?.call();
                       return KeyEventResult.handled;
-                    } else if (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.numpadEnter) {
+                    } else if (KeyboardShortcutService.isConfirm(key)) {
                       widget.onBackup?.call();
                       return KeyEventResult.handled;
                     }
@@ -95,17 +89,17 @@ class _DataActionCardState extends State<DataActionCard> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: _isBackupFocused ? const Color(0xFF7034E6) : Colors.transparent,
+                        color: _isBackupFocused ? AppColors.purple : Colors.transparent,
                         width: 2.5,
                       ),
                       boxShadow: _isBackupFocused
-                          ? const [
+                          ? [
                               BoxShadow(
-                                color: Color(0x337034E6),
+                                color: AppColors.purple.withValues(alpha: 0.2),
                                 blurRadius: 10,
                                 spreadRadius: 1,
-                                offset: Offset(0, 2),
-                              )
+                                offset: const Offset(0, 2),
+                              ),
                             ]
                           : null,
                     ),
@@ -113,8 +107,8 @@ class _DataActionCardState extends State<DataActionCard> {
                       icon: Icons.backup_rounded,
                       title: 'Backup Data',
                       subtitle: 'Export safety snapshot',
-                      iconColor: const Color(0xFF7034E6),
-                      iconBackground: const Color(0xFFF1E6FF),
+                      iconColor: AppColors.purple,
+                      iconBackground: AppColors.purpleLight,
                       onTap: () => widget.onBackup?.call(),
                     ),
                   ),
@@ -126,20 +120,18 @@ class _DataActionCardState extends State<DataActionCard> {
                   focusNode: _restoreNode,
                   onFocusChange: (val) => setState(() => _isRestoreFocused = val),
                   onKeyEvent: (node, event) {
-                    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
-                      return KeyEventResult.ignored;
-                    }
+                    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return KeyEventResult.ignored;
                     final key = event.logicalKey;
-                    if (key == LogicalKeyboardKey.arrowLeft || key == LogicalKeyboardKey.numpad4) {
+                    if (KeyboardShortcutService.isLeft(key)) {
                       _backupNode.requestFocus();
                       return KeyEventResult.handled;
-                    } else if (key == LogicalKeyboardKey.arrowRight || key == LogicalKeyboardKey.numpad6) {
+                    } else if (KeyboardShortcutService.isRight(key)) {
                       widget.onMoveRight?.call();
                       return KeyEventResult.handled;
-                    } else if (key == LogicalKeyboardKey.arrowDown || key == LogicalKeyboardKey.numpad2) {
+                    } else if (KeyboardShortcutService.isDown(key)) {
                       widget.onMoveDown?.call();
                       return KeyEventResult.handled;
-                    } else if (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.numpadEnter) {
+                    } else if (KeyboardShortcutService.isConfirm(key)) {
                       widget.onRestore?.call();
                       return KeyEventResult.handled;
                     }
@@ -150,17 +142,17 @@ class _DataActionCardState extends State<DataActionCard> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: _isRestoreFocused ? const Color(0xFF7034E6) : Colors.transparent,
+                        color: _isRestoreFocused ? AppColors.purple : Colors.transparent,
                         width: 2.5,
                       ),
                       boxShadow: _isRestoreFocused
-                          ? const [
+                          ? [
                               BoxShadow(
-                                color: Color(0x337034E6),
+                                color: AppColors.purple.withValues(alpha: 0.2),
                                 blurRadius: 10,
                                 spreadRadius: 1,
-                                offset: Offset(0, 2),
-                              )
+                                offset: const Offset(0, 2),
+                              ),
                             ]
                           : null,
                     ),
@@ -168,8 +160,8 @@ class _DataActionCardState extends State<DataActionCard> {
                       icon: Icons.restore_page_rounded,
                       title: 'Restore Data',
                       subtitle: 'Load backup archive',
-                      iconColor: const Color(0xFFB439D1),
-                      iconBackground: const Color(0xFFFCEEFF),
+                      iconColor: AppColors.purple,
+                      iconBackground: AppColors.purpleLight,
                       onTap: () => widget.onRestore?.call(),
                     ),
                   ),

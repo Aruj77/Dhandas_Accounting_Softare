@@ -5,6 +5,88 @@ import 'package:shared_preferences/shared_preferences.dart';
 class StorageService {
   static const String _prefDirectoryKey = 'dhandas_data_directory_path';
 
+  static const Map<String, dynamic> defaultCompanyMasters = {
+    'debtors': [
+      {'name': 'Cash', 'gstin': '', 'group': 'Cash-in-hand'},
+    ],
+    'creditors': [
+      {'name': 'Cash', 'gstin': '', 'group': 'Cash-in-hand'},
+    ],
+    'items': [],
+    'series': ['Main'],
+    'seriesSettings': {
+      'Main': {
+        'name': 'Main',
+        'numberingType': 'Manual',
+        'renumberingFreq': 'None',
+        'yearFormat': 'YY-YY',
+        'yearPosition': 'As Prefix',
+        'separator': '/',
+        'prefix': '',
+        'suffix': '',
+        'startNumber': 1,
+        'endNumber': 99999999,
+      }
+    },
+    'saleTypes': [
+      'Local Itemwise',
+      'InterState Itemwise',
+      'Local Multirate',
+      'InterState Multirate',
+      'Local Exempt',
+      'InterState Exempt',
+    ],
+    'units': [
+      'BAG', 'BAL', 'BDL', 'BOX', 'BTL', 'BUN', 'CAN', 'CBM', 'CCM', 'CMS',
+      'CTN', 'DOZ', 'DRM', 'GGK', 'GMS', 'GRS', 'GYD', 'KGS', 'KLR', 'KME',
+      'MLT', 'MTR', 'MTS', 'NOS', 'PAC', 'PCS', 'PRS', 'QTL', 'ROL', 'SET',
+      'SQF', 'SQM', 'SQY', 'TBS', 'TGM', 'THD', 'TON', 'TUB', 'UGS', 'UNT', 'YDS',
+    ],
+    'accountGroups': [
+      'Sundry Debtors',
+      'Sundry Creditors',
+      'Bank Accounts',
+      'Cash-in-hand',
+      'Direct Expenses',
+      'Indirect Expenses',
+      'Sales Accounts',
+      'Purchase Accounts',
+    ],
+    'materialCenters': [
+      'Main Store',
+      'Warehouse',
+      'Godown',
+    ],
+    'billSundries': [
+      'Add. Cess on GST',
+      'Add. Cess on GST (ITC-None)',
+      'Cess on GST',
+      'Cess on GST (ITC-None)',
+      'CGST',
+      'CGST (ITC-None)',
+      'Discount',
+      'Freight & Forwarding Charges',
+      'IGST',
+      'IGST (Export / SEZ Unit)',
+      'IGST (ITC-None)',
+      'Round Off-',
+      'Round Off+',
+      'SGST',
+      'SGST (ITC-None)',
+      'TCS (Tax Collected at Source)',
+      'TDS on Pymt./Purc. of Goods',
+    ],
+    'taxCategories': [
+      '0% Exempt',
+      'GST 3%',
+      'GST 5%',
+      'GST 12%',
+      'GST 18%',
+      'GST 28%',
+      'GST 40%',
+    ],
+  };
+
   static Future<String?> getSavedDirectory() async {
     final prefs = await SharedPreferences.getInstance();
     final path = prefs.getString(_prefDirectoryKey);
@@ -98,36 +180,7 @@ class StorageService {
 
     await saveCompanyMasters(
       folderPath: companyDir.path,
-      mastersData: {
-        'debtors': [
-          {'name': 'Cash', 'gstin': '', 'group': 'Cash-in-Hand'},
-        ],
-        'creditors': [
-          {'name': 'Cash', 'gstin': '', 'group': 'Cash-in-Hand'},
-        ],
-        'items': [
-          {
-            'name': '3304 18% Pcs',
-            'hsn': '3304',
-            'unit': 'Pcs',
-            'taxCategory': 'GST 18%',
-            'taxRate': 18.0,
-            'salesPrice': 250.0,
-            'purchasePrice': 200.0,
-            'mrp': 300.0,
-          },
-          {
-            'name': '8471 18% Nos',
-            'hsn': '8471',
-            'unit': 'Nos',
-            'taxCategory': 'GST 18%',
-            'taxRate': 18.0,
-            'salesPrice': 45000.0,
-            'purchasePrice': 40000.0,
-            'mrp': 52000.0,
-          },
-        ],
-      },
+      mastersData: defaultCompanyMasters,
     );
 
     return folderId;
@@ -154,15 +207,6 @@ class StorageService {
       await file.writeAsString(
         const JsonEncoder.withIndent('  ').convert(companyData),
       );
-      return;
-    }
-
-    final legacyFilePath = companyData['legacyFilePath']?.toString();
-    if (legacyFilePath != null && await File(legacyFilePath).exists()) {
-      final file = File(legacyFilePath);
-      await file.writeAsString(
-        const JsonEncoder.withIndent('  ').convert(companyData),
-      );
     }
   }
 
@@ -174,15 +218,6 @@ class StorageService {
       final dir = Directory(folderPath);
       if (await dir.exists()) {
         await dir.delete(recursive: true);
-        return;
-      }
-    }
-
-    final legacyFilePath = companyData['legacyFilePath']?.toString();
-    if (legacyFilePath != null) {
-      final file = File(legacyFilePath);
-      if (await file.exists()) {
-        await file.delete();
       }
     }
   }
@@ -196,41 +231,31 @@ class StorageService {
         final content = await file.readAsString();
         final data = jsonDecode(content);
         if (data is Map<String, dynamic>) {
+          bool needsResave = false;
+
+          // Migrate missing keys for previously created companies
+          defaultCompanyMasters.forEach((key, value) {
+            if (!data.containsKey(key) || data[key] == null) {
+              data[key] = value;
+              needsResave = true;
+            }
+          });
+
+          if (needsResave) {
+            await saveCompanyMasters(folderPath: folderPath, mastersData: data);
+          }
+
           return data;
         }
       } catch (_) {}
     }
 
-    return {
-      'debtors': [
-        {'name': 'Cash', 'gstin': '', 'group': 'Cash-in-Hand'},
-      ],
-      'creditors': [
-        {'name': 'Cash', 'gstin': '', 'group': 'Cash-in-Hand'},
-      ],
-      'items': [
-        {
-          'name': '3304 18% Pcs',
-          'hsn': '3304',
-          'unit': 'Pcs',
-          'taxCategory': 'GST 18%',
-          'taxRate': 18.0,
-          'salesPrice': 250.0,
-          'purchasePrice': 200.0,
-          'mrp': 300.0,
-        },
-        {
-          'name': '8471 18% Nos',
-          'hsn': '8471',
-          'unit': 'Nos',
-          'taxCategory': 'GST 18%',
-          'taxRate': 18.0,
-          'salesPrice': 45000.0,
-          'purchasePrice': 40000.0,
-          'mrp': 52000.0,
-        },
-      ],
-    };
+    final initialMasters = Map<String, dynamic>.from(defaultCompanyMasters);
+    await saveCompanyMasters(
+      folderPath: folderPath,
+      mastersData: initialMasters,
+    );
+    return initialMasters;
   }
 
   static Future<void> saveCompanyMasters({
@@ -243,15 +268,35 @@ class StorageService {
     );
   }
 
-  static String resolveVoucherFileName(String voucherType) {
+  static String resolveVoucherFileName(String voucherType, [String? seriesName]) {
     final vch = voucherType.toLowerCase().trim();
-    if (vch.contains('sale')) return 'sales.json';
-    if (vch.contains('purchase')) return 'purchase.json';
-    if (vch.contains('payment')) return 'payment.json';
-    if (vch.contains('receipt')) return 'receipt.json';
-    if (vch.contains('journal')) return 'journal.json';
-    if (vch.contains('contra')) return 'contra.json';
-    return '${vch.replaceAll(RegExp(r'[^a-z0-9]'), '_')}.json';
+    String base = 'sales';
+    if (vch.contains('sale')) {
+      base = 'sales';
+    } else if (vch.contains('purchase')) {
+      base = 'purchase';
+    } else if (vch.contains('payment')) {
+      base = 'payment';
+    } else if (vch.contains('receipt')) {
+      base = 'receipt';
+    } else if (vch.contains('journal')) {
+      base = 'journal';
+    } else if (vch.contains('contra')) {
+      base = 'contra';
+    } else {
+      base = vch.replaceAll(RegExp(r'[^a-z0-9]'), '_');
+    }
+
+    if (seriesName != null &&
+        seriesName.trim().isNotEmpty &&
+        seriesName.toLowerCase() != 'main') {
+      final cleanSeries = seriesName
+          .trim()
+          .replaceAll(RegExp(r'[^a-z0-9]'), '_')
+          .toLowerCase();
+      return '${base}_$cleanSeries.json';
+    }
+    return '$base.json';
   }
 
   static Future<void> saveVoucher({
@@ -267,13 +312,42 @@ class StorageService {
       await vouchersDir.create(recursive: true);
     }
 
-    final targetFileName = resolveVoucherFileName(voucherData['voucherType'] ?? 'voucher');
-    final file = File('${vouchersDir.path}${Platform.pathSeparator}$targetFileName');
+    final voucherId = voucherData['id']?.toString().trim() ?? '';
+    final newVchNo = voucherData['voucherNumber']?.toString().trim() ?? '';
+    final seriesName = voucherData['series']?.toString();
+    final targetFileName = resolveVoucherFileName(
+      voucherData['voucherType'] ?? 'voucher',
+      seriesName,
+    );
+    final targetFile = File('${vouchersDir.path}${Platform.pathSeparator}$targetFileName');
+
+    // Clean up older copies of this voucher ID from other series files if series changed
+    if (voucherId.isNotEmpty) {
+      await for (final entity in vouchersDir.list()) {
+        if (entity is File && entity.path.endsWith('.json') && entity.path != targetFile.path) {
+          try {
+            final content = await entity.readAsString();
+            final parsed = jsonDecode(content);
+            if (parsed is List) {
+              final initialLen = parsed.length;
+              parsed.removeWhere((item) =>
+                  item is Map<String, dynamic> &&
+                  item['id']?.toString().trim() == voucherId);
+              if (parsed.length != initialLen) {
+                await entity.writeAsString(
+                  const JsonEncoder.withIndent('  ').convert(parsed),
+                );
+              }
+            }
+          } catch (_) {}
+        }
+      }
+    }
 
     List<dynamic> voucherList = [];
-    if (await file.exists()) {
+    if (await targetFile.exists()) {
       try {
-        final content = await file.readAsString();
+        final content = await targetFile.readAsString();
         final parsed = jsonDecode(content);
         if (parsed is List) {
           voucherList = parsed;
@@ -281,19 +355,51 @@ class StorageService {
       } catch (_) {}
     }
 
-    final newVchNo = voucherData['voucherNumber']?.toString().trim() ?? '';
-    final existingIndex = voucherList.indexWhere((item) =>
-        item is Map<String, dynamic> &&
-        (item['voucherNumber']?.toString().trim() ?? '') == newVchNo);
-
-    if (existingIndex != -1 && newVchNo.isNotEmpty) {
-      voucherList[existingIndex] = voucherData; // Update existing voucher
-    } else {
-      voucherList.add(voucherData); // Append new voucher
+    // Match on unique ID first; fallback to voucher number only if no ID exists
+    int existingIndex = -1;
+    if (voucherId.isNotEmpty) {
+      existingIndex = voucherList.indexWhere((item) =>
+          item is Map<String, dynamic> &&
+          (item['id']?.toString().trim() ?? '') == voucherId);
     }
 
-    await file.writeAsString(
+    if (existingIndex == -1 && newVchNo.isNotEmpty) {
+      existingIndex = voucherList.indexWhere((item) =>
+          item is Map<String, dynamic> &&
+          (item['voucherNumber']?.toString().trim() ?? '') == newVchNo);
+    }
+
+    if (existingIndex != -1) {
+      voucherList[existingIndex] = voucherData;
+    } else {
+      voucherList.add(voucherData);
+    }
+
+    await targetFile.writeAsString(
       const JsonEncoder.withIndent('  ').convert(voucherList),
+    );
+  }
+
+  static Future<void> saveAllVouchers({
+    required String folderPath,
+    required String financialYear,
+    required String voucherType,
+    String? seriesName,
+    required List<Map<String, dynamic>> vouchers,
+  }) async {
+    final fySlug = normalizeFySlug(financialYear);
+    final vouchersDir = Directory(
+      '$folderPath${Platform.pathSeparator}$fySlug${Platform.pathSeparator}vouchers',
+    );
+    if (!await vouchersDir.exists()) {
+      await vouchersDir.create(recursive: true);
+    }
+
+    final targetFileName = resolveVoucherFileName(voucherType, seriesName);
+    final file = File('${vouchersDir.path}${Platform.pathSeparator}$targetFileName');
+
+    await file.writeAsString(
+      const JsonEncoder.withIndent('  ').convert(vouchers),
     );
   }
 
@@ -301,6 +407,7 @@ class StorageService {
     required String folderPath,
     required String financialYear,
     String? voucherType,
+    String? seriesName,
   }) async {
     final fySlug = normalizeFySlug(financialYear);
     final vouchersDir = Directory(
@@ -311,7 +418,7 @@ class StorageService {
     final List<Map<String, dynamic>> allVouchers = [];
 
     if (voucherType != null) {
-      final fileName = resolveVoucherFileName(voucherType);
+      final fileName = resolveVoucherFileName(voucherType, seriesName);
       final file = File('${vouchersDir.path}${Platform.pathSeparator}$fileName');
       if (await file.exists()) {
         try {

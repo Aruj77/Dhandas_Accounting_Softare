@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../constants/app_colors.dart';
 
 class RecentCompaniesPanel extends StatelessWidget {
   final List<Map<String, dynamic>> companies;
@@ -16,12 +17,12 @@ class RecentCompaniesPanel extends StatelessWidget {
       constraints: const BoxConstraints(minHeight: 180),
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE4EDF7)),
+        border: Border.all(color: AppColors.border),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x08092B60),
+            color: AppColors.shadowColor,
             blurRadius: 16,
             offset: Offset(0, 4),
           ),
@@ -31,11 +32,11 @@ class RecentCompaniesPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: const [
+          const Row(
+            children: [
               Icon(
                 Icons.access_time_rounded,
-                color: Color(0xFF0F62FE),
+                color: AppColors.primary,
                 size: 20,
               ),
               SizedBox(width: 10),
@@ -44,7 +45,7 @@ class RecentCompaniesPanel extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF101C3A),
+                  color: AppColors.textPrimary,
                 ),
               ),
             ],
@@ -59,7 +60,7 @@ class RecentCompaniesPanel extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
-                  color: Color(0xFF8695AF),
+                  color: AppColors.textMuted,
                 ),
               ),
             )
@@ -84,15 +85,15 @@ class RecentCompaniesPanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFD),
+        color: AppColors.cardBg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE7EEF7)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
           const Icon(
             Icons.business_rounded,
-            color: Color(0xFF0F62FE),
+            color: AppColors.primary,
             size: 20,
           ),
           const SizedBox(width: 12),
@@ -106,7 +107,7 @@ class RecentCompaniesPanel extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF111D3B),
+                    color: AppColors.textPrimary,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -116,7 +117,7 @@ class RecentCompaniesPanel extends StatelessWidget {
                   '${company['city'] ?? ''}, ${company['state'] ?? ''} • $folder',
                   style: const TextStyle(
                     fontSize: 11,
-                    color: Color(0xFF7585A2),
+                    color: AppColors.textSecondary,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,

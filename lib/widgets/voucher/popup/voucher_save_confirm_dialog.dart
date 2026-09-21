@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../constants/app_colors.dart';
+import '../../../services/focus_policy_service.dart';
+
 class VoucherSaveConfirmDialog extends StatefulWidget {
   final Map<String, dynamic> summaryData;
   final VoidCallback onConfirm;
@@ -12,26 +15,28 @@ class VoucherSaveConfirmDialog extends StatefulWidget {
   });
 
   @override
-  State<VoucherSaveConfirmDialog> createState() => _VoucherSaveConfirmDialogState();
+  State<VoucherSaveConfirmDialog> createState() =>
+      _VoucherSaveConfirmDialogState();
 }
 
 class _VoucherSaveConfirmDialogState extends State<VoucherSaveConfirmDialog> {
   final FocusNode _saveFocusNode = FocusNode();
-  final FocusNode _saveButtonFocusNode = FocusNode();
+  final FocusNode _cancelFocusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
-    // Auto-focus the save button as soon as dialog opens
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _saveFocusNode.requestFocus();
+      if (mounted && _saveFocusNode.canRequestFocus) {
+        _saveFocusNode.requestFocus();
+      }
     });
   }
 
   @override
   void dispose() {
     _saveFocusNode.dispose();
-    _saveButtonFocusNode.dispose();
+    _cancelFocusNode.dispose();
     super.dispose();
   }
 
@@ -40,188 +45,282 @@ class _VoucherSaveConfirmDialogState extends State<VoucherSaveConfirmDialog> {
     final s = widget.summaryData;
     final isInterState = s['isInterState'] == true;
 
-    return Focus(
-      focusNode: _saveFocusNode,
-      autofocus: true,
-      onKeyEvent: (node, event) {
-        if (event is! KeyDownEvent) return KeyEventResult.ignored;
-        if (event.logicalKey == LogicalKeyboardKey.enter || event.logicalKey == LogicalKeyboardKey.numpadEnter) {
-          Navigator.of(context).pop();
-          widget.onConfirm();
-          return KeyEventResult.handled;
-        }
-        if (event.logicalKey == LogicalKeyboardKey.escape) {
-          Navigator.of(context).pop();
-          return KeyEventResult.handled;
-        }
-        return KeyEventResult.ignored;
+    return AutoScreenFocus(
+      screen: FocusTargetScreen.voucherSaveConfirmDialog,
+      nodeMap: {
+        FocusFieldNode.confirmYesButton: _saveFocusNode,
+        FocusFieldNode.confirmNoButton: _cancelFocusNode,
       },
       child: Dialog(
-      backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        width: 480,
-        padding: const EdgeInsets.all(22),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Row(
-              children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEFF6FE),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.verified_outlined, color: Color(0xFF0F62FE), size: 22),
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Confirm ${s['voucherType']}',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF101B3A)),
-                    ),
-                    Text(
-                      'Verify summary details before persisting',
-                      style: const TextStyle(fontSize: 11.5, color: Color(0xFF6B7B9B)),
-                    ),
-                  ],
-                ),
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.close_rounded, size: 20, color: Color(0xFF90A1BA)),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Metadata Card
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFD),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFE2EAF5)),
-              ),
-              child: Column(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Container(
+          width: 480,
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  _buildSummaryRow('Voucher No.', s['voucherNumber']),
-                  const SizedBox(height: 6),
-                  _buildSummaryRow('Date', s['date']),
-                  const SizedBox(height: 6),
-                  _buildSummaryRow('Party', s['party']),
-                  const SizedBox(height: 6),
-                  _buildSummaryRow(
-                    'GST Nature',
-                    isInterState ? 'Inter-State (IGST)' : 'Intra-State (CGST+SGST)',
-                    valueColor: isInterState ? const Color(0xFF7E22CE) : const Color(0xFF15803D),
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryLight,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.verified_outlined,
+                      color: AppColors.primary,
+                      size: 22,
+                    ),
                   ),
-                  const SizedBox(height: 6),
-                  _buildSummaryRow('Total Items / Qty', '${s['itemCount']} items (${s['totalQty']} units)'),
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
-
-            // Accounting Totals
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFE2EAF5)),
-              ),
-              child: Column(
-                children: [
-                  _buildSummaryRow('Taxable Amount', '₹${(s['subTotal'] as double).toStringAsFixed(2)}'),
-                  const SizedBox(height: 6),
-                  if (!isInterState) ...[
-                    _buildSummaryRow('CGST Total', '₹${(s['cgst'] as double).toStringAsFixed(2)}'),
-                    const SizedBox(height: 6),
-                    _buildSummaryRow('SGST Total', '₹${(s['sgst'] as double).toStringAsFixed(2)}'),
-                  ] else ...[
-                    _buildSummaryRow('IGST Total', '₹${(s['igst'] as double).toStringAsFixed(2)}'),
-                  ],
-                  if ((s['sundryTotal'] as double) != 0.0) ...[
-                    const SizedBox(height: 6),
-                    _buildSummaryRow('Bill Sundries', '₹${(s['sundryTotal'] as double).toStringAsFixed(2)}'),
-                  ],
-                  if ((s['roundOff'] as double) != 0.0) ...[
-                    const SizedBox(height: 6),
-                    _buildSummaryRow('Round Off', '₹${(s['roundOff'] as double).toStringAsFixed(2)}'),
-                  ],
-                  const Divider(height: 18, color: Color(0xFFE2EAF5)),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Grand Total',
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF101B3A)),
-                      ),
                       Text(
-                        '₹${(s['grandTotal'] as double).toStringAsFixed(2)}',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF0F62FE)),
+                        'Confirm ${s['voucherType']}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.primaryDark,
+                        ),
+                      ),
+                      const Text(
+                        'Verify summary details before persisting',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ],
                   ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      size: 20,
+                      color: AppColors.textMuted,
+                    ),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
                 ],
               ),
-            ),
-            const SizedBox(height: 22),
+              const SizedBox(height: 16),
 
-            // Actions (Save focused by default)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                OutlinedButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  child: const Text('Cancel (Esc)'),
+              // Metadata Card
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
                 ),
-                const SizedBox(width: 12),
-                Focus(
-                  focusNode: _saveButtonFocusNode,
-                  child: Builder(builder: (context) {
-                    final hasFocus = Focus.of(context).hasFocus;
-                    return ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        widget.onConfirm();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0F62FE),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          side: BorderSide(
-                            color: hasFocus ? const Color(0xFF101B3A) : Colors.transparent,
-                            width: 2.0,
+                decoration: BoxDecoration(
+                  color: AppColors.cardBg,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Column(
+                  children: [
+                    _buildSummaryRow(
+                      'Voucher No.',
+                      s['voucherNumber']?.toString() ?? '',
+                    ),
+                    const SizedBox(height: 6),
+                    _buildSummaryRow('Date', s['date']?.toString() ?? ''),
+                    const SizedBox(height: 6),
+                    _buildSummaryRow('Party', s['party']?.toString() ?? ''),
+                    const SizedBox(height: 6),
+                    _buildSummaryRow(
+                      'GST Nature',
+                      isInterState
+                          ? 'Inter-State (IGST)'
+                          : 'Intra-State (CGST+SGST)',
+                      valueColor: isInterState
+                          ? AppColors.purple
+                          : AppColors.successDark,
+                    ),
+                    const SizedBox(height: 6),
+                    _buildSummaryRow(
+                      'Total Items / Qty',
+                      '${s['itemCount']} items (${s['totalQty']} units)',
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Accounting Totals
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Column(
+                  children: [
+                    _buildSummaryRow(
+                      'Taxable Amount',
+                      '₹${(s['subTotal'] as double).toStringAsFixed(2)}',
+                    ),
+                    const SizedBox(height: 6),
+                    if (!isInterState) ...[
+                      _buildSummaryRow(
+                        'CGST Total',
+                        '₹${(s['cgst'] as double).toStringAsFixed(2)}',
+                      ),
+                      const SizedBox(height: 6),
+                      _buildSummaryRow(
+                        'SGST Total',
+                        '₹${(s['sgst'] as double).toStringAsFixed(2)}',
+                      ),
+                    ] else ...[
+                      _buildSummaryRow(
+                        'IGST Total',
+                        '₹${(s['igst'] as double).toStringAsFixed(2)}',
+                      ),
+                    ],
+                    if ((s['sundryTotal'] as double) != 0.0) ...[
+                      const SizedBox(height: 6),
+                      _buildSummaryRow(
+                        'Bill Sundries',
+                        '₹${(s['sundryTotal'] as double).toStringAsFixed(2)}',
+                      ),
+                    ],
+                    if ((s['roundOff'] as double) != 0.0) ...[
+                      const SizedBox(height: 6),
+                      _buildSummaryRow(
+                        'Round Off',
+                        '₹${(s['roundOff'] as double).toStringAsFixed(2)}',
+                      ),
+                    ],
+                    const Divider(height: 18, color: AppColors.border),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Grand Total',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.primaryDark,
                           ),
                         ),
-                      ),
-                      icon: const Icon(Icons.check_circle_outline_rounded, size: 16),
-                      label: const Text(
-                        'Confirm & Save (Enter)',
-                        style: TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                    );
-                  }),
+                        Text(
+                          '₹${(s['grandTotal'] as double).toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ],
+              ),
+              const SizedBox(height: 22),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  OutlinedButton(
+                    focusNode: _cancelFocusNode,
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      side: const BorderSide(color: AppColors.border),
+                      foregroundColor: AppColors.textPrimary,
+                    ),
+                    child: const Text('Cancel (Esc)'),
+                  ),
+                  const SizedBox(width: 12),
+                  Focus(
+                    focusNode: _saveFocusNode,
+                    autofocus: true,
+                    onKeyEvent: (_, event) {
+                      if (event is KeyDownEvent &&
+                          (event.logicalKey == LogicalKeyboardKey.enter ||
+                              event.logicalKey ==
+                                  LogicalKeyboardKey.numpadEnter ||
+                              event.logicalKey == LogicalKeyboardKey.space)) {
+                        Navigator.of(context).pop();
+                        widget.onConfirm();
+                        return KeyEventResult.handled;
+                      }
+                      return KeyEventResult.ignored;
+                    },
+                    child: Builder(
+                      builder: (context) {
+                        final hasFocus = Focus.of(context).hasFocus;
+                        return AnimatedContainer(
+                          duration: const Duration(milliseconds: 140),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: hasFocus
+                                  ? AppColors.primary
+                                  : Colors.transparent,
+                              width: 2.2,
+                            ),
+                            boxShadow: hasFocus
+                                ? [
+                                    BoxShadow(
+                                      color: AppColors.primary.withValues(
+                                        alpha: 0.28,
+                                      ),
+                                      blurRadius: 8,
+                                      spreadRadius: 1,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                              widget.onConfirm();
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: AppColors.surface,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 22,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            icon: const Icon(
+                              Icons.check_circle_outline_rounded,
+                              size: 16,
+                            ),
+                            label: const Text(
+                              'Confirm & Save (Enter)',
+                              style: TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -232,14 +331,18 @@ class _VoucherSaveConfirmDialogState extends State<VoucherSaveConfirmDialog> {
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6B7B9B)),
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSecondary,
+          ),
         ),
         Text(
           value,
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w700,
-            color: valueColor ?? const Color(0xFF101B3A),
+            color: valueColor ?? AppColors.primaryDark,
           ),
         ),
       ],

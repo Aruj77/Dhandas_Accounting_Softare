@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../constants/app_colors.dart';
 
 class VoucherSummaryCard extends StatelessWidget {
   final bool isInterState;
@@ -38,11 +39,11 @@ class VoucherSummaryCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2EAF5), width: 1.2),
+        border: Border.all(color: AppColors.border, width: 1.2),
         boxShadow: const [
-          BoxShadow(color: Color(0x04092B60), blurRadius: 8, offset: Offset(0, 2)),
+          BoxShadow(color: AppColors.dialogShadowLight, blurRadius: 8, offset: Offset(0, 2)),
         ],
       ),
       child: Column(
@@ -50,11 +51,11 @@ class VoucherSummaryCard extends StatelessWidget {
         children: [
           const Row(
             children: [
-              Icon(Icons.pie_chart_outline_rounded, size: 15, color: Color(0xFF10A35B)),
+              Icon(Icons.pie_chart_outline_rounded, size: 15, color: AppColors.success),
               SizedBox(width: 6),
               Text(
                 'Taxation & Summary',
-                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Color(0xFF101B3A)),
+                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
               ),
             ],
           ),
@@ -68,18 +69,18 @@ class VoucherSummaryCard extends StatelessWidget {
           ],
           _buildSummaryRow('Sundries', '${sundryTotal >= 0 ? '+' : ''}₹${sundryTotal.toStringAsFixed(2)}'),
           _buildSummaryRow('Rounding', '${roundOff >= 0 ? '+' : ''}₹${roundOff.toStringAsFixed(2)}'),
-          const Divider(color: Color(0xFFE8EEF7), height: 1),
+          const Divider(color: AppColors.border, height: 1),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(colors: [Color(0xFFF1F6FE), Color(0xFFE9F2FE)]),
+              gradient: const LinearGradient(colors: [AppColors.background, AppColors.primaryLight]),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Grand Total', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: Color(0xFF0F62FE))),
-                Text('₹${grandTotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFF0F62FE))),
+                const Text('Grand Total', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: AppColors.primary)),
+                Text('₹${grandTotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: AppColors.primary)),
               ],
             ),
           ),
@@ -92,6 +93,8 @@ class VoucherSummaryCard extends StatelessWidget {
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+                  side: const BorderSide(color: AppColors.border),
+                  foregroundColor: AppColors.textPrimary,
                 ),
                 child: Text('Quit ($quitShortcutLabel)', style: const TextStyle(fontSize: 11)),
               ),
@@ -114,16 +117,16 @@ class VoucherSummaryCard extends StatelessWidget {
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: isSaveFocused ? const Color(0xFF0F62FE) : Colors.transparent,
+                          color: isSaveFocused ? AppColors.primary : Colors.transparent,
                           width: 2.2,
                         ),
                         boxShadow: isSaveFocused
-                            ? const [
+                            ? [
                                 BoxShadow(
-                                  color: Color(0x330F62FE),
+                                  color: AppColors.primary.withValues(alpha: 0.2),
                                   blurRadius: 8,
                                   spreadRadius: 1,
-                                  offset: Offset(0, 2),
+                                  offset: const Offset(0, 2),
                                 ),
                               ]
                             : null,
@@ -131,8 +134,8 @@ class VoucherSummaryCard extends StatelessWidget {
                       child: ElevatedButton.icon(
                         onPressed: onSave,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF0F62FE),
-                          foregroundColor: Colors.white,
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: AppColors.surface,
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
                           elevation: 0,
@@ -158,8 +161,8 @@ class VoucherSummaryCard extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
-        Text(value, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: Color(0xFF101B38))),
+        Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+        Text(value, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
       ],
     );
   }

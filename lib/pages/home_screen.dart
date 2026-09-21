@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../core/keyboard/keyboard_system.dart';
+
+import '../constants/app_colors.dart';
+import '../services/focus_policy_service.dart';
+import '../services/keyboard_shortcut_service.dart';
 import '../services/storage_service.dart';
 import '../services/loading_service.dart';
 import '../widgets/sidebar.dart';
@@ -18,18 +21,22 @@ import '../widgets/home/open_company_dialog.dart';
 import 'settings_screen.dart';
 import 'company/transactions_dashboard.dart';
 import 'company/administration_screen.dart';
+import 'company/reports_dashboard_screen.dart';
 import 'company/voucher/voucher_entry_screen.dart';
 import 'company/voucher/voucher_list_screen.dart';
+import 'company/masters_dashboard_screen.dart';
 
 class _ListParams {
   final String voucherType;
   final DateTime fromDate;
   final DateTime toDate;
+  final String series;
 
   _ListParams({
     required this.voucherType,
     required this.fromDate,
     required this.toDate,
+    this.series = 'All',
   });
 }
 
@@ -56,7 +63,6 @@ class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<TransactionsDashboardState> _dashboardKey =
       GlobalKey<TransactionsDashboardState>();
 
-  // Home Screen Right-Pane Focus Nodes
   final FocusNode _openCompanyBtnFocus = FocusNode();
   final FocusNode _createCompanyBtnFocus = FocusNode();
   final FocusNode _backupDataFocus = FocusNode();
@@ -69,10 +75,13 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadStoredDirectoryAndData();
     _loadKeyboardSettings();
 
-    // Default focus: Highlights Home on initial startup
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _sidebarKey.currentState?.focusActiveItem();
-    });
+    FocusPolicyService.requestScreenFocus(
+      screen: FocusTargetScreen.homeDashboard,
+      nodeMap: {
+        FocusFieldNode.firstField: _openCompanyBtnFocus,
+        FocusFieldNode.secondaryAction: _createCompanyBtnFocus,
+      },
+    );
   }
 
   @override
@@ -87,7 +96,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadKeyboardSettings() async {
     final settings = await KeyboardShortcutService.loadSettings();
-    KeyboardRegistry.instance.updateSettings(settings);
     if (mounted) {
       setState(() => _keyboardSettings = settings);
     }
@@ -97,7 +105,6 @@ class _HomeScreenState extends State<HomeScreen> {
     KeyboardShortcutSettings settings,
   ) async {
     await KeyboardShortcutService.saveSettings(settings);
-    KeyboardRegistry.instance.updateSettings(settings);
     if (mounted) {
       setState(() => _keyboardSettings = settings);
     }
@@ -128,7 +135,7 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Set Directory Dialog',
-      barrierColor: const Color(0x60091834),
+      barrierColor: AppColors.primaryDark.withValues(alpha: 0.38),
       transitionDuration: const Duration(milliseconds: 240),
       pageBuilder: (context, anim1, anim2) => const SizedBox.shrink(),
       transitionBuilder: (context, anim1, anim2, child) {
@@ -166,7 +173,7 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Open Company Dialog',
-      barrierColor: const Color(0x60091834),
+      barrierColor: AppColors.primaryDark.withValues(alpha: 0.38),
       transitionDuration: const Duration(milliseconds: 260),
       pageBuilder: (context, anim1, anim2) => const SizedBox.shrink(),
       transitionBuilder: (context, anim1, anim2, child) {
@@ -188,7 +195,6 @@ class _HomeScreenState extends State<HomeScreen> {
           _activeListQuery = null;
         });
 
-        // Default focus: Highlights Transactions in the sidebar upon opening workspace
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _sidebarKey.currentState?.focusActiveItem();
         });
@@ -198,7 +204,7 @@ class _HomeScreenState extends State<HomeScreen> {
             content: Text(
               'Opened workspace for: ${selectedCompany['companyName']}',
             ),
-            backgroundColor: const Color(0xFF0F62FE),
+            backgroundColor: AppColors.primary,
           ),
         );
       }
@@ -215,7 +221,7 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Create Company Dialog',
-      barrierColor: const Color(0x60091834),
+      barrierColor: AppColors.primaryDark.withValues(alpha: 0.38),
       transitionDuration: const Duration(milliseconds: 260),
       pageBuilder: (context, anim1, anim2) => const SizedBox.shrink(),
       transitionBuilder: (context, anim1, anim2, child) {
@@ -231,15 +237,17 @@ class _HomeScreenState extends State<HomeScreen> {
     ).then((saved) async {
       if (saved == true && _currentDataDirectory != null) {
         await LoadingService.wrap(() async {
-          final companies =
-              await StorageService.loadCompanies(_currentDataDirectory!);
+          final companies = await StorageService.loadCompanies(
+            _currentDataDirectory!,
+          );
           if (mounted) {
             setState(() => _recentCompanies = companies);
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content:
-                    Text('Company database created and saved successfully!'),
-                backgroundColor: Color(0xFF11A25B),
+                content: Text(
+                  'Company database created and saved successfully!',
+                ),
+                backgroundColor: AppColors.success,
               ),
             );
           }
@@ -252,10 +260,10 @@ class _HomeScreenState extends State<HomeScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Please configure a Data Directory first.'),
-        backgroundColor: const Color(0xFFF39E00),
+        backgroundColor: AppColors.warning,
         action: SnackBarAction(
           label: 'Set Now',
-          textColor: Colors.white,
+          textColor: AppColors.surface,
           onPressed: _showSetDirectoryModal,
         ),
       ),
@@ -278,7 +286,6 @@ class _HomeScreenState extends State<HomeScreen> {
       _activeListQuery = null;
     });
 
-    // Reset default focus to Home in sidebar
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _sidebarKey.currentState?.focusActiveItem();
     });
@@ -317,7 +324,84 @@ class _HomeScreenState extends State<HomeScreen> {
     _sidebarKey.currentState?.focusActiveItem();
   }
 
-  
+  KeyEventResult _handleKeyboardEvent(FocusNode node, KeyEvent event) {
+    if (!_keyboardSettings.keyboardIntensiveMode) {
+      return KeyEventResult.ignored;
+    }
+
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+
+    if (_isEditableFocusActive()) {
+      return KeyEventResult.ignored;
+    }
+
+    if (KeyboardShortcutService.matchesAction(
+      _keyboardSettings,
+      KeyboardShortcutService.goBackAction,
+      event,
+    )) {
+      _goBack();
+      return KeyEventResult.handled;
+    }
+
+    if (_activeVoucherType != null || _activeListQuery != null) {
+      return KeyEventResult.ignored;
+    }
+
+    if (KeyboardShortcutService.matchesAction(
+      _keyboardSettings,
+      KeyboardShortcutService.openCompanyAction,
+      event,
+    )) {
+      _showOpenCompanyModal();
+      return KeyEventResult.handled;
+    }
+
+    if (KeyboardShortcutService.matchesAction(
+      _keyboardSettings,
+      KeyboardShortcutService.createCompanyAction,
+      event,
+    )) {
+      _showCreateCompanyModal();
+      return KeyEventResult.handled;
+    }
+
+    if (KeyboardShortcutService.matchesAction(
+      _keyboardSettings,
+      KeyboardShortcutService.changeDirectoryAction,
+      event,
+    )) {
+      _showSetDirectoryModal();
+      return KeyEventResult.handled;
+    }
+
+    if (KeyboardShortcutService.matchesAction(
+      _keyboardSettings,
+      KeyboardShortcutService.openSettingsAction,
+      event,
+    )) {
+      setState(() {
+        _activeCompany = null;
+        _activeVoucherType = null;
+        _activeListQuery = null;
+        _selectedIndex = 3;
+      });
+      return KeyEventResult.handled;
+    }
+
+    if (KeyboardShortcutService.matchesAction(
+      _keyboardSettings,
+      KeyboardShortcutService.switchWorkspaceAction,
+      event,
+    )) {
+      _switchWorkspace();
+      return KeyEventResult.handled;
+    }
+
+    return KeyEventResult.ignored;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -336,6 +420,7 @@ class _HomeScreenState extends State<HomeScreen> {
         voucherType: _activeListQuery!.voucherType,
         fromDate: _activeListQuery!.fromDate,
         toDate: _activeListQuery!.toDate,
+        initialSeries: _activeListQuery!.series,
         onClose: () => setState(() => _activeListQuery = null),
       );
     } else {
@@ -368,11 +453,11 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    return KeyboardScope(
-        enabled: _keyboardSettings.keyboardIntensiveMode,
-        onAction: _handleCentralKeyboardAction,
-        child: Scaffold(
-        backgroundColor: const Color(0xFFF1F5FB),
+    return Focus(
+      autofocus: true,
+      onKeyEvent: _handleKeyboardEvent,
+      child: Scaffold(
+        backgroundColor: AppColors.background,
         body: Column(
           children: [
             Expanded(child: content),
@@ -391,88 +476,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-    KeyEventResult _handleCentralKeyboardAction(
-    String actionId,
-    KeyEvent event,
-  ) {
-    if (!_keyboardSettings.keyboardIntensiveMode) {
-      return KeyEventResult.ignored;
-    }
-
-    if (_isEditableFocusActive()) {
-      return KeyEventResult.ignored;
-    }
-
-    switch (actionId) {
-      case KeyboardAction.back:
-        _goBack();
-        return KeyEventResult.handled;
-
-      case KeyboardAction.openCompany:
-        if (_activeVoucherType == null &&
-            _activeListQuery == null) {
-          _showOpenCompanyModal();
-          return KeyEventResult.handled;
-        }
-        return KeyEventResult.ignored;
-
-      case KeyboardAction.createCompany:
-        if (_activeVoucherType == null &&
-            _activeListQuery == null) {
-          _showCreateCompanyModal();
-          return KeyEventResult.handled;
-        }
-        return KeyEventResult.ignored;
-
-      case KeyboardAction.changeDirectory:
-        if (_activeVoucherType == null &&
-            _activeListQuery == null) {
-          _showSetDirectoryModal();
-          return KeyEventResult.handled;
-        }
-        return KeyEventResult.ignored;
-
-      case KeyboardAction.settings:
-      case KeyboardAction.configuration:
-        if (_activeVoucherType == null &&
-            _activeListQuery == null) {
-          setState(() {
-            _activeCompany = null;
-            _activeVoucherType = null;
-            _activeListQuery = null;
-            _selectedIndex = 3;
-          });
-
-          return KeyEventResult.handled;
-        }
-
-        return KeyEventResult.ignored;
-
-      case KeyboardAction.switchWorkspace:
-        if (_activeCompany != null) {
-          _switchWorkspace();
-          return KeyEventResult.handled;
-        }
-
-        return KeyEventResult.ignored;
-
-      case KeyboardAction.focusSidebar:
-        _jumpToSidebar();
-        return KeyEventResult.handled;
-
-      case KeyboardAction.focusContent:
-        _jumpToRightPane();
-        return KeyEventResult.handled;
-
-      case KeyboardAction.help:
-        KeyboardHelpDialog.show(context);
-        return KeyEventResult.handled;
-
-      default:
-        return KeyEventResult.ignored;
-    }
-  }
-
   Widget _buildActiveCompanyView() {
     return IndexedStack(
       index: _selectedIndex,
@@ -488,12 +491,13 @@ class _HomeScreenState extends State<HomeScreen> {
               _activeListQuery = null;
             });
           },
-          onShowList: (vchType, from, to) {
+          onShowList: (vchType, from, to, series) {
             setState(() {
               _activeListQuery = _ListParams(
                 voucherType: vchType,
                 fromDate: from,
                 toDate: to,
+                series: series,
               );
               _activeVoucherType = null;
             });
@@ -501,11 +505,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
 
         // 1: ACCOUNTS & LEDGERS
-        _buildPlaceholderView(
-          icon: Icons.account_balance_wallet_outlined,
-          title: 'Accounts & Ledgers',
-          subtitle: 'Manage charts of accounts, sundry debtors, and creditors.',
-        ),
+        MastersDashboardScreen(company: _activeCompany!),
 
         // 2: INVENTORY & ITEMS
         _buildPlaceholderView(
@@ -515,12 +515,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
 
         // 3: REPORTS
-        _buildPlaceholderView(
-          icon: Icons.bar_chart_rounded,
-          title: 'Financial Reports & GST',
-          subtitle:
-              'Balance Sheet, Profit & Loss, Trial Balance, and GSTR summaries.',
-        ),
+        ReportsDashboardScreen(company: _activeCompany!),
 
         // 4: ADMINISTRATION
         AdministrationScreen(
@@ -595,7 +590,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Starting automated database backup...'),
-                        backgroundColor: Color(0xFF7034E6),
+                        backgroundColor: AppColors.purple,
                       ),
                     );
                   },
@@ -603,7 +598,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Open restore snapshot chooser...'),
-                        backgroundColor: Color(0xFFB439D1),
+                        backgroundColor: AppColors.purple,
                       ),
                     );
                   },
@@ -649,11 +644,11 @@ class _HomeScreenState extends State<HomeScreen> {
             width: 64,
             height: 64,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppColors.surface,
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFFDCE6F5)),
+              border: Border.all(color: AppColors.border),
             ),
-            child: Icon(icon, color: const Color(0xFF0F62FE), size: 30),
+            child: Icon(icon, color: AppColors.primary, size: 30),
           ),
           const SizedBox(height: 16),
           Text(
@@ -661,13 +656,16 @@ class _HomeScreenState extends State<HomeScreen> {
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF101B38),
+              color: AppColors.primaryDark,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             subtitle,
-            style: const TextStyle(fontSize: 13, color: Color(0xFF637392)),
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+            ),
           ),
         ],
       ),
