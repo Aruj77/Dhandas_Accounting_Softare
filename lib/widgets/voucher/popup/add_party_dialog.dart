@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../constants/app_colors.dart';
 import '../../../models/party_master_model.dart';
 import '../../../services/focus_policy_service.dart';
@@ -28,49 +29,171 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
 
   final Map<String, TextEditingController> _c = {
     for (final k in [
-      'name', 'gstin', 'group', 'pan', 'address',
-      'state', 'pincode', 'country', 'aadhaar', 'mobile'
+      'name',
+      'gstin',
+      'group',
+      'pan',
+      'address',
+      'state',
+      'pincode',
+      'country',
+      'aadhaar',
+      'mobile',
     ])
-      k: TextEditingController()
+      k: TextEditingController(),
   };
 
   final Map<String, FocusNode> _fn = {
-    for (final k in ['name', 'gstin', 'address'])
-      k: FocusNode()
+    for (final k in ['name', 'gstin', 'address']) k: FocusNode(),
   };
 
   String? _gstinStatus;
   bool _isCheckingGstin = false;
 
   static const List<String> _countries = [
-    'Afghanistan', 'Albania', 'Algeria', 'Andorra', 'Angola', 'Argentina',
-    'Armenia', 'Australia', 'Austria', 'Azerbaijan', 'Bahrain', 'Bangladesh',
-    'Belarus', 'Belgium', 'Bhutan', 'Bolivia', 'Brazil', 'Bulgaria', 'Cambodia',
-    'Cameroon', 'Canada', 'Chile', 'China', 'Colombia', 'Croatia', 'Cuba',
-    'Cyprus', 'Czech Republic', 'Denmark', 'Egypt', 'Estonia', 'Ethiopia',
-    'Finland', 'France', 'Georgia', 'Germany', 'Ghana', 'Greece', 'Hungary',
-    'Iceland', 'India', 'Indonesia', 'Iran', 'Iraq', 'Ireland', 'Israel',
-    'Italy', 'Japan', 'Jordan', 'Kazakhstan', 'Kenya', 'Kuwait', 'Laos',
-    'Latvia', 'Lebanon', 'Luxembourg', 'Malaysia', 'Maldives', 'Mauritius',
-    'Mexico', 'Monaco', 'Morocco', 'Myanmar', 'Nepal', 'Netherlands',
-    'New Zealand', 'Nigeria', 'Norway', 'Oman', 'Pakistan', 'Panama', 'Peru',
-    'Philippines', 'Poland', 'Portugal', 'Qatar', 'Romania', 'Russia',
-    'Saudi Arabia', 'Serbia', 'Singapore', 'Slovakia', 'Slovenia',
-    'South Africa', 'South Korea', 'Spain', 'Sri Lanka', 'Sweden',
-    'Switzerland', 'Taiwan', 'Thailand', 'Turkey', 'Uganda', 'Ukraine',
-    'United Arab Emirates', 'United Kingdom', 'United States', 'Uruguay',
-    'Uzbekistan', 'Vatican City', 'Venezuela', 'Vietnam', 'Yemen', 'Zimbabwe'
+    'Afghanistan',
+    'Albania',
+    'Algeria',
+    'Andorra',
+    'Angola',
+    'Argentina',
+    'Armenia',
+    'Australia',
+    'Austria',
+    'Azerbaijan',
+    'Bahrain',
+    'Bangladesh',
+    'Belarus',
+    'Belgium',
+    'Bhutan',
+    'Bolivia',
+    'Brazil',
+    'Bulgaria',
+    'Cambodia',
+    'Cameroon',
+    'Canada',
+    'Chile',
+    'China',
+    'Colombia',
+    'Croatia',
+    'Cuba',
+    'Cyprus',
+    'Czech Republic',
+    'Denmark',
+    'Egypt',
+    'Estonia',
+    'Ethiopia',
+    'Finland',
+    'France',
+    'Georgia',
+    'Germany',
+    'Ghana',
+    'Greece',
+    'Hungary',
+    'Iceland',
+    'India',
+    'Indonesia',
+    'Iran',
+    'Iraq',
+    'Ireland',
+    'Israel',
+    'Italy',
+    'Japan',
+    'Jordan',
+    'Kazakhstan',
+    'Kenya',
+    'Kuwait',
+    'Laos',
+    'Latvia',
+    'Lebanon',
+    'Luxembourg',
+    'Malaysia',
+    'Maldives',
+    'Mauritius',
+    'Mexico',
+    'Monaco',
+    'Morocco',
+    'Myanmar',
+    'Nepal',
+    'Netherlands',
+    'New Zealand',
+    'Nigeria',
+    'Norway',
+    'Oman',
+    'Pakistan',
+    'Panama',
+    'Peru',
+    'Philippines',
+    'Poland',
+    'Portugal',
+    'Qatar',
+    'Romania',
+    'Russia',
+    'Saudi Arabia',
+    'Serbia',
+    'Singapore',
+    'Slovakia',
+    'Slovenia',
+    'South Africa',
+    'South Korea',
+    'Spain',
+    'Sri Lanka',
+    'Sweden',
+    'Switzerland',
+    'Taiwan',
+    'Thailand',
+    'Turkey',
+    'Uganda',
+    'Ukraine',
+    'United Arab Emirates',
+    'United Kingdom',
+    'United States',
+    'Uruguay',
+    'Uzbekistan',
+    'Vatican City',
+    'Venezuela',
+    'Vietnam',
+    'Yemen',
+    'Zimbabwe',
   ];
 
   static const List<String> _states = [
-    'Andaman and Nicobar Islands', 'Andhra Pradesh', 'Arunachal Pradesh',
-    'Assam', 'Bihar', 'Chandigarh', 'Chhattisgarh',
-    'Dadra and Nagar Haveli and Daman and Diu', 'Delhi', 'Goa', 'Gujarat',
-    'Haryana', 'Himachal Pradesh', 'Jammu and Kashmir', 'Jharkhand',
-    'Karnataka', 'Kerala', 'Ladakh', 'Lakshadweep', 'Madhya Pradesh',
-    'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha',
-    'Puducherry', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana',
-    'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal'
+    'Andaman and Nicobar Islands',
+    'Andhra Pradesh',
+    'Arunachal Pradesh',
+    'Assam',
+    'Bihar',
+    'Chandigarh',
+    'Chhattisgarh',
+    'Dadra and Nagar Haveli and Daman and Diu',
+    'Delhi',
+    'Goa',
+    'Gujarat',
+    'Haryana',
+    'Himachal Pradesh',
+    'Jammu and Kashmir',
+    'Jharkhand',
+    'Karnataka',
+    'Kerala',
+    'Ladakh',
+    'Lakshadweep',
+    'Madhya Pradesh',
+    'Maharashtra',
+    'Manipur',
+    'Meghalaya',
+    'Mizoram',
+    'Nagaland',
+    'Odisha',
+    'Puducherry',
+    'Punjab',
+    'Rajasthan',
+    'Sikkim',
+    'Tamil Nadu',
+    'Telangana',
+    'Tripura',
+    'Uttar Pradesh',
+    'Uttarakhand',
+    'West Bengal',
   ];
 
   @override
@@ -122,22 +245,41 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
       }
 
       setState(() => _isCheckingGstin = true);
-      await Future.delayed(const Duration(milliseconds: 250));
-      final isValid = GstinService.isValid(gstin);
+      try {
+        final data = await GstinService.validateAndFetch(gstin);
 
-      if (!mounted) return;
-      setState(() {
-        _isCheckingGstin = false;
-        _gstinStatus = isValid
-            ? 'GSTIN verified • ${GstinService.getStateName(gstin)}'
-            : 'Invalid GSTIN format or checksum';
-      });
+        if (!mounted) return;
+        setState(() {
+          _isCheckingGstin = false;
+          _gstinStatus = 'GSTIN verified - ${GstinService.getStateName(gstin)}';
+        });
 
-      if (isValid) {
-        final state = GstinService.getStateName(gstin);
+        final state = data.state.isNotEmpty
+            ? data.state
+            : GstinService.getStateName(gstin);
         if (state != 'Unknown') {
           _c['state']!.text = state;
         }
+        if (_c['name']!.text.trim().isEmpty) {
+          final name = data.tradeName.isNotEmpty
+              ? data.tradeName
+              : data.legalName;
+          if (name.isNotEmpty) _c['name']!.text = name;
+        }
+        if (_c['address']!.text.trim().isEmpty && data.address.isNotEmpty) {
+          _c['address']!.text = data.address;
+        }
+        if (_c['pincode']!.text.trim().isEmpty && data.pincode.isNotEmpty) {
+          _c['pincode']!.text = data.pincode;
+        }
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _isCheckingGstin = false;
+          _gstinStatus = e is FormatException
+              ? e.message
+              : e.toString().replaceFirst('Exception: ', '');
+        });
       }
     }, message: 'Validating GSTIN...');
   }
@@ -146,7 +288,7 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
     if (!_formKey.currentState!.validate()) return;
 
     final party = {
-      for (final entry in _c.entries) entry.key: entry.value.text.trim()
+      for (final entry in _c.entries) entry.key: entry.value.text.trim(),
     };
     party['gstin'] = party['gstin']!.toUpperCase();
     party['pan'] = party['pan']!.toUpperCase();
@@ -236,7 +378,9 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
       padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 13),
       decoration: BoxDecoration(
         color: AppColors.cardBg,
-        border: Border(bottom: BorderSide(color: AppColors.border.withValues(alpha: .75))),
+        border: Border(
+          bottom: BorderSide(color: AppColors.border.withValues(alpha: .75)),
+        ),
       ),
       child: Row(
         children: [
@@ -248,7 +392,9 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
-              widget.isEdit ? Icons.edit_note_rounded : Icons.person_add_alt_1_rounded,
+              widget.isEdit
+                  ? Icons.edit_note_rounded
+                  : Icons.person_add_alt_1_rounded,
               size: 22,
               color: AppColors.primary,
             ),
@@ -268,8 +414,13 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
               ),
               const SizedBox(height: 3),
               Text(
-                widget.isEdit ? 'Update party master details' : 'Add a new account to your ledger',
-                style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                widget.isEdit
+                    ? 'Update party master details'
+                    : 'Add a new account to your ledger',
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                ),
               ),
             ],
           ),
@@ -294,7 +445,11 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
           IconButton(
             tooltip: 'Close',
             onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textSecondary),
+            icon: const Icon(
+              Icons.close_rounded,
+              size: 20,
+              color: AppColors.textSecondary,
+            ),
           ),
         ],
       ),
@@ -332,7 +487,9 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
                       backgroundColor: AppColors.primary,
                       foregroundColor: AppColors.surface,
                       elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(9),
+                      ),
                       padding: EdgeInsets.zero,
                     ),
                     child: _isCheckingGstin
@@ -348,7 +505,10 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
                               SizedBox(width: 6),
                               Text(
                                 'Verify',
-                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ],
                           ),
@@ -366,7 +526,9 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: _gstinStatus!.contains('verified') ? Colors.green : AppColors.errorDark,
+                  color: _gstinStatus!.contains('verified')
+                      ? Colors.green
+                      : AppColors.errorDark,
                 ),
               ),
             ),
@@ -385,7 +547,9 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
               Expanded(
                 child: _buildBadgeInfo(
                   'Detected State',
-                  _c['state']!.text.isEmpty ? 'Auto from GSTIN' : _c['state']!.text,
+                  _c['state']!.text.isEmpty
+                      ? 'Auto from GSTIN'
+                      : _c['state']!.text,
                   Icons.location_on_outlined,
                 ),
               ),
@@ -419,8 +583,9 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
               label: 'Party / Business Name *',
               hint: 'Enter registered or trade name',
               icon: Icons.business_outlined,
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Party name is required' : null,
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? 'Party name is required'
+                  : null,
             ),
           ),
           const SizedBox(width: 12),
@@ -521,7 +686,11 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
     );
   }
 
-  Widget _buildSection({required String title, required IconData icon, required Widget child}) {
+  Widget _buildSection({
+    required String title,
+    required IconData icon,
+    required Widget child,
+  }) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(15, 11, 15, 13),
@@ -599,7 +768,11 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
               fontWeight: FontWeight.w600,
               color: enabled ? AppColors.textPrimary : AppColors.textSecondary,
             ),
-            decoration: _inputDecoration(hint: hint, icon: icon, disabled: !enabled),
+            decoration: _inputDecoration(
+              hint: hint,
+              icon: icon,
+              disabled: !enabled,
+            ),
           ),
         ),
       ],
@@ -629,46 +802,57 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
           optionsBuilder: (textEditingValue) {
             if (textEditingValue.text.isEmpty) return options.take(6);
             return options.where(
-              (o) => o.toLowerCase().contains(textEditingValue.text.toLowerCase()),
+              (o) =>
+                  o.toLowerCase().contains(textEditingValue.text.toLowerCase()),
             );
           },
           onSelected: (option) => controller.text = option,
-          fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
-            textEditingController.addListener(() {
-              if (controller.text != textEditingController.text) {
-                controller.text = textEditingController.text;
-              }
-            });
-            return SizedBox(
-              height: 40,
-              child: TextField(
-                controller: textEditingController,
-                focusNode: focusNode,
-                style: const TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-                decoration: _inputDecoration(
-                  hint: 'Search $label...',
-                  icon: icon,
-                  suffixIcon: const Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    size: 17,
-                    color: AppColors.textMuted,
+          fieldViewBuilder:
+              (context, textEditingController, focusNode, onFieldSubmitted) {
+                textEditingController.addListener(() {
+                  if (controller.text != textEditingController.text) {
+                    controller.text = textEditingController.text;
+                  }
+                });
+                return SizedBox(
+                  height: 40,
+                  child: TextField(
+                    controller: textEditingController,
+                    focusNode: focusNode,
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                    decoration: _inputDecoration(
+                      hint: 'Search $label...',
+                      icon: icon,
+                      suffixIcon: const Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        size: 17,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            );
-          },
+                );
+              },
         ),
       ],
     );
   }
 
-  Widget _buildBadgeInfo(String label, String value, IconData icon, {bool isMuted = false}) {
-    final bgColor = isMuted ? AppColors.background : AppColors.primary.withValues(alpha: .035);
-    final borderColor = isMuted ? AppColors.border.withValues(alpha: .65) : AppColors.primary.withValues(alpha: .12);
+  Widget _buildBadgeInfo(
+    String label,
+    String value,
+    IconData icon, {
+    bool isMuted = false,
+  }) {
+    final bgColor = isMuted
+        ? AppColors.background
+        : AppColors.primary.withValues(alpha: .035);
+    final borderColor = isMuted
+        ? AppColors.border.withValues(alpha: .65)
+        : AppColors.primary.withValues(alpha: .12);
     final iconColor = isMuted ? AppColors.textMuted : AppColors.primary;
 
     return Container(
@@ -702,7 +886,9 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
                   style: TextStyle(
                     fontSize: 10.5,
                     fontWeight: FontWeight.w700,
-                    color: isMuted ? AppColors.textSecondary : AppColors.textPrimary,
+                    color: isMuted
+                        ? AppColors.textSecondary
+                        : AppColors.textPrimary,
                   ),
                 ),
               ],
@@ -744,7 +930,10 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(9),
-        borderSide: BorderSide(color: AppColors.primary.withValues(alpha: .75), width: 1.2),
+        borderSide: BorderSide(
+          color: AppColors.primary.withValues(alpha: .75),
+          width: 1.2,
+        ),
       ),
       disabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(9),
@@ -759,35 +948,54 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
       padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 10),
       decoration: BoxDecoration(
         color: AppColors.cardBg,
-        border: Border(top: BorderSide(color: AppColors.border.withValues(alpha: .75))),
+        border: Border(
+          top: BorderSide(color: AppColors.border.withValues(alpha: .75)),
+        ),
       ),
       child: Row(
         children: [
-          const Icon(Icons.info_outline_rounded, size: 14, color: AppColors.textMuted),
+          const Icon(
+            Icons.info_outline_rounded,
+            size: 14,
+            color: AppColors.textMuted,
+          ),
           const SizedBox(width: 6),
-          const Text('* Required field', style: TextStyle(fontSize: 10, color: AppColors.textMuted)),
+          const Text(
+            '* Required field',
+            style: TextStyle(fontSize: 10, color: AppColors.textMuted),
+          ),
           const Spacer(),
           OutlinedButton(
             onPressed: () => Navigator.of(context).pop(),
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.textPrimary,
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(9),
+              ),
               side: BorderSide(color: AppColors.border.withValues(alpha: .9)),
             ),
-            child: const Text('Cancel', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+            ),
           ),
           const SizedBox(width: 9),
           ElevatedButton.icon(
             onPressed: _handleSubmit,
-            icon: Icon(widget.isEdit ? Icons.check_rounded : Icons.add_rounded, size: 16),
+            icon: Icon(
+              widget.isEdit ? Icons.check_rounded : Icons.add_rounded,
+              size: 16,
+            ),
             label: Text(widget.isEdit ? 'Save Changes' : 'Create Party'),
             style: ElevatedButton.styleFrom(
               elevation: 0,
               backgroundColor: AppColors.primary,
               foregroundColor: AppColors.surface,
               padding: const EdgeInsets.symmetric(horizontal: 19, vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(9),
+              ),
             ),
           ),
         ],

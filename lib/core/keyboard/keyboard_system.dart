@@ -817,12 +817,39 @@ class _KeyboardScopeState extends State<KeyboardScope> {
     super.dispose();
   }
 
-  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
-    if (!widget.enabled) return KeyEventResult.ignored;
-    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return KeyEventResult.ignored;
+  KeyEventResult _handleKeyEvent(
+    FocusNode node,
+    KeyEvent event,
+  ) {
+    if (!widget.enabled) {
+      return KeyEventResult.ignored;
+    }
 
-    final command = KeyboardRegistry.instance.commandFor(event, only: widget.actionIds);
-    if (command == null) return KeyEventResult.ignored;
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+
+    final command = KeyboardRegistry.instance.commandFor(
+      event,
+      only: widget.actionIds,
+    );
+
+    // Consume ALL Alt key combinations to prevent Windows beep.
+    if (HardwareKeyboard.instance.isAltPressed) {
+      if (command != null) {
+        final result = widget.onAction(command.actionId, event);
+
+        return result == KeyEventResult.ignored
+            ? KeyEventResult.handled
+            : result;
+      }
+
+      return KeyEventResult.handled;
+    }
+
+    if (command == null) {
+      return KeyEventResult.ignored;
+    }
 
     return widget.onAction(command.actionId, event);
   }

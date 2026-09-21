@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../constants/app_colors.dart';
 import '../../constants/gst_constants.dart';
+import '../../services/gstin_service.dart';
 import '../../services/storage_service.dart';
 import '../../services/loading_service.dart';
 
@@ -50,46 +51,46 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
         setState(() => _gstError = 'Enter a GSTIN to validate');
         return;
       }
-      if (!GstConstants.gstinRegex.hasMatch(gstin)) {
-        setState(() {
-          _gstError = 'Invalid GSTIN format (e.g. 09AAECB1234F1Z5)';
-          _isGstValid = false;
-        });
-        return;
-      }
-
       setState(() {
         _isValidatingGst = true;
         _gstError = null;
       });
 
-      await Future.delayed(const Duration(milliseconds: 750));
+      try {
+        final data = await GstinService.validateAndFetch(gstin);
+        final stateCode = gstin.substring(0, 2);
+        final detectedState = data.state.isNotEmpty
+            ? data.state
+            : GstConstants.getStateName(stateCode);
 
-      final stateCode = gstin.substring(0, 2);
-      final detectedState = GstConstants.getStateName(stateCode);
+        setState(() {
+          _isValidatingGst = false;
+          _isGstValid = true;
+          _selectedState = detectedState != 'Unknown' ? detectedState : 'Delhi';
+          _selectedCountry = 'India';
 
-      setState(() {
-        _isValidatingGst = false;
-        _isGstValid = true;
-        _selectedState = detectedState != 'Unknown' ? detectedState : 'Delhi';
-        _selectedCountry = 'India';
-
-        if (_companyNameController.text.isEmpty) {
-          _companyNameController.text = 'Dhandas Global Solutions Pvt Ltd';
-        }
-        if (_cityController.text.isEmpty) {
-          _cityController.text = (stateCode == '09')
-              ? 'Noida'
-              : (stateCode == '27')
-              ? 'Mumbai'
-              : (stateCode == '29')
-              ? 'Bengaluru'
-              : 'Central District';
-        }
-        if (_addressController.text.isEmpty) {
-          _addressController.text = 'Unit 402, Signature Tower, Tech Park';
-        }
-      });
+          final companyName = data.legalName.isNotEmpty
+              ? data.legalName
+              : data.tradeName;
+          if (_companyNameController.text.isEmpty && companyName.isNotEmpty) {
+            _companyNameController.text = companyName;
+          }
+          if (_cityController.text.isEmpty && data.city.isNotEmpty) {
+            _cityController.text = data.city;
+          }
+          if (_addressController.text.isEmpty && data.address.isNotEmpty) {
+            _addressController.text = data.address;
+          }
+        });
+      } catch (e) {
+        setState(() {
+          _isValidatingGst = false;
+          _isGstValid = false;
+          _gstError = e is FormatException
+              ? e.message
+              : e.toString().replaceFirst('Exception: ', '');
+        });
+      }
     }, message: 'Validating GSTIN...');
   }
 
