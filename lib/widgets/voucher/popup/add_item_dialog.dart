@@ -1,15 +1,15 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../../services/loading_service.dart';
+import '../../../api/hsn_master_data.dart';
 import '../../../constants/app_colors.dart';
+import '../../../constants/app_decoration.dart';
 import '../../../models/item_master_model.dart';
 import '../../../services/focus_policy_service.dart';
-import '../../../api/hsn_master_data.dart';
+import '../../../services/loading_service.dart';
 import '../../../services/storage_service.dart';
 import '../../../utils/smart_filter.dart';
 import '../../common/app_confirm_dialog.dart';
-import '../../../constants/app_decoration.dart';
 
 class AddItemDialog extends StatefulWidget {
   final FutureOr<void> Function(Map<String, dynamic> itemData)? onItemCreated;
@@ -34,10 +34,6 @@ class AddItemDialog extends StatefulWidget {
 class _AddItemDialogState extends State<AddItemDialog> {
   final _formKey = GlobalKey<FormState>();
 
-  // ---------------------------------------------------------------------------
-  // Controllers
-  // ---------------------------------------------------------------------------
-
   final TextEditingController _hsnController = TextEditingController();
   final FocusNode _hsnFocusNode = FocusNode();
 
@@ -48,22 +44,15 @@ class _AddItemDialogState extends State<AddItemDialog> {
   final FocusNode _unitFocusNode = FocusNode();
   final ScrollController _unitOptionsScrollController = ScrollController();
 
-  final TextEditingController _taxCategoryController =
-      TextEditingController();
+  final TextEditingController _taxCategoryController = TextEditingController();
   final FocusNode _taxCategoryFocusNode = FocusNode();
   final ScrollController _taxOptionsScrollController = ScrollController();
 
   final TextEditingController _salesPriceController = TextEditingController();
   final FocusNode _salesPriceFocusNode = FocusNode();
 
-  final TextEditingController _purchasePriceController =
-      TextEditingController();
-
+  final TextEditingController _purchasePriceController = TextEditingController();
   final TextEditingController _mrpController = TextEditingController();
-
-  // ---------------------------------------------------------------------------
-  // Data
-  // ---------------------------------------------------------------------------
 
   List<String> _units =
       (StorageService.defaultCompanyMasters['units'] as List? ?? [])
@@ -76,38 +65,29 @@ class _AddItemDialogState extends State<AddItemDialog> {
           .toList();
 
   String _selectedTaxCategory = 'GST 18%';
-
   String? _hsnStatusMessage;
-
   bool _isHsnValid = false;
   bool _isValidatingHsn = false;
   bool _isSaving = false;
 
-  // ---------------------------------------------------------------------------
-  // Lifecycle
-  // ---------------------------------------------------------------------------
+  final Map<String, String> _hsnCache = {};
 
   @override
   void initState() {
     super.initState();
-
     _loadMastersData();
     HsnService.loadRecords();
 
     if (widget.isEdit && widget.initialItem != null) {
       final item = widget.initialItem!;
-
       _nameController.text = item.name;
       _hsnController.text = item.hsn;
 
       final matchedUnit = _units
-          .where(
-            (u) => u.toLowerCase() == item.unit.trim().toLowerCase(),
-          )
+          .where((u) => u.toLowerCase() == item.unit.trim().toLowerCase())
           .firstOrNull;
 
-      _unitController.text =
-          matchedUnit ??
+      _unitController.text = matchedUnit ??
           (_units.isNotEmpty ? _units.first : item.unit.toUpperCase());
 
       _selectedTaxCategory = _taxCategories.firstWhere(
@@ -121,10 +101,8 @@ class _AddItemDialogState extends State<AddItemDialog> {
 
       _salesPriceController.text =
           item.salesPrice > 0 ? item.salesPrice.toStringAsFixed(2) : '';
-
       _purchasePriceController.text =
           item.purchasePrice > 0 ? item.purchasePrice.toStringAsFixed(2) : '';
-
       _mrpController.text =
           item.mrp > 0 ? item.mrp.toStringAsFixed(2) : '';
 
@@ -133,10 +111,8 @@ class _AddItemDialogState extends State<AddItemDialog> {
       }
     } else {
       _unitController.text = _units.isNotEmpty ? _units.first : 'PCS';
-
       _selectedTaxCategory =
           _taxCategories.isNotEmpty ? _taxCategories.first : 'GST 18%';
-
       _taxCategoryController.text = _selectedTaxCategory;
     }
 
@@ -144,30 +120,20 @@ class _AddItemDialogState extends State<AddItemDialog> {
     _unitController.addListener(_autoGenerateName);
 
     _unitFocusNode.addListener(() {
-      if (!_unitFocusNode.hasFocus) {
-        _enforceValidUnitSelection();
-      }
+      if (!_unitFocusNode.hasFocus) _enforceValidUnitSelection();
     });
 
     _taxCategoryFocusNode.addListener(() {
-      if (!_taxCategoryFocusNode.hasFocus) {
-        _enforceValidTaxCategorySelection();
-      }
+      if (!_taxCategoryFocusNode.hasFocus) _enforceValidTaxCategorySelection();
     });
   }
 
-  // ---------------------------------------------------------------------------
-  // Data helpers
-  // ---------------------------------------------------------------------------
-
   void _enforceValidUnitSelection() {
     final current = _unitController.text.trim().toUpperCase();
-
     final match = _units.firstWhere(
       (u) => u.toUpperCase() == current,
       orElse: () => _units.isNotEmpty ? _units.first : '',
     );
-
     if (_unitController.text != match) {
       _unitController.text = match;
       _autoGenerateName();
@@ -176,15 +142,12 @@ class _AddItemDialogState extends State<AddItemDialog> {
 
   void _enforceValidTaxCategorySelection() {
     final current = _taxCategoryController.text.trim().toUpperCase();
-
     final match = _taxCategories.firstWhere(
       (t) => t.toUpperCase() == current,
       orElse: () => _selectedTaxCategory,
     );
-
     _taxCategoryController.text = match;
     _selectedTaxCategory = match;
-
     _autoGenerateName();
   }
 
@@ -192,32 +155,24 @@ class _AddItemDialogState extends State<AddItemDialog> {
     await LoadingService.wrap(() async {
       final path =
           widget.folderPath ?? widget.company?['folderPath']?.toString();
-
       if (path == null || path.isEmpty) return;
 
-      final raw = await StorageService.loadCompanyMasters(
-        folderPath: path,
-      );
-
+      final raw = await StorageService.loadCompanyMasters(folderPath: path);
       if (!mounted) return;
 
       setState(() {
         if (raw['units'] is List && (raw['units'] as List).isNotEmpty) {
-          _units =
-              (raw['units'] as List).map((e) => e.toString()).toList();
+          _units = (raw['units'] as List).map((e) => e.toString()).toList();
         }
-
         if (raw['taxCategories'] is List &&
             (raw['taxCategories'] as List).isNotEmpty) {
           _taxCategories =
               (raw['taxCategories'] as List).map((e) => e.toString()).toList();
         }
-
         if (!_taxCategories.contains(_selectedTaxCategory)) {
           _selectedTaxCategory =
               _taxCategories.isNotEmpty ? _taxCategories.first : 'GST 18%';
         }
-
         _taxCategoryController.text = _selectedTaxCategory;
 
         if (!_units.contains(_unitController.text.trim().toUpperCase())) {
@@ -229,9 +184,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
 
   String _extractTaxPercentage(String category) {
     if (category.contains('0%')) return '0%';
-
     final match = RegExp(r'(\d+)%').firstMatch(category);
-
     return match != null ? '${match.group(1)}%' : '18%';
   }
 
@@ -240,49 +193,47 @@ class _AddItemDialogState extends State<AddItemDialog> {
     final tax = _extractTaxPercentage(_selectedTaxCategory);
     final unit = _unitController.text.trim().toUpperCase();
 
-    if (hsn.isNotEmpty) {
-      _nameController.text = '$hsn $tax $unit';
-    } else {
-      _nameController.text = '';
-    }
+    _nameController.text = hsn.isNotEmpty ? '$hsn $tax $unit' : '';
   }
 
-  // ---------------------------------------------------------------------------
-  // HSN
-  // ---------------------------------------------------------------------------
-
   Future<void> _validateHsn() async {
+    final hsn = _hsnController.text.trim();
+
+    if (hsn.isEmpty) {
+      setState(() {
+        _hsnStatusMessage = 'Please enter an HSN/SAC code.';
+        _isHsnValid = false;
+      });
+      return;
+    }
+
+    if (!RegExp(r'^[0-9]{4,8}$').hasMatch(hsn)) {
+      setState(() {
+        _isHsnValid = false;
+        _hsnStatusMessage = 'Invalid HSN. Must be 4 to 8 numeric digits.';
+      });
+      return;
+    }
+
+    if (_hsnCache.containsKey(hsn)) {
+      setState(() {
+        _isHsnValid = _hsnCache[hsn]!.isNotEmpty;
+        _hsnStatusMessage = _hsnCache[hsn]!.isNotEmpty
+            ? _hsnCache[hsn]!
+            : 'Invalid HSN code.';
+      });
+      return;
+    }
+
     await LoadingService.wrap(() async {
-      final hsn = _hsnController.text.trim();
-
-      if (hsn.isEmpty) {
-        setState(() {
-          _hsnStatusMessage = 'Please enter an HSN/SAC code.';
-          _isHsnValid = false;
-        });
-        return;
-      }
-
-      final isValidFormat = RegExp(r'^[0-9]{4,8}$').hasMatch(hsn);
-
-      if (!isValidFormat) {
-        setState(() {
-          _isHsnValid = false;
-          _hsnStatusMessage =
-              'Invalid HSN. Must be 4 to 8 numeric digits.';
-        });
-        return;
-      }
-
       setState(() => _isValidatingHsn = true);
-
       final description = await HsnService.findDescription(hsn);
 
       if (!mounted) return;
+      _hsnCache[hsn] = description ?? '';
 
       setState(() {
         _isValidatingHsn = false;
-
         if (description != null && description.isNotEmpty) {
           _isHsnValid = true;
           _hsnStatusMessage = description;
@@ -294,37 +245,33 @@ class _AddItemDialogState extends State<AddItemDialog> {
     }, message: 'Validating HSN/SAC code...');
   }
 
-  // ---------------------------------------------------------------------------
-  // Submit
-  // ---------------------------------------------------------------------------
-
   Future<void> _handleSubmit() async {
+    if (_isSaving) return;
+
+    _enforceValidUnitSelection();
+    _enforceValidTaxCategorySelection();
+
+    if (!_formKey.currentState!.validate()) return;
+
+    if (widget.isEdit) {
+      final shouldContinue = await AppConfirmDialog.show(
+        context: context,
+        barrierDismissible: false,
+        title: 'Warning',
+        message:
+            'All previous transactions will be changed accordingly. Do you want to continue?',
+        confirmLabel: 'Yes',
+        cancelLabel: 'No',
+        type: ConfirmDialogType.warning,
+      );
+      if (!shouldContinue) return;
+    }
+
+    setState(() => _isSaving = true);
+
     await LoadingService.wrap(() async {
-      _enforceValidUnitSelection();
-      _enforceValidTaxCategorySelection();
-
-      if (!_formKey.currentState!.validate()) return;
-
-      if (widget.isEdit) {
-        final shouldContinue = await AppConfirmDialog.show(
-          context: context,
-          barrierDismissible: false,
-          title: 'Warning',
-          message:
-              'All previous transactions will be changed accordingly. Do you want to continue?',
-          confirmLabel: 'Yes',
-          cancelLabel: 'No',
-          type: ConfirmDialogType.warning,
-        );
-
-        if (!shouldContinue) return;
-      }
-
-      setState(() => _isSaving = true);
-
       final taxMatch =
           RegExp(r'(\d+)%').firstMatch(_selectedTaxCategory);
-
       final rate = taxMatch != null
           ? double.tryParse(taxMatch.group(1)!) ?? 18.0
           : 0.0;
@@ -346,27 +293,20 @@ class _AddItemDialogState extends State<AddItemDialog> {
 
       final path =
           widget.folderPath ?? widget.company?['folderPath']?.toString();
-
       if (path != null && path.isNotEmpty) {
         try {
-          final raw = await StorageService.loadCompanyMasters(
-            folderPath: path,
-          );
-
+          final raw = await StorageService.loadCompanyMasters(folderPath: path);
           final itemsList = (raw['items'] as List? ?? [])
               .map((e) => Map<String, dynamic>.from(e as Map))
               .toList();
 
           final originalName =
               widget.initialItem?.name.trim().toLowerCase();
-
           final newName =
               itemData['name'].toString().trim().toLowerCase();
 
           final idx = itemsList.indexWhere((i) {
-            final n =
-                (i['name'] ?? '').toString().trim().toLowerCase();
-
+            final n = (i['name'] ?? '').toString().trim().toLowerCase();
             return widget.isEdit &&
                     originalName != null &&
                     originalName.isNotEmpty
@@ -381,13 +321,12 @@ class _AddItemDialogState extends State<AddItemDialog> {
           }
 
           raw['items'] = itemsList;
-
           await StorageService.saveCompanyMasters(
             folderPath: path,
             mastersData: raw,
           );
         } catch (e) {
-          debugPrint('Error saving item: $e');
+          debugPrint('Error saving item master: $e');
         }
       }
 
@@ -399,40 +338,30 @@ class _AddItemDialogState extends State<AddItemDialog> {
         Navigator.of(context).pop(itemData);
       }
     }, message: 'Saving Item Master...');
-  }
 
-  // ---------------------------------------------------------------------------
-  // Dispose
-  // ---------------------------------------------------------------------------
+    if (mounted) {
+      setState(() => _isSaving = false);
+    }
+  }
 
   @override
   void dispose() {
     _hsnController.dispose();
     _hsnFocusNode.dispose();
-
     _nameController.dispose();
     _nameFocusNode.dispose();
-
     _unitController.dispose();
     _unitFocusNode.dispose();
     _unitOptionsScrollController.dispose();
-
     _taxCategoryController.dispose();
     _taxCategoryFocusNode.dispose();
     _taxOptionsScrollController.dispose();
-
     _salesPriceController.dispose();
     _salesPriceFocusNode.dispose();
-
     _purchasePriceController.dispose();
     _mrpController.dispose();
-
     super.dispose();
   }
-
-  // ===========================================================================
-  // BUILD
-  // ===========================================================================
 
   @override
   Widget build(BuildContext context) {
@@ -446,21 +375,14 @@ class _AddItemDialogState extends State<AddItemDialog> {
       },
       child: Dialog(
         backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(
-          horizontal: 28,
-          vertical: 24,
-        ),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
         child: Container(
           width: 760,
-          constraints: const BoxConstraints(
-            maxHeight: 760,
-          ),
+          constraints: const BoxConstraints(maxHeight: 760),
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: AppColors.border.withValues(alpha: .65),
-            ),
+            border: Border.all(color: AppColors.border.withValues(alpha: .65)),
             boxShadow: [
               BoxShadow(
                 color: AppColors.shadowColor.withValues(alpha: .18),
@@ -479,12 +401,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
                 Flexible(
                   child: SingleChildScrollView(
                     physics: const ClampingScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(
-                      24,
-                      22,
-                      24,
-                      18,
-                    ),
+                    padding: const EdgeInsets.fromLTRB(24, 22, 24, 18),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -503,10 +420,6 @@ class _AddItemDialogState extends State<AddItemDialog> {
       ),
     );
   }
-
-  // ===========================================================================
-  // HEADER
-  // ===========================================================================
 
   Widget _buildHeader() {
     return Container(
@@ -536,9 +449,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
               ],
             ),
             child: Icon(
-              widget.isEdit
-                  ? Icons.edit_rounded
-                  : Icons.inventory_2_rounded,
+              widget.isEdit ? Icons.edit_rounded : Icons.inventory_2_rounded,
               color: AppColors.primary,
               size: 23,
             ),
@@ -571,41 +482,33 @@ class _AddItemDialogState extends State<AddItemDialog> {
               ],
             ),
           ),
-          _buildCloseButton(),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () => Navigator.of(context).pop(),
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.surface.withValues(alpha: .75),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppColors.border.withValues(alpha: .7),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.close_rounded,
+                  size: 19,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
-
-  Widget _buildCloseButton() {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => Navigator.of(context).pop(),
-        child: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: AppColors.surface.withValues(alpha: .75),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: AppColors.border.withValues(alpha: .7),
-            ),
-          ),
-          child: const Icon(
-            Icons.close_rounded,
-            size: 19,
-            color: AppColors.textSecondary,
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ===========================================================================
-  // IDENTIFICATION SECTION
-  // ===========================================================================
 
   Widget _buildIdentificationSection() {
     return _buildSectionCard(
@@ -636,11 +539,9 @@ class _AddItemDialogState extends State<AddItemDialog> {
                     if (val == null || val.trim().isEmpty) {
                       return 'HSN code is required';
                     }
-
                     if (val.trim().length < 4) {
                       return 'HSN must be at least 4 digits';
                     }
-
                     return null;
                   },
                 ),
@@ -660,37 +561,25 @@ class _AddItemDialogState extends State<AddItemDialog> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: _buildUnitAutocompleteField(),
-              ),
+              Expanded(child: _buildUnitAutocompleteField()),
               const SizedBox(width: 14),
-              Expanded(
-                child: _buildTaxCategoryAutocompleteField(),
-              ),
+              Expanded(child: _buildTaxCategoryAutocompleteField()),
             ],
           ),
           const SizedBox(height: 16),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _buildTextField(
-                  controller: _nameController,
-                  focusNode: _nameFocusNode,
-                  label: 'Item Name',
-                  required: true,
-                  hintText: 'Item name',
-                  prefixIcon: Icons.inventory_2_outlined,
-                  validator: (val) {
-                    if (val == null || val.trim().isEmpty) {
-                      return 'Item name cannot be empty';
-                    }
-
-                    return null;
-                  },
-                ),
-              ),
-            ],
+          _buildTextField(
+            controller: _nameController,
+            focusNode: _nameFocusNode,
+            label: 'Item Name',
+            required: true,
+            hintText: 'Item name',
+            prefixIcon: Icons.inventory_2_outlined,
+            validator: (val) {
+              if (val == null || val.trim().isEmpty) {
+                return 'Item name cannot be empty';
+              }
+              return null;
+            },
           ),
         ],
       ),
@@ -704,8 +593,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
         onPressed: _isValidatingHsn ? null : _validateHsn,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
-          disabledBackgroundColor:
-              AppColors.primary.withValues(alpha: .55),
+          disabledBackgroundColor: AppColors.primary.withValues(alpha: .55),
           foregroundColor: AppColors.surface,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 17),
@@ -726,17 +614,11 @@ class _AddItemDialogState extends State<AddItemDialog> {
                 ),
               )
             else
-              const Icon(
-                Icons.verified_outlined,
-                size: 17,
-              ),
+              const Icon(Icons.verified_outlined, size: 17),
             const SizedBox(width: 7),
             Text(
               _isValidatingHsn ? 'Checking' : 'Validate',
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-              ),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
             ),
           ],
         ),
@@ -750,19 +632,14 @@ class _AddItemDialogState extends State<AddItemDialog> {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 13,
-        vertical: 10,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
       decoration: BoxDecoration(
         color: valid
             ? AppColors.successLight.withValues(alpha: .65)
             : AppColors.errorLight.withValues(alpha: .65),
         borderRadius: BorderRadius.circular(11),
         border: Border.all(
-          color: valid
-              ? AppColors.successBorder
-              : AppColors.error,
+          color: valid ? AppColors.successBorder : AppColors.error,
           width: .8,
         ),
       ),
@@ -779,13 +656,9 @@ class _AddItemDialogState extends State<AddItemDialog> {
               shape: BoxShape.circle,
             ),
             child: Icon(
-              valid
-                  ? Icons.check_rounded
-                  : Icons.error_outline_rounded,
+              valid ? Icons.check_rounded : Icons.error_outline_rounded,
               size: 15,
-              color: valid
-                  ? AppColors.successDark
-                  : AppColors.errorDark,
+              color: valid ? AppColors.successDark : AppColors.errorDark,
             ),
           ),
           const SizedBox(width: 9),
@@ -796,9 +669,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
                 fontSize: 11.5,
                 height: 1.35,
                 fontWeight: FontWeight.w600,
-                color: valid
-                    ? AppColors.successDark
-                    : AppColors.errorDark,
+                color: valid ? AppColors.successDark : AppColors.errorDark,
               ),
             ),
           ),
@@ -806,10 +677,6 @@ class _AddItemDialogState extends State<AddItemDialog> {
       ),
     );
   }
-
-  // ===========================================================================
-  // PRICING SECTION
-  // ===========================================================================
 
   Widget _buildPricingSection() {
     return _buildSectionCard(
@@ -860,15 +727,12 @@ class _AddItemDialogState extends State<AddItemDialog> {
       label: label,
       hintText: hint,
       prefixText: '₹ ',
-      keyboardType: const TextInputType.numberWithOptions(
-        decimal: true,
-      ),
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      inputFormatters: [
+        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+      ],
     );
   }
-
-  // ===========================================================================
-  // SECTION CARD
-  // ===========================================================================
 
   Widget _buildSectionCard({
     required String title,
@@ -882,9 +746,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
       decoration: BoxDecoration(
         color: AppColors.cardBg.withValues(alpha: .48),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: AppColors.border.withValues(alpha: .72),
-        ),
+        border: Border.all(color: AppColors.border.withValues(alpha: .72)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -898,11 +760,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
                   color: AppColors.primaryLight.withValues(alpha: .75),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(
-                  icon,
-                  size: 17,
-                  color: AppColors.primary,
-                ),
+                child: Icon(icon, size: 17, color: AppColors.primary),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -938,18 +796,11 @@ class _AddItemDialogState extends State<AddItemDialog> {
     );
   }
 
-  // ===========================================================================
-  // UNIT AUTOCOMPLETE
-  // ===========================================================================
-
   Widget _buildUnitAutocompleteField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildFieldLabel(
-          'Unit',
-          required: true,
-        ),
+        _buildFieldLabel('Unit', required: true),
         const SizedBox(height: 6),
         LayoutBuilder(
           builder: (context, constraints) {
@@ -957,10 +808,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
               textEditingController: _unitController,
               focusNode: _unitFocusNode,
               optionsBuilder: (textEditingValue) {
-                if (textEditingValue.text.isEmpty) {
-                  return _units;
-                }
-
+                if (textEditingValue.text.isEmpty) return _units;
                 return SmartFilter.filterAndSort<String>(
                   items: _units,
                   query: textEditingValue.text,
@@ -980,46 +828,32 @@ class _AddItemDialogState extends State<AddItemDialog> {
                   hintText: 'Select unit',
                   icon: Icons.straighten_rounded,
                   onSubmitted: (value) {
-                    final matches =
-                        SmartFilter.filterAndSort<String>(
+                    final matches = SmartFilter.filterAndSort<String>(
                       items: _units,
                       query: value,
                       labelExtractor: (u) => u,
                     );
-
                     final selected = matches.isNotEmpty
                         ? matches.first
-                        : (_units.isNotEmpty
-                            ? _units.first
-                            : value);
-
+                        : (_units.isNotEmpty ? _units.first : value);
                     controller.text = selected;
-
                     _autoGenerateName();
-
                     _taxCategoryFocusNode.requestFocus();
                   },
                   validator: (val) {
                     if (val == null || val.trim().isEmpty) {
                       return 'Unit is required';
                     }
-
                     final match = _units.any(
                       (u) =>
-                          u.toUpperCase() ==
-                          val.trim().toUpperCase(),
+                          u.toUpperCase() == val.trim().toUpperCase(),
                     );
-
-                    if (!match) {
-                      return 'Select a valid unit';
-                    }
-
+                    if (!match) return 'Select a valid unit';
                     return null;
                   },
                 );
               },
-              optionsViewBuilder:
-                  (context, onSelected, options) {
+              optionsViewBuilder: (context, onSelected, options) {
                 return _buildAutocompleteOptions(
                   context: context,
                   width: constraints.maxWidth,
@@ -1035,18 +869,11 @@ class _AddItemDialogState extends State<AddItemDialog> {
     );
   }
 
-  // ===========================================================================
-  // TAX AUTOCOMPLETE
-  // ===========================================================================
-
   Widget _buildTaxCategoryAutocompleteField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildFieldLabel(
-          'Tax Category',
-          required: true,
-        ),
+        _buildFieldLabel('Tax Category', required: true),
         const SizedBox(height: 6),
         LayoutBuilder(
           builder: (context, constraints) {
@@ -1054,10 +881,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
               textEditingController: _taxCategoryController,
               focusNode: _taxCategoryFocusNode,
               optionsBuilder: (textEditingValue) {
-                if (textEditingValue.text.isEmpty) {
-                  return _taxCategories;
-                }
-
+                if (textEditingValue.text.isEmpty) return _taxCategories;
                 return SmartFilter.filterAndSort<String>(
                   items: _taxCategories,
                   query: textEditingValue.text,
@@ -1066,12 +890,10 @@ class _AddItemDialogState extends State<AddItemDialog> {
               },
               onSelected: (selection) {
                 _taxCategoryController.text = selection;
-
                 setState(() {
                   _selectedTaxCategory = selection;
                   _autoGenerateName();
                 });
-
                 _nameFocusNode.requestFocus();
               },
               fieldViewBuilder:
@@ -1082,49 +904,37 @@ class _AddItemDialogState extends State<AddItemDialog> {
                   hintText: 'Select tax category',
                   icon: Icons.percent_rounded,
                   onSubmitted: (value) {
-                    final matches =
-                        SmartFilter.filterAndSort<String>(
+                    final matches = SmartFilter.filterAndSort<String>(
                       items: _taxCategories,
                       query: value,
                       labelExtractor: (t) => t,
                     );
-
                     final selected = matches.isNotEmpty
                         ? matches.first
                         : (_taxCategories.isNotEmpty
                             ? _taxCategories.first
                             : value);
-
                     controller.text = selected;
-
                     setState(() {
                       _selectedTaxCategory = selected;
                       _autoGenerateName();
                     });
-
                     _nameFocusNode.requestFocus();
                   },
                   validator: (val) {
                     if (val == null || val.trim().isEmpty) {
                       return 'Tax category is required';
                     }
-
                     final match = _taxCategories.any(
                       (c) =>
-                          c.toUpperCase() ==
-                          val.trim().toUpperCase(),
+                          c.toUpperCase() == val.trim().toUpperCase(),
                     );
-
-                    if (!match) {
-                      return 'Select a valid tax category';
-                    }
-
+                    if (!match) return 'Select a valid tax category';
                     return null;
                   },
                 );
               },
-              optionsViewBuilder:
-                  (context, onSelected, options) {
+              optionsViewBuilder: (context, onSelected, options) {
                 return _buildAutocompleteOptions(
                   context: context,
                   width: constraints.maxWidth,
@@ -1139,10 +949,6 @@ class _AddItemDialogState extends State<AddItemDialog> {
       ],
     );
   }
-
-  // ===========================================================================
-  // AUTOCOMPLETE TEXT FIELD
-  // ===========================================================================
 
   Widget _buildAutocompleteTextField({
     required TextEditingController controller,
@@ -1164,19 +970,18 @@ class _AddItemDialogState extends State<AddItemDialog> {
           fontWeight: FontWeight.w700,
           color: AppColors.textPrimary,
         ),
-        decoration: AppDecorations.standard(
-          label: '',
+        decoration: AppDecorations.compact(
           hintText: hintText,
-          prefixIcon: icon,
-          suffixIcon: const Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: AppColors.textSecondary),
+          prefixIcon: Icon(icon, size: 17, color: AppColors.textSecondary),
+          suffixIcon: const Icon(
+            Icons.keyboard_arrow_down_rounded,
+            size: 20,
+            color: AppColors.textSecondary,
+          ),
         ),
       ),
     );
   }
-
-  // ===========================================================================
-  // AUTOCOMPLETE OPTIONS
-  // ===========================================================================
 
   Widget _buildAutocompleteOptions({
     required BuildContext context,
@@ -1191,16 +996,12 @@ class _AddItemDialogState extends State<AddItemDialog> {
         color: Colors.transparent,
         child: Container(
           width: width,
-          constraints: const BoxConstraints(
-            maxHeight: 220,
-          ),
+          constraints: const BoxConstraints(maxHeight: 220),
           margin: const EdgeInsets.only(top: 5),
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(13),
-            border: Border.all(
-              color: AppColors.border.withValues(alpha: .9),
-            ),
+            border: Border.all(color: AppColors.border.withValues(alpha: .9)),
             boxShadow: [
               BoxShadow(
                 color: AppColors.shadowColor.withValues(alpha: .14),
@@ -1226,13 +1027,11 @@ class _AddItemDialogState extends State<AddItemDialog> {
               ),
               itemBuilder: (context, index) {
                 final option = options.elementAt(index);
-
                 return Material(
                   color: Colors.transparent,
                   child: InkWell(
                     onTap: () => onSelected(option),
-                    hoverColor:
-                        AppColors.primaryLight.withValues(alpha: .55),
+                    hoverColor: AppColors.primaryLight.withValues(alpha: .55),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 13,
@@ -1244,12 +1043,11 @@ class _AddItemDialogState extends State<AddItemDialog> {
                             width: 28,
                             height: 28,
                             decoration: BoxDecoration(
-                              color: AppColors.primaryLight
-                                  .withValues(alpha: .55),
-                              borderRadius:
-                                  BorderRadius.circular(8),
+                              color:
+                                  AppColors.primaryLight.withValues(alpha: .55),
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            child: Icon(
+                            child: const Icon(
                               Icons.check_rounded,
                               size: 14,
                               color: AppColors.primary,
@@ -1286,10 +1084,6 @@ class _AddItemDialogState extends State<AddItemDialog> {
     );
   }
 
-  // ===========================================================================
-  // NORMAL TEXT FIELD
-  // ===========================================================================
-
   Widget _buildTextField({
     required TextEditingController controller,
     FocusNode? focusNode,
@@ -1305,10 +1099,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildFieldLabel(
-          label,
-          required: required,
-        ),
+        _buildFieldLabel(label, required: required),
         const SizedBox(height: 6),
         SizedBox(
           height: 46,
@@ -1323,10 +1114,22 @@ class _AddItemDialogState extends State<AddItemDialog> {
               fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,
             ),
-            decoration: AppDecorations.standard(
-              label: '',
+            decoration: AppDecorations.compact(
               hintText: hintText,
-              prefixIcon: prefixIcon,
+              prefixIcon: prefixIcon != null
+                  ? Icon(prefixIcon, size: 17, color: AppColors.textSecondary)
+                  : (prefixText != null
+                      ? Padding(
+                          padding: const EdgeInsets.only(left: 10, top: 10),
+                          child: Text(
+                            prefixText,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        )
+                      : null),
             ),
           ),
         ),
@@ -1334,10 +1137,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
     );
   }
 
-  Widget _buildFieldLabel(
-    String text, {
-    bool required = false,
-  }) {
+  Widget _buildFieldLabel(String text, {bool required = false}) {
     return RichText(
       text: TextSpan(
         text: text,
@@ -1351,9 +1151,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
             ? const [
                 TextSpan(
                   text: ' *',
-                  style: TextStyle(
-                    color: AppColors.error,
-                  ),
+                  style: TextStyle(color: AppColors.error),
                 ),
               ]
             : null,
@@ -1361,24 +1159,13 @@ class _AddItemDialogState extends State<AddItemDialog> {
     );
   }
 
-  // ===========================================================================
-  // FOOTER
-  // ===========================================================================
-
   Widget _buildFooter() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(
-        24,
-        15,
-        24,
-        18,
-      ),
+      padding: const EdgeInsets.fromLTRB(24, 15, 24, 18),
       decoration: BoxDecoration(
         color: AppColors.surface,
         border: Border(
-          top: BorderSide(
-            color: AppColors.border.withValues(alpha: .65),
-          ),
+          top: BorderSide(color: AppColors.border.withValues(alpha: .65)),
         ),
       ),
       child: Row(
@@ -1415,30 +1202,19 @@ class _AddItemDialogState extends State<AddItemDialog> {
           ),
           const SizedBox(width: 15),
           OutlinedButton(
-            onPressed: _isSaving
-                ? null
-                : () => Navigator.of(context).pop(),
+            onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.textPrimary,
-              disabledForegroundColor:
-                  AppColors.textMuted,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 18,
-                vertical: 13,
-              ),
-              side: BorderSide(
-                color: AppColors.border.withValues(alpha: .9),
-              ),
+              disabledForegroundColor: AppColors.textMuted,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+              side: BorderSide(color: AppColors.border.withValues(alpha: .9)),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(11),
               ),
             ),
             child: const Text(
               'Cancel',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
             ),
           ),
           const SizedBox(width: 9),
@@ -1446,14 +1222,10 @@ class _AddItemDialogState extends State<AddItemDialog> {
             onPressed: _isSaving ? null : _handleSubmit,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
-              disabledBackgroundColor:
-                  AppColors.primary.withValues(alpha: .55),
+              disabledBackgroundColor: AppColors.primary.withValues(alpha: .55),
               foregroundColor: AppColors.surface,
               elevation: 0,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 13,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(11),
               ),
@@ -1482,9 +1254,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
                         ),
                         const SizedBox(width: 7),
                         Text(
-                          widget.isEdit
-                              ? 'Save Changes'
-                              : 'Save Item',
+                          widget.isEdit ? 'Save Changes' : 'Save Item',
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w800,

@@ -24,15 +24,19 @@ class AddSeriesDialog extends StatefulWidget {
 class _AddSeriesDialogState extends State<AddSeriesDialog> {
   final _formKey = GlobalKey<FormState>();
 
-  final TextEditingController _nameController = TextEditingController(text: 'Main');
+  final TextEditingController _nameController =
+      TextEditingController(text: 'Main');
   final FocusNode _nameFocusNode = FocusNode();
 
   final TextEditingController _prefixController = TextEditingController();
   final TextEditingController _suffixController = TextEditingController();
-  final TextEditingController _separatorController = TextEditingController(text: '/');
-  final TextEditingController _startNumController = TextEditingController(text: '1');
+  final TextEditingController _separatorController =
+      TextEditingController(text: '/');
+  final TextEditingController _startNumController =
+      TextEditingController(text: '1');
   final FocusNode _startNumFocusNode = FocusNode();
-  final TextEditingController _endNumController = TextEditingController(text: '99999999');
+  final TextEditingController _endNumController =
+      TextEditingController(text: '99999999');
 
   String _numberingType = 'Automatic';
   String _renumberingFreq = 'Yearly';
@@ -84,11 +88,13 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
     }
 
     final sep = _separatorController.text.trim();
-    final startNum = _startNumController.text.trim().isEmpty ? '1' : _startNumController.text.trim();
+    final startNum = _startNumController.text.trim().isEmpty
+        ? '1'
+        : _startNumController.text.trim();
     final prefix = _prefixController.text.trim();
     final suffix = _suffixController.text.trim();
 
-    List<String> parts = [];
+    final List<String> parts = [];
     String periodComponent = '';
 
     if (_renumberingFreq == 'Yearly') {
@@ -110,13 +116,17 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
 
     if (prefix.isNotEmpty) parts.add(prefix);
 
-    if (_renumberingFreq != 'None' && activePosition == 'As Prefix' && periodComponent.isNotEmpty) {
+    if (_renumberingFreq != 'None' &&
+        activePosition == 'As Prefix' &&
+        periodComponent.isNotEmpty) {
       parts.add(periodComponent);
     }
 
     parts.add(startNum);
 
-    if (_renumberingFreq != 'None' && activePosition == 'As Suffix' && periodComponent.isNotEmpty) {
+    if (_renumberingFreq != 'None' &&
+        activePosition == 'As Suffix' &&
+        periodComponent.isNotEmpty) {
       parts.add(periodComponent);
     }
 
@@ -184,33 +194,43 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
                           color: AppColors.primary.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(Icons.format_list_numbered_rounded, size: 22, color: AppColors.primary),
+                        child: const Icon(
+                          Icons.format_list_numbered_rounded,
+                          size: 22,
+                          color: AppColors.primary,
+                        ),
                       ),
                       const SizedBox(width: 12),
-                      Column(
+                      const Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            widget.isEdit ? 'Configure Voucher Series' : 'Create New Voucher Series',
-                            style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w900, color: AppColors.primaryDark),
+                            'Configure Voucher Series',
+                            style: TextStyle(
+                              fontSize: 16.5,
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.primaryDark,
+                            ),
                           ),
-                          const SizedBox(height: 2),
-                          const Text(
+                          SizedBox(height: 2),
+                          Text(
                             'Dynamic numbering structure, renumbering frequencies, and format rules',
-                            style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: AppColors.textSecondary,
+                            ),
                           ),
                         ],
                       ),
                       const Spacer(),
                       IconButton(
-                        icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textSecondary),
+                        icon: const Icon(Icons.close_rounded,
+                            size: 20, color: AppColors.textSecondary),
                         onPressed: () => Navigator.of(context).pop(),
                       ),
                     ],
                   ),
                   const SizedBox(height: 20),
-
-                  // Live Preview Box
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(14),
@@ -221,22 +241,29 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.preview_rounded, size: 18, color: AppColors.primary),
+                        const Icon(Icons.preview_rounded,
+                            size: 18, color: AppColors.primary),
                         const SizedBox(width: 10),
                         const Text(
                           'Live Voucher No. Preview: ',
-                          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.textSecondary),
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                         Text(
                           _generatePreview(),
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.textPrimary),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.textPrimary,
+                          ),
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 20),
-
-                  // Series Name & Numbering Type
                   Row(
                     children: [
                       Expanded(
@@ -245,7 +272,9 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
                           focusNode: _nameFocusNode,
                           label: 'Series Name *',
                           hintText: 'e.g., Main, POS, Online',
-                          validator: (val) => val == null || val.trim().isEmpty ? 'Series name required' : null,
+                          validator: (val) => val == null || val.trim().isEmpty
+                              ? 'Series name required'
+                              : null,
                         ),
                       ),
                       const SizedBox(width: 14),
@@ -254,22 +283,21 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
                           label: 'Numbering Type *',
                           value: _numberingType,
                           items: const ['Automatic', 'Manual'],
-                          onChanged: (val) => setState(() => _numberingType = val ?? 'Automatic'),
+                          onChanged: (val) => setState(
+                              () => _numberingType = val ?? 'Automatic'),
                         ),
                       ),
                     ],
                   ),
-
                   if (showAutomaticFields) ...[
                     const SizedBox(height: 14),
-
                     _buildDropdown(
                       label: 'Renumbering Frequency *',
                       value: _renumberingFreq,
                       items: const ['None', 'Yearly', 'Monthly', 'Daily'],
-                      onChanged: (val) => setState(() => _renumberingFreq = val ?? 'None'),
+                      onChanged: (val) =>
+                          setState(() => _renumberingFreq = val ?? 'None'),
                     ),
-
                     if (isYearly) ...[
                       const SizedBox(height: 14),
                       Row(
@@ -279,7 +307,8 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
                               label: 'Year Format *',
                               value: _yearFormat,
                               items: const ['YY-YY', 'YYYY-YY'],
-                              onChanged: (val) => setState(() => _yearFormat = val ?? 'YYYY-YY'),
+                              onChanged: (val) => setState(
+                                  () => _yearFormat = val ?? 'YYYY-YY'),
                             ),
                           ),
                           const SizedBox(width: 14),
@@ -288,7 +317,8 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
                               label: 'Year Position *',
                               value: _yearPosition,
                               items: const ['As Prefix', 'As Suffix'],
-                              onChanged: (val) => setState(() => _yearPosition = val ?? 'As Prefix'),
+                              onChanged: (val) => setState(
+                                  () => _yearPosition = val ?? 'As Prefix'),
                             ),
                           ),
                         ],
@@ -302,7 +332,8 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
                               label: 'Month Format *',
                               value: _monthFormat,
                               items: const ['MMM', 'M-full', 'M-digit'],
-                              onChanged: (val) => setState(() => _monthFormat = val ?? 'MMM'),
+                              onChanged: (val) => setState(
+                                  () => _monthFormat = val ?? 'MMM'),
                             ),
                           ),
                           const SizedBox(width: 14),
@@ -311,7 +342,8 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
                               label: 'Month Position *',
                               value: _monthPosition,
                               items: const ['As Prefix', 'As Suffix'],
-                              onChanged: (val) => setState(() => _monthPosition = val ?? 'As Prefix'),
+                              onChanged: (val) => setState(
+                                  () => _monthPosition = val ?? 'As Prefix'),
                             ),
                           ),
                         ],
@@ -325,7 +357,8 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
                               label: 'Date Format *',
                               value: _dateFormat,
                               items: const ['DD-MM-YYYY', 'DD/MM/YY'],
-                              onChanged: (val) => setState(() => _dateFormat = val ?? 'DD-MM-YYYY'),
+                              onChanged: (val) => setState(
+                                  () => _dateFormat = val ?? 'DD-MM-YYYY'),
                             ),
                           ),
                           const SizedBox(width: 14),
@@ -334,15 +367,14 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
                               label: 'Date Position *',
                               value: _datePosition,
                               items: const ['As Prefix', 'As Suffix'],
-                              onChanged: (val) => setState(() => _datePosition = val ?? 'As Prefix'),
+                              onChanged: (val) => setState(
+                                  () => _datePosition = val ?? 'As Prefix'),
                             ),
                           ),
                         ],
                       ),
                     ],
-
                     const SizedBox(height: 14),
-
                     Row(
                       children: [
                         Expanded(
@@ -371,7 +403,6 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
                       ],
                     ),
                     const SizedBox(height: 14),
-
                     Row(
                       children: [
                         Expanded(
@@ -379,7 +410,10 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
                             controller: _startNumController,
                             focusNode: _startNumFocusNode,
                             label: 'Start Number *',
-                            validator: (val) => val == null || val.trim().isEmpty ? 'Required' : null,
+                            validator: (val) =>
+                                val == null || val.trim().isEmpty
+                                    ? 'Required'
+                                    : null,
                           ),
                         ),
                         const SizedBox(width: 14),
@@ -393,17 +427,20 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
                       ],
                     ),
                   ],
-
                   const SizedBox(height: 28),
-
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       OutlinedButton(
                         onPressed: () => Navigator.of(context).pop(),
                         style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                           side: const BorderSide(color: AppColors.border),
                           foregroundColor: AppColors.textPrimary,
                         ),
@@ -415,12 +452,19 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           foregroundColor: AppColors.surface,
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                           elevation: 0,
                         ),
                         child: Text(
-                          widget.isEdit ? 'Save Changes' : 'Save & Create Series',
+                          widget.isEdit
+                              ? 'Save Changes'
+                              : 'Save & Create Series',
                           style: const TextStyle(fontWeight: FontWeight.w800),
                         ),
                       ),
@@ -444,22 +488,34 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.textSecondary)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textSecondary,
+          ),
+        ),
         const SizedBox(height: 4),
         SizedBox(
           height: 38,
           child: DropdownButtonFormField<String>(
             value: value,
             items: items
-                .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700))))
+                .map((e) => DropdownMenuItem(
+                      value: e,
+                      child: Text(
+                        e,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ))
                 .toList(),
             onChanged: onChanged,
-            // Replaced duplicated border definitions with AppDecorations.standard
-            decoration: AppDecorations.standard(
-              label: '',
-              hintText: '',
-            ).copyWith(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+            decoration: AppDecorations.compact(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
             ),
           ),
         ),
@@ -477,7 +533,14 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.textSecondary)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textSecondary,
+          ),
+        ),
         const SizedBox(height: 4),
         SizedBox(
           height: 38,
@@ -486,14 +549,12 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
             focusNode: focusNode,
             validator: validator,
             onChanged: (_) => setState(() {}),
-            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-            // Replaced duplicated OutlineInputBorders with AppDecorations.standard
-            decoration: AppDecorations.standard(
-              label: '',
-              hintText: hintText,
-            ).copyWith(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            style: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
             ),
+            decoration: AppDecorations.compact(hintText: hintText),
           ),
         ),
       ],
@@ -510,7 +571,14 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.textSecondary)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textSecondary,
+          ),
+        ),
         const SizedBox(height: 4),
         SizedBox(
           height: 38,
@@ -520,14 +588,12 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
             validator: validator,
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-            // Replaced duplicated OutlineInputBorders with AppDecorations.standard
-            decoration: AppDecorations.standard(
-              label: '',
-              hintText: hintText,
-            ).copyWith(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            style: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
             ),
+            decoration: AppDecorations.compact(hintText: hintText),
           ),
         ),
       ],

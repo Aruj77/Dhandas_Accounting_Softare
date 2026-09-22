@@ -8,7 +8,8 @@ import '../database/app_database.dart';
 
 class StorageService {
   static const String _prefDirectoryKey = 'dhandas_data_directory_path';
-
+  static final Map<String, Map<String, dynamic>> _mastersMemoryCache = {};
+  
   static const Map<String, dynamic> defaultCompanyMasters = {
     'debtors': [
       {'name': 'Cash', 'gstin': '', 'group': 'Cash-in-hand'},
@@ -192,23 +193,29 @@ class StorageService {
   }
 
   static Future<Map<String, dynamic>> loadCompanyMasters({required String folderPath}) async {
+    if (_mastersMemoryCache.containsKey(folderPath)) {
+      return _mastersMemoryCache[folderPath]!;
+    }
+
     final file = File('$folderPath${Platform.pathSeparator}masters.json');
     if (await file.exists()) {
       try {
         final content = await file.readAsString();
-        final data = jsonDecode(content);
-        if (data is Map<String, dynamic>) return data;
+        final data = jsonDecode(content) as Map<String, dynamic>;
+        _mastersMemoryCache[folderPath] = data;
+        return data;
       } catch (_) {}
     }
-    final initialMasters = Map<String, dynamic>.from(defaultCompanyMasters);
-    await saveCompanyMasters(folderPath: folderPath, mastersData: initialMasters);
-    return initialMasters;
+    final initial = Map<String, dynamic>.from(defaultCompanyMasters);
+    await saveCompanyMasters(folderPath: folderPath, mastersData: initial);
+    return initial;
   }
 
   static Future<void> saveCompanyMasters({
     required String folderPath,
     required Map<String, dynamic> mastersData,
   }) async {
+    _mastersMemoryCache[folderPath] = mastersData;
     final file = File('$folderPath${Platform.pathSeparator}masters.json');
     await file.writeAsString(const JsonEncoder.withIndent('  ').convert(mastersData));
   }

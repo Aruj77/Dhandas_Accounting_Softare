@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../../constants/app_colors.dart';
+import '../../../constants/app_decoration.dart';
 import '../../../constants/gst_constants.dart';
 import '../../../models/party_master_model.dart';
 import '../../../services/focus_policy_service.dart';
 import '../../../services/gstin_service.dart';
 import '../../../services/loading_service.dart';
-import '../../../constants/app_decoration.dart';
 
 class AddPartyDialog extends StatefulWidget {
   final String voucherType;
@@ -30,15 +30,22 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
 
   final Map<String, TextEditingController> _c = {
     for (final k in [
-      'name', 'gstin', 'group', 'pan', 'address',
-      'state', 'pincode', 'country', 'aadhaar', 'mobile'
+      'name',
+      'gstin',
+      'group',
+      'pan',
+      'address',
+      'state',
+      'pincode',
+      'country',
+      'aadhaar',
+      'mobile',
     ])
       k: TextEditingController()
   };
 
   final Map<String, FocusNode> _fn = {
-    for (final k in ['name', 'gstin', 'address'])
-      k: FocusNode()
+    for (final k in ['name', 'gstin', 'address']) k: FocusNode()
   };
 
   String? _gstinStatus;
@@ -100,22 +107,20 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
     if (_c['pan']!.text != pan) {
       _c['pan']!.text = pan;
     }
-
     if (_gstinStatus != null) {
       setState(() => _gstinStatus = null);
     }
   }
 
   Future<void> _validateGstin() async {
-    await LoadingService.wrap(() async {
-      final gstin = _c['gstin']!.text.trim().toUpperCase();
-      if (gstin.isEmpty) {
-        setState(() => _gstinStatus = 'Please enter GSTIN first');
-        return;
-      }
+    final gstin = _c['gstin']!.text.trim().toUpperCase();
+    if (gstin.isEmpty) {
+      setState(() => _gstinStatus = 'Please enter GSTIN first');
+      return;
+    }
 
+    await LoadingService.wrap(() async {
       setState(() => _isCheckingGstin = true);
-      await Future.delayed(const Duration(milliseconds: 250));
       final isValid = GstinService.isValid(gstin);
 
       if (!mounted) return;
@@ -229,7 +234,9 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
       padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 13),
       decoration: BoxDecoration(
         color: AppColors.cardBg,
-        border: Border(bottom: BorderSide(color: AppColors.border.withValues(alpha: .75))),
+        border: Border(
+          bottom: BorderSide(color: AppColors.border.withValues(alpha: .75)),
+        ),
       ),
       child: Row(
         children: [
@@ -241,7 +248,9 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
-              widget.isEdit ? Icons.edit_note_rounded : Icons.person_add_alt_1_rounded,
+              widget.isEdit
+                  ? Icons.edit_note_rounded
+                  : Icons.person_add_alt_1_rounded,
               size: 22,
               color: AppColors.primary,
             ),
@@ -261,8 +270,13 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
               ),
               const SizedBox(height: 3),
               Text(
-                widget.isEdit ? 'Update party master details' : 'Add a new account to your ledger',
-                style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                widget.isEdit
+                    ? 'Update party master details'
+                    : 'Add a new account to your ledger',
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                ),
               ),
             ],
           ),
@@ -287,7 +301,8 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
           IconButton(
             tooltip: 'Close',
             onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textSecondary),
+            icon: const Icon(Icons.close_rounded,
+                size: 20, color: AppColors.textSecondary),
           ),
         ],
       ),
@@ -325,14 +340,19 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
                       backgroundColor: AppColors.primary,
                       foregroundColor: AppColors.surface,
                       elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(9),
+                      ),
                       padding: EdgeInsets.zero,
                     ),
                     child: _isCheckingGstin
                         ? const SizedBox(
                             width: 15,
                             height: 15,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
                           )
                         : const Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -341,7 +361,10 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
                               SizedBox(width: 6),
                               Text(
                                 'Verify',
-                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ],
                           ),
@@ -359,7 +382,9 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: _gstinStatus!.contains('verified') ? Colors.green : AppColors.errorDark,
+                  color: _gstinStatus!.contains('verified')
+                      ? Colors.green
+                      : AppColors.errorDark,
                 ),
               ),
             ),
@@ -370,7 +395,9 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
               Expanded(
                 child: _buildBadgeInfo(
                   'PAN',
-                  _c['pan']!.text.isEmpty ? 'Auto from GSTIN' : _c['pan']!.text,
+                  _c['pan']!.text.isEmpty
+                      ? 'Auto from GSTIN'
+                      : _c['pan']!.text,
                   Icons.credit_card_outlined,
                 ),
               ),
@@ -378,7 +405,9 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
               Expanded(
                 child: _buildBadgeInfo(
                   'Detected State',
-                  _c['state']!.text.isEmpty ? 'Auto from GSTIN' : _c['state']!.text,
+                  _c['state']!.text.isEmpty
+                      ? 'Auto from GSTIN'
+                      : _c['state']!.text,
                   Icons.location_on_outlined,
                 ),
               ),
@@ -412,8 +441,9 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
               label: 'Party / Business Name *',
               hint: 'Enter registered or trade name',
               icon: Icons.business_outlined,
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Party name is required' : null,
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? 'Party name is required'
+                  : null,
             ),
           ),
           const SizedBox(width: 12),
@@ -503,8 +533,8 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
           Expanded(
             child: _buildField(
               controller: _c['aadhaar']!,
-              label: 'Aadhaar Number',
-              hint: '12-digit Aadhaar number',
+              label: 'ID / Reference Number',
+              hint: '12-digit identification number',
               icon: Icons.fingerprint_rounded,
               keyboardType: TextInputType.number,
             ),
@@ -514,7 +544,11 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
     );
   }
 
-  Widget _buildSection({required String title, required IconData icon, required Widget child}) {
+  Widget _buildSection({
+    required String title,
+    required IconData icon,
+    required Widget child,
+  }) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(15, 11, 15, 13),
@@ -592,7 +626,12 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
               fontWeight: FontWeight.w600,
               color: enabled ? AppColors.textPrimary : AppColors.textSecondary,
             ),
-            decoration: _inputDecoration(hint: hint, icon: icon, disabled: !enabled),
+            decoration: AppDecorations.compact(
+              hintText: hint,
+              prefixIcon: icon != null
+                  ? Icon(icon, size: 15, color: AppColors.textSecondary)
+                  : null,
+            ),
           ),
         ),
       ],
@@ -646,38 +685,27 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         shrinkWrap: true,
                         itemCount: filteredOptions.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.background),
+                        separatorBuilder: (_, __) =>
+                            const Divider(height: 1, color: AppColors.background),
                         itemBuilder: (context, index) {
                           final option = filteredOptions.elementAt(index);
-                          return Builder(
-                            builder: (itemContext) {
-                              final isHighlighted = AutocompleteHighlightedOption.of(itemContext) == index;
-                              if (isHighlighted) {
-                                WidgetsBinding.instance.addPostFrameCallback((_) {
-                                  Scrollable.ensureVisible(
-                                    itemContext,
-                                    alignment: 0.5,
-                                    duration: const Duration(milliseconds: 100),
-                                  );
-                                });
-                              }
-                              return InkWell(
-                                onTap: () => onSelected(option),
-                                hoverColor: AppColors.primaryLight,
-                                child: Container(
-                                  color: isHighlighted ? AppColors.primaryLight : Colors.transparent,
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                  child: Text(
-                                    option,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: isHighlighted ? FontWeight.w800 : FontWeight.w600,
-                                      color: isHighlighted ? AppColors.primary : AppColors.textPrimary,
-                                    ),
-                                  ),
+                          return InkWell(
+                            onTap: () => onSelected(option),
+                            hoverColor: AppColors.primaryLight,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                              child: Text(
+                                option,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textPrimary,
                                 ),
-                              );
-                            },
+                              ),
+                            ),
                           );
                         },
                       ),
@@ -685,7 +713,8 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
                   ),
                 );
               },
-              fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+              fieldViewBuilder:
+                  (context, textEditingController, focusNode, onFieldSubmitted) {
                 textEditingController.addListener(() {
                   if (controller.text != textEditingController.text) {
                     controller.text = textEditingController.text;
@@ -701,9 +730,9 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
                       fontWeight: FontWeight.w600,
                       color: AppColors.textPrimary,
                     ),
-                    decoration: _inputDecoration(
-                      hint: 'Search $label...',
-                      icon: icon,
+                    decoration: AppDecorations.compact(
+                      hintText: 'Search $label...',
+                      prefixIcon: Icon(icon, size: 15, color: AppColors.textSecondary),
                       suffixIcon: const Icon(
                         Icons.keyboard_arrow_down_rounded,
                         size: 17,
@@ -720,9 +749,18 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
     );
   }
 
-  Widget _buildBadgeInfo(String label, String value, IconData icon, {bool isMuted = false}) {
-    final bgColor = isMuted ? AppColors.background : AppColors.primary.withValues(alpha: .035);
-    final borderColor = isMuted ? AppColors.border.withValues(alpha: .65) : AppColors.primary.withValues(alpha: .12);
+  Widget _buildBadgeInfo(
+    String label,
+    String value,
+    IconData icon, {
+    bool isMuted = false,
+  }) {
+    final bgColor = isMuted
+        ? AppColors.background
+        : AppColors.primary.withValues(alpha: .035);
+    final borderColor = isMuted
+        ? AppColors.border.withValues(alpha: .65)
+        : AppColors.primary.withValues(alpha: .12);
     final iconColor = isMuted ? AppColors.textMuted : AppColors.primary;
 
     return Container(
@@ -756,7 +794,9 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
                   style: TextStyle(
                     fontSize: 10.5,
                     fontWeight: FontWeight.w700,
-                    color: isMuted ? AppColors.textSecondary : AppColors.textPrimary,
+                    color: isMuted
+                        ? AppColors.textSecondary
+                        : AppColors.textPrimary,
                   ),
                 ),
               ],
@@ -767,55 +807,53 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
     );
   }
 
-  InputDecoration _inputDecoration({
-    String? hint,
-    IconData? icon,
-    Widget? suffixIcon,
-    bool disabled = false,
-  }) {
-    return AppDecorations.standard(
-      label: '',
-      hintText: hint,
-      prefixIcon: icon,
-      suffixIcon: suffixIcon,
-    );
-  }
-
   Widget _buildFooter() {
     return Container(
       height: 62,
       padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 10),
       decoration: BoxDecoration(
         color: AppColors.cardBg,
-        border: Border(top: BorderSide(color: AppColors.border.withValues(alpha: .75))),
+        border: Border(
+          top: BorderSide(color: AppColors.border.withValues(alpha: .75)),
+        ),
       ),
       child: Row(
         children: [
-          const Icon(Icons.info_outline_rounded, size: 14, color: AppColors.textMuted),
+          const Icon(Icons.info_outline_rounded,
+              size: 14, color: AppColors.textMuted),
           const SizedBox(width: 6),
-          const Text('* Required field', style: TextStyle(fontSize: 10, color: AppColors.textMuted)),
+          const Text('* Required field',
+              style: TextStyle(fontSize: 10, color: AppColors.textMuted)),
           const Spacer(),
           OutlinedButton(
             onPressed: () => Navigator.of(context).pop(),
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.textPrimary,
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(9),
+              ),
               side: BorderSide(color: AppColors.border.withValues(alpha: .9)),
             ),
-            child: const Text('Cancel', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+            child: const Text('Cancel',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
           ),
           const SizedBox(width: 9),
           ElevatedButton.icon(
             onPressed: _handleSubmit,
-            icon: Icon(widget.isEdit ? Icons.check_rounded : Icons.add_rounded, size: 16),
+            icon: Icon(
+              widget.isEdit ? Icons.check_rounded : Icons.add_rounded,
+              size: 16,
+            ),
             label: Text(widget.isEdit ? 'Save Changes' : 'Create Party'),
             style: ElevatedButton.styleFrom(
               elevation: 0,
               backgroundColor: AppColors.primary,
               foregroundColor: AppColors.surface,
               padding: const EdgeInsets.symmetric(horizontal: 19, vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(9),
+              ),
             ),
           ),
         ],
