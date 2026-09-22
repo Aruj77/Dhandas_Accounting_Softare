@@ -9,6 +9,7 @@ import '../../../api/hsn_master_data.dart';
 import '../../../services/storage_service.dart';
 import '../../../utils/smart_filter.dart';
 import '../../common/app_confirm_dialog.dart';
+import '../../../constants/app_decoration.dart';
 
 class AddItemDialog extends StatefulWidget {
   final FutureOr<void> Function(Map<String, dynamic> itemData)? onItemCreated;
@@ -458,11 +459,11 @@ class _AddItemDialogState extends State<AddItemDialog> {
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
-              color: AppColors.border.withOpacity(.65),
+              color: AppColors.border.withValues(alpha: .65),
             ),
             boxShadow: [
               BoxShadow(
-                color: AppColors.shadowColor.withOpacity(.18),
+                color: AppColors.shadowColor.withValues(alpha: .18),
                 blurRadius: 40,
                 offset: const Offset(0, 18),
               ),
@@ -511,10 +512,10 @@ class _AddItemDialogState extends State<AddItemDialog> {
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 20, 18, 20),
       decoration: BoxDecoration(
-        color: AppColors.primaryLight.withOpacity(.45),
+        color: AppColors.primaryLight.withValues(alpha: .45),
         border: Border(
           bottom: BorderSide(
-            color: AppColors.border.withOpacity(.55),
+            color: AppColors.border.withValues(alpha: .55),
           ),
         ),
       ),
@@ -528,7 +529,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
               borderRadius: BorderRadius.circular(14),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.primary.withOpacity(.10),
+                  color: AppColors.primary.withValues(alpha: .10),
                   blurRadius: 14,
                   offset: const Offset(0, 5),
                 ),
@@ -586,10 +587,10 @@ class _AddItemDialogState extends State<AddItemDialog> {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: AppColors.surface.withOpacity(.75),
+            color: AppColors.surface.withValues(alpha: .75),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: AppColors.border.withOpacity(.7),
+              color: AppColors.border.withValues(alpha: .7),
             ),
           ),
           child: const Icon(
@@ -704,7 +705,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
           disabledBackgroundColor:
-              AppColors.primary.withOpacity(.55),
+              AppColors.primary.withValues(alpha: .55),
           foregroundColor: AppColors.surface,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 17),
@@ -755,8 +756,8 @@ class _AddItemDialogState extends State<AddItemDialog> {
       ),
       decoration: BoxDecoration(
         color: valid
-            ? AppColors.successLight.withOpacity(.65)
-            : AppColors.errorLight.withOpacity(.65),
+            ? AppColors.successLight.withValues(alpha: .65)
+            : AppColors.errorLight.withValues(alpha: .65),
         borderRadius: BorderRadius.circular(11),
         border: Border.all(
           color: valid
@@ -773,8 +774,8 @@ class _AddItemDialogState extends State<AddItemDialog> {
             height: 25,
             decoration: BoxDecoration(
               color: valid
-                  ? AppColors.successBorder.withOpacity(.25)
-                  : AppColors.error.withOpacity(.15),
+                  ? AppColors.successBorder.withValues(alpha: .25)
+                  : AppColors.error.withValues(alpha: .15),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -879,10 +880,10 @@ class _AddItemDialogState extends State<AddItemDialog> {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.cardBg.withOpacity(.48),
+        color: AppColors.cardBg.withValues(alpha: .48),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: AppColors.border.withOpacity(.72),
+          color: AppColors.border.withValues(alpha: .72),
         ),
       ),
       child: Column(
@@ -894,7 +895,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
                 width: 34,
                 height: 34,
                 decoration: BoxDecoration(
-                  color: AppColors.primaryLight.withOpacity(.75),
+                  color: AppColors.primaryLight.withValues(alpha: .75),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
@@ -1163,42 +1164,11 @@ class _AddItemDialogState extends State<AddItemDialog> {
           fontWeight: FontWeight.w700,
           color: AppColors.textPrimary,
         ),
-        decoration: InputDecoration(
+        decoration: AppDecorations.standard(
+          label: '',
           hintText: hintText,
-          hintStyle: const TextStyle(
-            fontSize: 11.5,
-            color: AppColors.textMuted,
-            fontWeight: FontWeight.w500,
-          ),
-          prefixIcon: Icon(
-            icon,
-            size: 17,
-            color: AppColors.textSecondary,
-          ),
-          suffixIcon: const Icon(
-            Icons.keyboard_arrow_down_rounded,
-            size: 20,
-            color: AppColors.textSecondary,
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 11,
-          ),
-          filled: true,
-          fillColor: AppColors.surface,
-          border: _inputBorder(),
-          enabledBorder: _inputBorder(),
-          focusedBorder: _inputBorder(
-            color: AppColors.primary,
-            width: 1.4,
-          ),
-          errorBorder: _inputBorder(
-            color: AppColors.error,
-          ),
-          focusedErrorBorder: _inputBorder(
-            color: AppColors.error,
-            width: 1.3,
-          ),
+          prefixIcon: icon,
+          suffixIcon: const Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: AppColors.textSecondary),
         ),
       ),
     );
@@ -1229,11 +1199,11 @@ class _AddItemDialogState extends State<AddItemDialog> {
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(13),
             border: Border.all(
-              color: AppColors.border.withOpacity(.9),
+              color: AppColors.border.withValues(alpha: .9),
             ),
             boxShadow: [
               BoxShadow(
-                color: AppColors.shadowColor.withOpacity(.14),
+                color: AppColors.shadowColor.withValues(alpha: .14),
                 blurRadius: 20,
                 offset: const Offset(0, 8),
               ),
@@ -1252,7 +1222,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
                 height: 1,
                 indent: 12,
                 endIndent: 12,
-                color: AppColors.border.withOpacity(.45),
+                color: AppColors.border.withValues(alpha: .45),
               ),
               itemBuilder: (context, index) {
                 final option = options.elementAt(index);
@@ -1262,7 +1232,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
                   child: InkWell(
                     onTap: () => onSelected(option),
                     hoverColor:
-                        AppColors.primaryLight.withOpacity(.55),
+                        AppColors.primaryLight.withValues(alpha: .55),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 13,
@@ -1275,7 +1245,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
                             height: 28,
                             decoration: BoxDecoration(
                               color: AppColors.primaryLight
-                                  .withOpacity(.55),
+                                  .withValues(alpha: .55),
                               borderRadius:
                                   BorderRadius.circular(8),
                             ),
@@ -1353,50 +1323,10 @@ class _AddItemDialogState extends State<AddItemDialog> {
               fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,
             ),
-            decoration: InputDecoration(
+            decoration: AppDecorations.standard(
+              label: '',
               hintText: hintText,
-              hintStyle: const TextStyle(
-                fontSize: 11.5,
-                color: AppColors.textMuted,
-                fontWeight: FontWeight.w500,
-              ),
-              prefixIcon: prefixIcon != null
-                  ? Icon(
-                      prefixIcon,
-                      size: 17,
-                      color: AppColors.textSecondary,
-                    )
-                  : null,
-              prefixText: prefixText,
-              prefixStyle: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textSecondary,
-              ),
-              contentPadding: EdgeInsets.symmetric(
-                horizontal: prefixIcon != null ? 4 : 12,
-                vertical: 11,
-              ),
-              filled: true,
-              fillColor: AppColors.surface,
-              border: _inputBorder(),
-              enabledBorder: _inputBorder(),
-              focusedBorder: _inputBorder(
-                color: AppColors.primary,
-                width: 1.4,
-              ),
-              errorBorder: _inputBorder(
-                color: AppColors.error,
-              ),
-              focusedErrorBorder: _inputBorder(
-                color: AppColors.error,
-                width: 1.3,
-              ),
-              errorStyle: const TextStyle(
-                fontSize: 9.5,
-                fontWeight: FontWeight.w600,
-                height: 1.1,
-              ),
+              prefixIcon: prefixIcon,
             ),
           ),
         ),
@@ -1431,20 +1361,6 @@ class _AddItemDialogState extends State<AddItemDialog> {
     );
   }
 
-  OutlineInputBorder _inputBorder({
-    Color? color,
-    double width = .9,
-  }) {
-    return OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(
-        color: color ??
-            AppColors.border.withOpacity(.85),
-        width: width,
-      ),
-    );
-  }
-
   // ===========================================================================
   // FOOTER
   // ===========================================================================
@@ -1461,7 +1377,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
         color: AppColors.surface,
         border: Border(
           top: BorderSide(
-            color: AppColors.border.withOpacity(.65),
+            color: AppColors.border.withValues(alpha: .65),
           ),
         ),
       ),
@@ -1511,7 +1427,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
                 vertical: 13,
               ),
               side: BorderSide(
-                color: AppColors.border.withOpacity(.9),
+                color: AppColors.border.withValues(alpha: .9),
               ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(11),
@@ -1531,7 +1447,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               disabledBackgroundColor:
-                  AppColors.primary.withOpacity(.55),
+                  AppColors.primary.withValues(alpha: .55),
               foregroundColor: AppColors.surface,
               elevation: 0,
               padding: const EdgeInsets.symmetric(

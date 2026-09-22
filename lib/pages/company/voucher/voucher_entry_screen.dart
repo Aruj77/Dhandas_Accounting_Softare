@@ -1,3 +1,4 @@
+// lib/pages/company/voucher/voucher_entry_screen.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -72,7 +73,6 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   int _sessionIndex = -1;
   late bool _isEditingExisting;
 
-  // Holds the active voucher record being edited so that its persistent ID is never lost
   Map<String, dynamic>? _activeEditingVoucher;
 
   final List<VoucherItemRow> _items = [];
@@ -110,6 +110,9 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   DateTime _fyStartDate = DateTime(2026, 4, 1);
   DateTime _fyEndDate = DateTime(2027, 3, 31, 23, 59, 59);
 
+  // Step 3: Debounce timer for fluid typing performance
+  Timer? _calculationDebounceTimer;
+
   bool get _isSalesVoucher => widget.voucherType.toLowerCase().contains('sale');
   List<PartyMasterModel> get _currentAvailableParties => _isSalesVoucher ? _debtorsList : _creditorsList;
 
@@ -135,6 +138,8 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
 
   @override
   void dispose() {
+    // Step 4: Guaranteed resource disposal
+    _calculationDebounceTimer?.cancel();
     HardwareKeyboard.instance.removeHandler(_handleGlobalHardwareKey);
     for (final c in [
       _seriesController,
@@ -162,6 +167,18 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     for (final i in _items) i.dispose();
     for (final s in _sundries) s.dispose();
     super.dispose();
+  }
+
+  // Step 3: Calculation debouncer to prevent UI thread blocking
+  void _scheduleRecalculation([VoidCallback? callback]) {
+    _calculationDebounceTimer?.cancel();
+    _calculationDebounceTimer = Timer(const Duration(milliseconds: 120), () {
+      if (!mounted) return;
+      setState(() {
+        callback?.call();
+        _calculateAllTotals();
+      });
+    });
   }
 
   bool _isAnyMainTableCellFocused() {
@@ -244,6 +261,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   }
 
   void _loadExistingVoucherData(Map<String, dynamic> v) {
+    if (!mounted) return;
     setState(() {
       _isEditingExisting = true;
       _activeEditingVoucher = v;
@@ -314,6 +332,9 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
       final folderPath = widget.company['folderPath'];
       if (folderPath == null) return;
       final rawMasters = await StorageService.loadCompanyMasters(folderPath: folderPath);
+
+      // Step 4: Guard async boundary
+      if (!mounted) return;
 
       PartyMasterModel parseParty(dynamic d, String defaultGroup) => PartyMasterModel(
         name: d['name']?.toString() ?? '',
@@ -446,58 +467,64 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
         row.igst.clear();
         row.amount.clear();
       }
-      _calculateAllTotals();
     }
 
     row.qty.addListener(() {
-      if (row.qtyFocus.hasFocus) recalculateFromQtyOrPrice();
+      if (row.qtyFocus.hasFocus) {
+        _scheduleRecalculation(recalculateFromQtyOrPrice);
+      }
     });
 
     row.price.addListener(() {
-      if (row.priceFocus.hasFocus) recalculateFromQtyOrPrice();
+      if (row.priceFocus.hasFocus) {
+        _scheduleRecalculation(recalculateFromQtyOrPrice);
+      }
     });
 
     row.taxable.addListener(() {
       if (!row.taxableFocus.hasFocus) return;
-      final t = double.tryParse(row.taxable.text) ?? 0.0;
-      final q = double.tryParse(row.qty.text) ?? 0.0;
-      if (t > 0) {
-        if (q > 0) row.price.text = (t / q).toStringAsFixed(2);
-        VoucherCalculationService.recalculateTaxesFromTaxable(row, _isInterState);
-      } else {
-        row.cgst.clear();
-        row.sgst.clear();
-        row.igst.clear();
-        row.amount.clear();
-      }
-      _calculateAllTotals();
+      _scheduleRecalculation(() {
+        final t = double.tryParse(row.taxable.text) ?? 0.0;
+        final q = double.tryParse(row.qty.text) ?? 0.0;
+        if (t > 0) {
+          if (q > 0) row.price.text = (t / q).toStringAsFixed(2);
+          VoucherCalculationService.recalculateTaxesFromTaxable(row, _isInterState);
+        } else {
+          row.cgst.clear();
+          row.sgst.clear();
+          row.igst.clear();
+          row.amount.clear();
+        }
+      });
     });
 
     for (final node in [row.cgst, row.sgst, row.igst]) {
       node.addListener(() {
         if (row.cgstFocus.hasFocus || row.sgstFocus.hasFocus || row.igstFocus.hasFocus) {
-          final t = double.tryParse(row.taxable.text) ?? 0.0;
-          final tax = _isInterState
-              ? (double.tryParse(row.igst.text) ?? 0.0)
-              : ((double.tryParse(row.cgst.text) ?? 0.0) + (double.tryParse(row.sgst.text) ?? 0.0));
-          row.amount.text = (t + tax) == 0 ? '' : (t + tax).toStringAsFixed(2);
-          _calculateAllTotals();
+          _scheduleRecalculation(() {
+            final t = double.tryParse(row.taxable.text) ?? 0.0;
+            final tax = _isInterState
+                ? (double.tryParse(row.igst.text) ?? 0.0)
+                : ((double.tryParse(row.cgst.text) ?? 0.0) + (double.tryParse(row.sgst.text) ?? 0.0));
+            row.amount.text = (t + tax) == 0 ? '' : (t + tax).toStringAsFixed(2);
+          });
         }
       });
     }
 
     row.amount.addListener(() {
       if (!row.amountFocus.hasFocus) return;
-      final amt = double.tryParse(row.amount.text) ?? 0.0;
-      if (amt > 0) {
-        VoucherCalculationService.recalculateFromInvoiceAmount(row, _isInterState);
-      } else {
-        row.taxable.clear();
-        row.cgst.clear();
-        row.sgst.clear();
-        row.igst.clear();
-      }
-      _calculateAllTotals();
+      _scheduleRecalculation(() {
+        final amt = double.tryParse(row.amount.text) ?? 0.0;
+        if (amt > 0) {
+          VoucherCalculationService.recalculateFromInvoiceAmount(row, _isInterState);
+        } else {
+          row.taxable.clear();
+          row.cgst.clear();
+          row.sgst.clear();
+          row.igst.clear();
+        }
+      });
     });
   }
 
@@ -558,6 +585,8 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
       voucherType: widget.voucherType,
       seriesName: _seriesController.text.trim(),
     );
+
+    if (!mounted) return;
 
     final currentId = _activeEditingVoucher?['id']?.toString() ?? widget.voucherToEdit?['id']?.toString();
     final match = existingVouchers.where((v) {
@@ -707,9 +736,24 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   }
 
   bool _parseAndValidateDate() {
-    final parsed = AppDateUtils.parseDate(_dateController.text);
-    if (parsed == null || parsed.isBefore(_fyStartDate) || parsed.isAfter(_fyEndDate)) {
-      setState(() => _dateError = parsed == null ? 'Invalid date' : 'Date outside FY');
+    final rawText = _dateController.text.trim();
+    if (rawText.isEmpty) {
+      setState(() => _dateError = 'Voucher Date cannot be empty');
+      return false;
+    }
+    DateTime? parsed = AppDateUtils.parseDate(rawText);
+    if (parsed == null) {
+      setState(() => _dateError = 'Invalid date format');
+      return false;
+    }
+    if (!rawText.contains(RegExp(r'[-/.](20\d\d|\d\d)$'))) {
+      final month = parsed.month;
+      final targetYear = (month >= 1 && month <= 3) ? _fyEndDate.year : _fyStartDate.year;
+      parsed = DateTime(targetYear, month, parsed.day);
+    }
+
+    if (parsed.isBefore(_fyStartDate) || parsed.isAfter(_fyEndDate)) {
+      setState(() => _dateError = 'Date outside FY (${AppDateUtils.formatDate(_fyStartDate)} to ${AppDateUtils.formatDate(_fyEndDate)})');
       return false;
     }
     _dateController.text = AppDateUtils.formatDate(parsed);
@@ -751,6 +795,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   }
 
   void _initializeNewVoucher() {
+    if (!mounted) return;
     final fy = widget.company['activeFinancialYear']?.toString() ?? AppDateUtils.defaultFinancialYear;
     final bounds = AppDateUtils.parseFinancialYearBounds(fy);
     _fyStartDate = bounds.startDate;
@@ -758,6 +803,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
 
     _vchNoController.text = '';
     _partyController.text = '';
+    _narrationController.text = '';
     _saleTypeController.text = _availableSaleTypes.isNotEmpty ? _availableSaleTypes.first : 'Local Itemwise';
     _matCenterController.text = _availableMaterialCenters.isNotEmpty ? _availableMaterialCenters.first : 'Main Store';
     _isInterState = false;
@@ -782,6 +828,8 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     for (int i = 0; i < 4; i++) {
       _addSundryRow();
     }
+    
+    _calculateAllTotals();
 
     _autogenerateVoucherNumber(_seriesController.text);
     if (mounted) {
@@ -903,6 +951,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
       isInterState: _isInterState,
       autoRoundOff: _autoRoundOff,
     );
+    if (!mounted) return;
     setState(() {
       _totalQty = res.totalQty;
       _itemSubTotal = res.subTotal;
@@ -946,6 +995,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
             mrp: itemData['mrp'],
           );
 
+          if (!mounted) return;
           setState(() {
             _itemsMasterList.add(newModel);
             int targetIndex = index;
@@ -962,6 +1012,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
           });
 
           await _syncMastersToFile();
+          if (!mounted) return;
           created = true;
           _notify('Registered: ${newModel.name}');
         },
@@ -982,11 +1033,13 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
             gstin: data['gstin'] ?? '',
             group: data['group'] ?? (_isSalesVoucher ? 'Sundry Debtors' : 'Sundry Creditors'),
           );
+          if (!mounted) return;
           setState(() {
             (_isSalesVoucher ? _debtorsList : _creditorsList).add(model);
             _partyController.text = model.displayName;
           });
           await _syncMastersToFile();
+          if (!mounted) return;
           created = true;
           _notify('Registered: ${model.displayName}');
         },
@@ -1007,12 +1060,14 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
         builder: (_) => AddSeriesDialog(
           onSeriesCreated: (data) async {
             final name = data['name']?.toString() ?? 'Main';
+            if (!mounted) return;
             setState(() {
               if (!_availableSeries.contains(name)) _availableSeries.add(name);
               _seriesSettings[name] = data;
               _seriesController.text = name;
             });
             await _syncMastersToFile();
+            if (!mounted) return;
             _autogenerateVoucherNumber(name);
             _notify('Series "$name" configured successfully!');
           },
@@ -1031,6 +1086,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
       items: _items,
       itemsMasterList: _itemsMasterList,
       onPartyUpdated: (updated) {
+        if (!mounted) return;
         setState(() {
           void updateList(List<PartyMasterModel> list) {
             final i = list.indexWhere((p) => p.name.equalsIgnoreCase(updated.name));
@@ -1044,6 +1100,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
         });
       },
       onItemUpdated: (i, updated) {
+        if (!mounted) return;
         setState(() {
           final idx = _itemsMasterList.indexWhere((m) => m.name.equalsIgnoreCase(updated.name));
           if (idx != -1) _itemsMasterList[idx] = updated;
@@ -1066,7 +1123,6 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   }
 
   Map<String, dynamic> _buildCurrentVoucherPayload() {
-    // Preserve the original unique ID when editing a voucher so changes update in place
     final persistentId = _activeEditingVoucher?['id'] ??
         widget.voucherToEdit?['id'] ??
         DateTime.now().millisecondsSinceEpoch.toString();
@@ -1208,6 +1264,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
         );
       }
     }
+    if (!mounted) return;
     widget.isEdit ? widget.onClose() : _initializeNewVoucher();
   }
 
@@ -1220,6 +1277,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
       _sessionIndex--;
       _loadExistingVoucherData(_sessionSavedVouchers[_sessionIndex]);
     }
+    if (!mounted) return;
     setState(() {});
   }
 
@@ -1232,6 +1290,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
       _sessionIndex = -1;
       _initializeNewVoucher();
     }
+    if (!mounted) return;
     setState(() {});
   }
 
@@ -1546,7 +1605,7 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
                       _buildShortcutHint('[F2] Save'),
                       _buildShortcutHint('[Alt+P] Prev Vch'),
                       _buildShortcutHint('[Alt+N] Next Vch'),
-                      if (_isViewingExistingVoucher) _buildShortcutHint('[Ctrl+P] Print'),
+                      if (_isEditingExisting) _buildShortcutHint('[Ctrl+P] Print'),
                       _buildShortcutHint('[F4] Calculator'),
                       _buildShortcutHint('[Alt+C] Quick Add Master'),
                       _buildShortcutHint('[Alt+E] Edit Master / Tax Details'),

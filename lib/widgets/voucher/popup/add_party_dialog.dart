@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../../constants/app_colors.dart';
+import '../../../constants/gst_constants.dart';
 import '../../../models/party_master_model.dart';
 import '../../../services/focus_policy_service.dart';
 import '../../../services/gstin_service.dart';
 import '../../../services/loading_service.dart';
+import '../../../constants/app_decoration.dart';
 
 class AddPartyDialog extends StatefulWidget {
   final String voucherType;
@@ -62,16 +64,7 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
     'Uzbekistan', 'Vatican City', 'Venezuela', 'Vietnam', 'Yemen', 'Zimbabwe'
   ];
 
-  static const List<String> _states = [
-    'Andaman and Nicobar Islands', 'Andhra Pradesh', 'Arunachal Pradesh',
-    'Assam', 'Bihar', 'Chandigarh', 'Chhattisgarh',
-    'Dadra and Nagar Haveli and Daman and Diu', 'Delhi', 'Goa', 'Gujarat',
-    'Haryana', 'Himachal Pradesh', 'Jammu and Kashmir', 'Jharkhand',
-    'Karnataka', 'Kerala', 'Ladakh', 'Lakshadweep', 'Madhya Pradesh',
-    'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha',
-    'Puducherry', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana',
-    'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal'
-  ];
+  List<String> get _states => GstConstants.allSortedStateNames;
 
   @override
   void initState() {
@@ -624,41 +617,102 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
           ),
         ),
         const SizedBox(height: 4),
-        Autocomplete<String>(
-          initialValue: TextEditingValue(text: controller.text),
-          optionsBuilder: (textEditingValue) {
-            if (textEditingValue.text.isEmpty) return options.take(6);
-            return options.where(
-              (o) => o.toLowerCase().contains(textEditingValue.text.toLowerCase()),
-            );
-          },
-          onSelected: (option) => controller.text = option,
-          fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
-            textEditingController.addListener(() {
-              if (controller.text != textEditingController.text) {
-                controller.text = textEditingController.text;
-              }
-            });
-            return SizedBox(
-              height: 40,
-              child: TextField(
-                controller: textEditingController,
-                focusNode: focusNode,
-                style: const TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-                decoration: _inputDecoration(
-                  hint: 'Search $label...',
-                  icon: icon,
-                  suffixIcon: const Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    size: 17,
-                    color: AppColors.textMuted,
+        LayoutBuilder(
+          builder: (context, constraints) {
+            return Autocomplete<String>(
+              initialValue: TextEditingValue(text: controller.text),
+              optionsBuilder: (textEditingValue) {
+                if (textEditingValue.text.isEmpty) return options;
+                final q = textEditingValue.text.toLowerCase();
+                return options.where((o) => o.toLowerCase().contains(q));
+              },
+              onSelected: (option) => controller.text = option,
+              optionsViewBuilder: (context, onSelected, filteredOptions) {
+                return Align(
+                  alignment: Alignment.topLeft,
+                  child: Material(
+                    elevation: 8,
+                    borderRadius: BorderRadius.circular(10),
+                    color: AppColors.surface,
+                    child: Container(
+                      width: constraints.maxWidth,
+                      constraints: const BoxConstraints(maxHeight: 260),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.border, width: 1.2),
+                      ),
+                      child: ListView.separated(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        shrinkWrap: true,
+                        itemCount: filteredOptions.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.background),
+                        itemBuilder: (context, index) {
+                          final option = filteredOptions.elementAt(index);
+                          return Builder(
+                            builder: (itemContext) {
+                              final isHighlighted = AutocompleteHighlightedOption.of(itemContext) == index;
+                              if (isHighlighted) {
+                                WidgetsBinding.instance.addPostFrameCallback((_) {
+                                  Scrollable.ensureVisible(
+                                    itemContext,
+                                    alignment: 0.5,
+                                    duration: const Duration(milliseconds: 100),
+                                  );
+                                });
+                              }
+                              return InkWell(
+                                onTap: () => onSelected(option),
+                                hoverColor: AppColors.primaryLight,
+                                child: Container(
+                                  color: isHighlighted ? AppColors.primaryLight : Colors.transparent,
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                  child: Text(
+                                    option,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: isHighlighted ? FontWeight.w800 : FontWeight.w600,
+                                      color: isHighlighted ? AppColors.primary : AppColors.textPrimary,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
                   ),
-                ),
-              ),
+                );
+              },
+              fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+                textEditingController.addListener(() {
+                  if (controller.text != textEditingController.text) {
+                    controller.text = textEditingController.text;
+                  }
+                });
+                return SizedBox(
+                  height: 40,
+                  child: TextField(
+                    controller: textEditingController,
+                    focusNode: focusNode,
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                    decoration: _inputDecoration(
+                      hint: 'Search $label...',
+                      icon: icon,
+                      suffixIcon: const Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        size: 17,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ),
+                );
+              },
             );
           },
         ),
@@ -719,37 +773,11 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
     Widget? suffixIcon,
     bool disabled = false,
   }) {
-    return InputDecoration(
+    return AppDecorations.standard(
+      label: '',
       hintText: hint,
-      hintStyle: const TextStyle(fontSize: 10.5, color: AppColors.textMuted),
-      prefixIcon: icon == null
-          ? null
-          : Icon(
-              icon,
-              size: 15,
-              color: disabled ? AppColors.textMuted : AppColors.textSecondary,
-            ),
-      prefixIconConstraints: const BoxConstraints(minWidth: 36, minHeight: 40),
+      prefixIcon: icon,
       suffixIcon: suffixIcon,
-      filled: true,
-      fillColor: disabled ? AppColors.background : AppColors.surface,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(9),
-        borderSide: BorderSide(color: AppColors.border.withValues(alpha: .8)),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(9),
-        borderSide: BorderSide(color: AppColors.border.withValues(alpha: .8)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(9),
-        borderSide: BorderSide(color: AppColors.primary.withValues(alpha: .75), width: 1.2),
-      ),
-      disabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(9),
-        borderSide: BorderSide(color: AppColors.border.withValues(alpha: .65)),
-      ),
     );
   }
 

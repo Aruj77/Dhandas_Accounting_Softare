@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../constants/app_colors.dart';
+import '../../../constants/app_decoration.dart';
 import '../../../services/focus_policy_service.dart';
 
 class AddSeriesDialog extends StatefulWidget {
@@ -453,13 +454,12 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
                 .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700))))
                 .toList(),
             onChanged: onChanged,
-            decoration: InputDecoration(
+            // Replaced duplicated border definitions with AppDecorations.standard
+            decoration: AppDecorations.standard(
+              label: '',
+              hintText: '',
+            ).copyWith(
               contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-              filled: true,
-              fillColor: AppColors.cardBg,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.borderMedium)),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.borderMedium)),
-              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.primary, width: 1.4)),
             ),
           ),
         ),
@@ -487,15 +487,12 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
             validator: validator,
             onChanged: (_) => setState(() {}),
             style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-            decoration: InputDecoration(
+            // Replaced duplicated OutlineInputBorders with AppDecorations.standard
+            decoration: AppDecorations.standard(
+              label: '',
               hintText: hintText,
-              hintStyle: const TextStyle(fontSize: 11.5, color: AppColors.textMuted),
+            ).copyWith(
               contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              filled: true,
-              fillColor: AppColors.cardBg,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.borderMedium)),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.borderMedium)),
-              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.primary, width: 1.4)),
             ),
           ),
         ),
@@ -524,15 +521,12 @@ class _AddSeriesDialogState extends State<AddSeriesDialog> {
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-            decoration: InputDecoration(
+            // Replaced duplicated OutlineInputBorders with AppDecorations.standard
+            decoration: AppDecorations.standard(
+              label: '',
               hintText: hintText,
-              hintStyle: const TextStyle(fontSize: 11.5, color: AppColors.textMuted),
+            ).copyWith(
               contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              filled: true,
-              fillColor: AppColors.cardBg,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.borderMedium)),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.borderMedium)),
-              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.primary, width: 1.4)),
             ),
           ),
         ),

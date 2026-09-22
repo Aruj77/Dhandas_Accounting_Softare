@@ -1,28 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_colors.dart';
 import '../../constants/gst_constants.dart';
-import '../../services/storage_service.dart';
+import '../../provider/company_provider.dart';
 import '../../services/loading_service.dart';
 
-class CreateCompanyDialog extends StatefulWidget {
+class CreateCompanyDialog extends ConsumerStatefulWidget {
   final String? currentDirectory;
 
   const CreateCompanyDialog({super.key, this.currentDirectory});
 
   @override
-  State<CreateCompanyDialog> createState() => _CreateCompanyDialogState();
+  ConsumerState<CreateCompanyDialog> createState() => _CreateCompanyDialogState();
 }
 
-class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
+class _CreateCompanyDialogState extends ConsumerState<CreateCompanyDialog> {
   final _formKey = GlobalKey<FormState>();
 
   final _gstinController = TextEditingController();
   final _companyNameController = TextEditingController();
   final _addressController = TextEditingController();
   final _cityController = TextEditingController();
-
-  String? _selectedCountry = 'India';
-  String? _selectedState;
+  final _stateController = TextEditingController();
+  final _countryController = TextEditingController(text: 'India');
 
   bool _isValidatingGst = false;
   bool _isGstValid = false;
@@ -30,7 +30,23 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
   String? _gstError;
 
   static const List<String> _countries = [
-    'India', 'United States', 'United Kingdom', 'United Arab Emirates', 'Singapore', 'Germany', 'Canada', 'Australia',
+    'Afghanistan', 'Albania', 'Algeria', 'Andorra', 'Angola', 'Argentina',
+    'Armenia', 'Australia', 'Austria', 'Azerbaijan', 'Bahrain', 'Bangladesh',
+    'Belarus', 'Belgium', 'Bhutan', 'Bolivia', 'Brazil', 'Bulgaria', 'Cambodia',
+    'Cameroon', 'Canada', 'Chile', 'China', 'Colombia', 'Croatia', 'Cuba',
+    'Cyprus', 'Czech Republic', 'Denmark', 'Egypt', 'Estonia', 'Ethiopia',
+    'Finland', 'France', 'Georgia', 'Germany', 'Ghana', 'Greece', 'Hungary',
+    'Iceland', 'India', 'Indonesia', 'Iran', 'Iraq', 'Ireland', 'Israel',
+    'Italy', 'Japan', 'Jordan', 'Kazakhstan', 'Kenya', 'Kuwait', 'Laos',
+    'Latvia', 'Lebanon', 'Luxembourg', 'Malaysia', 'Maldives', 'Mauritius',
+    'Mexico', 'Monaco', 'Morocco', 'Myanmar', 'Nepal', 'Netherlands',
+    'New Zealand', 'Nigeria', 'Norway', 'Oman', 'Pakistan', 'Panama', 'Peru',
+    'Philippines', 'Poland', 'Portugal', 'Qatar', 'Romania', 'Russia',
+    'Saudi Arabia', 'Serbia', 'Singapore', 'Slovakia', 'Slovenia',
+    'South Africa', 'South Korea', 'Spain', 'Sri Lanka', 'Sweden',
+    'Switzerland', 'Taiwan', 'Thailand', 'Turkey', 'Uganda', 'Ukraine',
+    'United Arab Emirates', 'United Kingdom', 'United States', 'Uruguay',
+    'Uzbekistan', 'Vatican City', 'Venezuela', 'Vietnam', 'Yemen', 'Zimbabwe'
   ];
 
   List<String> get _allStates => GstConstants.allSortedStateNames;
@@ -63,8 +79,8 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
       setState(() {
         _isValidatingGst = false;
         _isGstValid = true;
-        _selectedState = detectedState != 'Unknown' ? detectedState : 'Delhi';
-        _selectedCountry = 'India';
+        _stateController.text = detectedState != 'Unknown' ? detectedState : 'Delhi';
+        _countryController.text = 'India';
 
         if (_companyNameController.text.isEmpty) {
           _companyNameController.text = 'Dhandas Global Solutions Pvt Ltd';
@@ -106,16 +122,19 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
         'gstin': _gstinController.text.trim().toUpperCase(),
         'address': _addressController.text.trim(),
         'city': _cityController.text.trim(),
-        'state': _selectedState ?? '',
-        'country': _selectedCountry ?? 'India',
+        'state': _stateController.text.trim(),
+        'country': _countryController.text.trim().isNotEmpty ? _countryController.text.trim() : 'India',
         'createdAt': DateTime.now().toIso8601String(),
       };
 
       try {
-        await StorageService.saveCompanyLocally(
+        final repo = ref.read(companyRepositoryProvider);
+        await repo.createCompany(
           directoryPath: widget.currentDirectory!,
           companyData: companyData,
         );
+
+        ref.invalidate(companiesProvider);
 
         if (mounted) {
           Navigator.of(context).pop(true);
@@ -140,6 +159,8 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
     _companyNameController.dispose();
     _addressController.dispose();
     _cityController.dispose();
+    _stateController.dispose();
+    _countryController.dispose();
     super.dispose();
   }
 
@@ -442,25 +463,21 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
             const SizedBox(width: 14),
             Expanded(
               flex: 4,
-              child: _buildDropdownField(
+              child: _buildWritableAutocomplete(
                 label: 'State / Province',
-                hint: 'Select state',
-                value: _selectedState,
-                items: _allStates,
-                prefixIcon: Icons.map_outlined,
-                onChanged: (val) => setState(() => _selectedState = val),
+                controller: _stateController,
+                options: _allStates,
+                icon: Icons.map_outlined,
               ),
             ),
             const SizedBox(width: 14),
             Expanded(
               flex: 3,
-              child: _buildDropdownField(
+              child: _buildWritableAutocomplete(
                 label: 'Country',
-                hint: 'Select country',
-                value: _selectedCountry,
-                items: _countries,
-                prefixIcon: Icons.public_rounded,
-                onChanged: (val) => setState(() => _selectedCountry = val),
+                controller: _countryController,
+                options: _countries,
+                icon: Icons.public_rounded,
               ),
             ),
           ],
@@ -525,13 +542,11 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
     );
   }
 
-  Widget _buildDropdownField({
+  Widget _buildWritableAutocomplete({
     required String label,
-    required String hint,
-    required String? value,
-    required List<String> items,
-    required IconData prefixIcon,
-    required ValueChanged<String?> onChanged,
+    required TextEditingController controller,
+    required List<String> options,
+    required IconData icon,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -541,38 +556,111 @@ class _CreateCompanyDialogState extends State<CreateCompanyDialog> {
           style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
         ),
         const SizedBox(height: 7),
-        DropdownButtonFormField<String>(
-          value: items.contains(value) ? value : null,
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.textSecondary),
-          isExpanded: true,
-          style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: const TextStyle(fontSize: 13, color: AppColors.textMuted, fontWeight: FontWeight.w400),
-            prefixIcon: Icon(prefixIcon, color: AppColors.textSecondary, size: 19),
-            filled: true,
-            fillColor: AppColors.surface,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.borderMedium),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.primaryAccent, width: 1.5),
-            ),
-          ),
-          items: items.map((item) {
-            return DropdownMenuItem<String>(
-              value: item,
-              child: Text(
-                item,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w500),
-              ),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            return Autocomplete<String>(
+              initialValue: TextEditingValue(text: controller.text),
+              optionsBuilder: (TextEditingValue textEditingValue) {
+                final query = textEditingValue.text.trim().toLowerCase();
+                if (query.isEmpty) return options;
+                return options.where((item) => item.toLowerCase().contains(query));
+              },
+              onSelected: (selection) {
+                controller.text = selection;
+              },
+              optionsViewBuilder: (context, onSelected, filteredOptions) {
+                return Align(
+                  alignment: Alignment.topLeft,
+                  child: Material(
+                    elevation: 8,
+                    borderRadius: BorderRadius.circular(12),
+                    color: AppColors.surface,
+                    child: Container(
+                      width: constraints.maxWidth,
+                      constraints: const BoxConstraints(maxHeight: 260),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.borderMedium, width: 1.2),
+                      ),
+                      child: ListView.separated(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        shrinkWrap: true,
+                        itemCount: filteredOptions.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.background),
+                        itemBuilder: (context, index) {
+                          final option = filteredOptions.elementAt(index);
+                          return Builder(
+                            builder: (itemContext) {
+                              final isHighlighted = AutocompleteHighlightedOption.of(itemContext) == index;
+                              if (isHighlighted) {
+                                WidgetsBinding.instance.addPostFrameCallback((_) {
+                                  Scrollable.ensureVisible(
+                                    itemContext,
+                                    alignment: 0.5,
+                                    duration: const Duration(milliseconds: 100),
+                                  );
+                                });
+                              }
+                              return InkWell(
+                                onTap: () => onSelected(option),
+                                hoverColor: AppColors.primaryLight,
+                                child: Container(
+                                  color: isHighlighted ? AppColors.primaryLight : Colors.transparent,
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                  child: Text(
+                                    option,
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: isHighlighted ? FontWeight.w800 : FontWeight.w600,
+                                      color: isHighlighted ? AppColors.primary : AppColors.textPrimary,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                );
+              },
+              fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+                textEditingController.addListener(() {
+                  if (controller.text != textEditingController.text) {
+                    controller.text = textEditingController.text;
+                  }
+                });
+                return TextFormField(
+                  controller: textEditingController,
+                  focusNode: focusNode,
+                  style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                  decoration: InputDecoration(
+                    hintText: 'Select or type $label...',
+                    hintStyle: const TextStyle(fontSize: 13, color: AppColors.textMuted, fontWeight: FontWeight.w400),
+                    prefixIcon: Icon(icon, color: AppColors.textSecondary, size: 19),
+                    suffixIcon: const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      size: 20,
+                      color: AppColors.textSecondary,
+                    ),
+                    filled: true,
+                    fillColor: AppColors.surface,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppColors.borderMedium),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppColors.primaryAccent, width: 1.5),
+                    ),
+                  ),
+                );
+              },
             );
-          }).toList(),
-          onChanged: onChanged,
+          },
         ),
       ],
     );

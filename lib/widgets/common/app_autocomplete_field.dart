@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
 import '../../services/keyboard_shortcut_service.dart';
 import '../../utils/smart_filter.dart';
+import '../../constants/app_decoration.dart';
 
 typedef OptionItemBuilder<T> = Widget Function(BuildContext context, T option);
 
@@ -134,49 +135,12 @@ class AppAutocompleteField<T extends Object> extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                     color: AppColors.primaryDark,
                   ),
-                  decoration: InputDecoration(
-                    labelText: label,
+                  decoration: AppDecorations.standard(
+                    label: label ?? '',
                     hintText: hintText,
-                    labelStyle: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondary,
-                    ),
-                    hintStyle: const TextStyle(
-                      fontSize: 10.5,
-                      color: AppColors.textMuted,
-                      fontWeight: FontWeight.w400,
-                    ),
-                    prefixIcon: prefixIcon != null
-                        ? Icon(prefixIcon, size: 14, color: AppColors.primary)
-                        : null,
+                    prefixIcon: prefixIcon,
                     suffixIcon: _buildSuffixIcon(hasFocus),
-                    suffixIconConstraints: const BoxConstraints(
-                      minWidth: 30,
-                      minHeight: 24,
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 8,
-                    ),
-                    filled: true,
-                    fillColor: AppColors.cardBg,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: AppColors.border),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: AppColors.border),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(
-                        color: AppColors.primary,
-                        width: 1.3,
-                      ),
-                    ),
-                  ),
+),
                 );
               },
             );

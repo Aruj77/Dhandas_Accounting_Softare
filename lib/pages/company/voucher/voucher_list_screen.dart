@@ -284,7 +284,6 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
   }
 
   Future<void> _handleExcelExport() async {
-    await LoadingService.wrap(() async {
       try {
         final activeKeys = _columnLabels.keys.where(_isColVisible).toList();
 
@@ -320,7 +319,6 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
           );
         }
       }
-    }, message: 'Generating Excel Workbook...');
   }
 
   Future<void> _exportToJson() async {

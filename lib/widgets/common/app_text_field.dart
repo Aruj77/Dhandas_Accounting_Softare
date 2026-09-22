@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
+import '../../constants/app_decoration.dart';
 
 class AppTextField extends StatelessWidget {
   final TextEditingController controller;
@@ -60,24 +61,9 @@ class AppTextField extends StatelessWidget {
               fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,
             ),
-            decoration: InputDecoration(
+            decoration: AppDecorations.standard(
+              label: label,
               hintText: hintText,
-              hintStyle: const TextStyle(fontSize: 11.5, color: AppColors.textMuted),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              filled: true,
-              fillColor: readOnly ? AppColors.background : AppColors.cardBg,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: AppColors.border),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: AppColors.border),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: AppColors.primary, width: 1.4),
-              ),
             ),
           ),
         ),

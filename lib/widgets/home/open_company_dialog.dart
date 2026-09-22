@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_colors.dart';
-import '../../services/storage_service.dart';
+import '../../provider/company_provider.dart';
 import '../../widgets/common/app_confirm_dialog.dart';
 import '../../services/loading_service.dart';
 
-class OpenCompanyDialog extends StatefulWidget {
+class OpenCompanyDialog extends ConsumerStatefulWidget {
   final String directoryPath;
   final String illustrationAssetPath;
 
@@ -16,10 +17,10 @@ class OpenCompanyDialog extends StatefulWidget {
   });
 
   @override
-  State<OpenCompanyDialog> createState() => _OpenCompanyDialogState();
+  ConsumerState<OpenCompanyDialog> createState() => _OpenCompanyDialogState();
 }
 
-class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
+class _OpenCompanyDialogState extends ConsumerState<OpenCompanyDialog> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _dialogFocusNode = FocusNode();
   List<Map<String, dynamic>> _companies = [];
@@ -36,7 +37,8 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
 
   Future<void> _loadCompanies() async {
     await LoadingService.wrap(() async {
-      final data = await StorageService.loadCompanies(widget.directoryPath);
+      final repo = ref.read(companyRepositoryProvider);
+      final data = await repo.loadCompanies(widget.directoryPath);
       if (mounted) {
         setState(() {
           _companies = data;
@@ -264,7 +266,8 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
                                   updatedData['city'] = cityController.text.trim();
                                   updatedData['address'] = addressController.text.trim();
 
-                                  await StorageService.updateCompanyLocally(companyData: updatedData);
+                                  final repo = ref.read(companyRepositoryProvider);
+                                  await repo.updateCompany(companyData: updatedData);
                                   if (ctx.mounted) Navigator.of(ctx).pop(true);
                                 }
                               },
@@ -288,6 +291,7 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
       if (updated == true) {
         await _loadCompanies();
         _onSearchChanged();
+        ref.invalidate(companiesProvider);
       }
     }, message: 'Updating Company Data...');
   }
@@ -306,12 +310,15 @@ class _OpenCompanyDialogState extends State<OpenCompanyDialog> {
       );
 
       if (shouldDelete == true) {
-        await StorageService.deleteCompanyLocally(companyData: company);
+        final repo = ref.read(companyRepositoryProvider);
+        await repo.deleteCompany(companyData: company);
         await _loadCompanies();
         _onSearchChanged();
+        ref.invalidate(companiesProvider);
       }
     }, message: 'Removing Company Data...');
   }
+
   @override
   void dispose() {
     _searchController.dispose();

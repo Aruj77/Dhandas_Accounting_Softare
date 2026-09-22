@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../constants/app_colors.dart';
 import '../services/focus_policy_service.dart';
 import '../services/keyboard_shortcut_service.dart';
-import '../services/storage_service.dart';
 import '../services/loading_service.dart';
+import '../../../provider/company_provider.dart';
 import '../widgets/sidebar.dart';
 import '../widgets/top_bar.dart';
 import '../widgets/set_directory_dialog.dart';
@@ -39,28 +40,23 @@ class _ListParams {
   });
 }
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _selectedIndex = 0;
-  String? _currentDataDirectory;
-  List<Map<String, dynamic>> _recentCompanies = [];
-  bool _isLoadingDirectory = true;
-  KeyboardShortcutSettings _keyboardSettings =
-      KeyboardShortcutSettings.defaults();
+  KeyboardShortcutSettings _keyboardSettings = KeyboardShortcutSettings.defaults();
 
   Map<String, dynamic>? _activeCompany;
   String? _activeVoucherType;
   _ListParams? _activeListQuery;
 
   final GlobalKey<SideBarState> _sidebarKey = GlobalKey<SideBarState>();
-  final GlobalKey<TransactionsDashboardState> _dashboardKey =
-      GlobalKey<TransactionsDashboardState>();
+  final GlobalKey<TransactionsDashboardState> _dashboardKey = GlobalKey<TransactionsDashboardState>();
 
   final FocusNode _openCompanyBtnFocus = FocusNode();
   final FocusNode _createCompanyBtnFocus = FocusNode();
@@ -71,7 +67,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadStoredDirectoryAndData();
     _loadKeyboardSettings();
 
     FocusPolicyService.requestScreenFocus(
@@ -100,36 +95,15 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _handleKeyboardSettingsChanged(
-    KeyboardShortcutSettings settings,
-  ) async {
+  Future<void> _handleKeyboardSettingsChanged(KeyboardShortcutSettings settings) async {
     await KeyboardShortcutService.saveSettings(settings);
     if (mounted) {
       setState(() => _keyboardSettings = settings);
     }
   }
 
-  Future<void> _loadStoredDirectoryAndData() async {
-    await LoadingService.wrap(() async {
-      final savedPath = await StorageService.getSavedDirectory();
-      if (savedPath != null) {
-        final companies = await StorageService.loadCompanies(savedPath);
-        if (mounted) {
-          setState(() {
-            _currentDataDirectory = savedPath;
-            _recentCompanies = companies;
-            _isLoadingDirectory = false;
-          });
-        }
-      } else {
-        if (mounted) {
-          setState(() => _isLoadingDirectory = false);
-        }
-      }
-    }, message: 'Initializing Workspace...');
-  }
-
   void _showSetDirectoryModal() {
+    final currentDir = ref.read(dataDirectoryProvider);
     showGeneralDialog<String>(
       context: context,
       barrierDismissible: true,
@@ -143,27 +117,22 @@ class _HomeScreenState extends State<HomeScreen> {
           scale: curvedValue,
           child: Opacity(
             opacity: anim1.value.clamp(0.0, 1.0),
-            child: SetDirectoryDialog(initialPath: _currentDataDirectory),
+            child: SetDirectoryDialog(initialPath: currentDir),
           ),
         );
       },
     ).then((newPath) async {
       if (newPath != null && newPath.isNotEmpty) {
         await LoadingService.wrap(() async {
-          final companies = await StorageService.loadCompanies(newPath);
-          if (mounted) {
-            setState(() {
-              _currentDataDirectory = newPath;
-              _recentCompanies = companies;
-            });
-          }
+          await ref.read(dataDirectoryProvider.notifier).setDirectory(newPath);
         }, message: 'Scanning Directory...');
       }
     });
   }
 
   void _showOpenCompanyModal() {
-    if (_currentDataDirectory == null) {
+    final currentDir = ref.read(dataDirectoryProvider);
+    if (currentDir == null) {
       _promptSetDirectoryFirst();
       return;
     }
@@ -181,7 +150,7 @@ class _HomeScreenState extends State<HomeScreen> {
           scale: curvedValue,
           child: Opacity(
             opacity: anim1.value.clamp(0.0, 1.0),
-            child: OpenCompanyDialog(directoryPath: _currentDataDirectory!),
+            child: OpenCompanyDialog(directoryPath: currentDir),
           ),
         );
       },
@@ -200,9 +169,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Opened workspace for: ${selectedCompany['companyName']}',
-            ),
+            content: Text('Opened workspace for: ${selectedCompany['companyName']}'),
             backgroundColor: AppColors.primary,
           ),
         );
@@ -211,7 +178,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showCreateCompanyModal() {
-    if (_currentDataDirectory == null) {
+    final currentDir = ref.read(dataDirectoryProvider);
+    if (currentDir == null) {
       _promptSetDirectoryFirst();
       return;
     }
@@ -229,26 +197,19 @@ class _HomeScreenState extends State<HomeScreen> {
           scale: curvedValue,
           child: Opacity(
             opacity: anim1.value.clamp(0.0, 1.0),
-            child: CreateCompanyDialog(currentDirectory: _currentDataDirectory),
+            child: CreateCompanyDialog(currentDirectory: currentDir),
           ),
         );
       },
     ).then((saved) async {
-      if (saved == true && _currentDataDirectory != null) {
-        await LoadingService.wrap(() async {
-          final companies =
-              await StorageService.loadCompanies(_currentDataDirectory!);
-          if (mounted) {
-            setState(() => _recentCompanies = companies);
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content:
-                    Text('Company database created and saved successfully!'),
-                backgroundColor: AppColors.success,
-              ),
-            );
-          }
-        }, message: 'Updating Workspace...');
+      if (saved == true && mounted) {
+        ref.invalidate(companiesProvider);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Company database created and saved successfully!'),
+            backgroundColor: AppColors.success,
+          ),
+        );
       }
     });
   }
@@ -477,7 +438,6 @@ class _HomeScreenState extends State<HomeScreen> {
     return IndexedStack(
       index: _selectedIndex,
       children: [
-        // 0: TRANSACTIONS
         TransactionsDashboard(
           key: _dashboardKey,
           company: _activeCompany!,
@@ -500,21 +460,13 @@ class _HomeScreenState extends State<HomeScreen> {
             });
           },
         ),
-
-        // 1: ACCOUNTS & LEDGERS
         MastersDashboardScreen(company: _activeCompany!),
-
-        // 2: INVENTORY & ITEMS
         _buildPlaceholderView(
           icon: Icons.inventory_2_outlined,
           title: 'Inventory & Items',
           subtitle: 'Stock items, HSN codes, batches, and unit measurements.',
         ),
-
-        // 3: REPORTS
         ReportsDashboardScreen(company: _activeCompany!),
-
-        // 4: ADMINISTRATION
         AdministrationScreen(
           company: _activeCompany!,
           onCompanyUpdated: (updated) {
@@ -526,6 +478,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildGlobalIndexedView() {
+    final currentDir = ref.watch(dataDirectoryProvider);
+
     return IndexedStack(
       index: _selectedIndex,
       children: [
@@ -541,7 +495,7 @@ class _HomeScreenState extends State<HomeScreen> {
           subtitle: 'Manage backups and migrations.',
         ),
         SettingsScreen(
-          currentDirectory: _currentDataDirectory,
+          currentDirectory: currentDir,
           onChangeDirectory: _showSetDirectoryModal,
           keyboardSettings: _keyboardSettings,
           onKeyboardSettingsChanged: _handleKeyboardSettingsChanged,
@@ -551,6 +505,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHomeDashboardView() {
+    final currentDir = ref.watch(dataDirectoryProvider);
+    final companiesAsync = ref.watch(companiesProvider);
+
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 44, vertical: 28),
@@ -606,8 +563,8 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 20),
           DataDirectoryBanner(
             focusNode: _dataDirBannerFocus,
-            currentDirectory: _currentDataDirectory,
-            isLoading: _isLoadingDirectory,
+            currentDirectory: currentDir,
+            isLoading: currentDir != null && companiesAsync.isLoading,
             onTap: _showSetDirectoryModal,
             onMoveUp: () => _openCompanyBtnFocus.requestFocus(),
             onMoveLeft: _jumpToSidebar,
@@ -617,7 +574,11 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: RecentCompaniesPanel(companies: _recentCompanies),
+                child: companiesAsync.when(
+                  data: (companies) => RecentCompaniesPanel(companies: companies),
+                  loading: () => const RecentCompaniesPanel(companies: []),
+                  error: (_, __) => const RecentCompaniesPanel(companies: []),
+                ),
               ),
               const SizedBox(width: 20),
               const Expanded(child: QuickTipsPanel()),
