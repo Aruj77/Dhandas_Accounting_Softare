@@ -1,10 +1,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../constants/app_colors.dart';
 import '../../../constants/gst_constants.dart';
+import '../../../database/app_database.dart';
 import '../../../models/item_master_model.dart';
 import '../../../models/party_master_model.dart';
+import '../../../provider/company_provider.dart';
+import '../../../provider/sync_provider.dart';
 import '../../../services/focus_policy_service.dart';
 import '../../../services/keyboard_shortcut_service.dart';
 import '../../../services/loading_service.dart';
@@ -29,7 +33,7 @@ import '../../../widgets/voucher/voucher_summary_card.dart';
 import '../../../widgets/voucher/voucher_sundry_card.dart';
 import '../../../widgets/voucher/voucher_sundry_row.dart';
 
-class VoucherEntryScreen extends StatefulWidget {
+class VoucherEntryScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic> company;
   final String voucherType;
   final VoidCallback onClose;
@@ -48,10 +52,10 @@ class VoucherEntryScreen extends StatefulWidget {
   });
 
   @override
-  State<VoucherEntryScreen> createState() => _VoucherEntryScreenState();
+  ConsumerState<VoucherEntryScreen> createState() => _VoucherEntryScreenState();
 }
 
-class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
+class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
   final _seriesController = TextEditingController(text: 'Main');
   final _seriesFocus = FocusNode();
   final _dateController = TextEditingController();
@@ -144,6 +148,12 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
     _activeEditingVoucher = widget.voucherToEdit;
     HardwareKeyboard.instance.addHandler(_handleGlobalHardwareKey);
     _attachControllerListeners();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && ref.read(activeCompanyProvider) == null) {
+        ref.read(activeCompanyProvider.notifier).state = widget.company;
+      }
+    });
 
     if (widget.isEdit && widget.voucherToEdit != null) {
       _loadExistingVoucherData(widget.voucherToEdit!);
@@ -1288,8 +1298,12 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   Map<String, dynamic> _buildCurrentVoucherPayload() {
     final persistentId = _activeEditingVoucher?['id'] ??
         widget.voucherToEdit?['id'] ??
-        DateTime.now().millisecondsSinceEpoch.toString();
+        'vch_${DateTime.now().millisecondsSinceEpoch}';
     final totals = _totalsNotifier.value;
+    final partyText = _partyController.text.trim();
+    final partyState = _extractPartyStateCode(partyText);
+    final partyGstin = GstPartyUtils.extractPartyGstin(partyText);
+    final matchedParty = _partyCache[partyText.toLowerCase()];
 
     return {
       'id': persistentId,
@@ -1298,11 +1312,13 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
       'date': _dateController.text,
       'series': _seriesController.text,
       'saleType': _saleTypeController.text,
-      'party': _partyController.text,
+      'party': partyText,
+      'partyGstin': partyGstin.isNotEmpty ? partyGstin : (matchedParty?.gstin ?? ''),
+      'partyStateCode': partyState,
       'isInterState': _isInterState,
       'materialCenter': _matCenterController.text,
       'narration': _narrationController.text,
-      'financialYear': widget.company['activeFinancialYear'],
+      'financialYear': widget.company['activeFinancialYear'] ?? AppDateUtils.defaultFinancialYear,
       'items': _items.where((i) => i.item.text.isNotEmpty).map((i) => {
             'item': i.item.text,
             'hsn': i.hsn.isNotEmpty
@@ -1408,15 +1424,32 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
 
   Future<void> _executeVoucherPersistence() async {
     final payload = _buildCurrentVoucherPayload();
-    final folderPath = widget.company['folderPath'];
+    final folderPath = widget.company['folderPath']?.toString();
     if (folderPath == null) return;
 
+    final financialYear = widget.company['activeFinancialYear']?.toString() ??
+        AppDateUtils.defaultFinancialYear;
+
+    // 1. ALWAYS persist via StorageService so VoucherListScreen and reports load it immediately
     await StorageService.saveVoucher(
       folderPath: folderPath,
-      financialYear: widget.company['activeFinancialYear']?.toString() ??
-          AppDateUtils.defaultFinancialYear,
+      financialYear: financialYear,
       voucherData: payload,
     );
+
+    // 2. Also persist and broadcast via SyncWorker (for real-time multi-branch and HLC sync)
+    final syncWorker = ref.read(syncWorkerProvider);
+    if (syncWorker != null) {
+      final db = AppDatabase.forCompany(folderPath);
+      try {
+        await syncWorker.pushLocalMutation(db, payload);
+      } catch (e) {
+        debugPrint('SyncWorker pushLocalMutation error: $e');
+      } finally {
+        await db.close();
+      }
+    }
+
     if (!mounted) return;
     _notify('${widget.voucherType} [${_vchNoController.text}] saved!');
 
@@ -1879,29 +1912,33 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
                             const SizedBox(width: 12),
                             Expanded(
                               flex: 45,
-                              child: VoucherSummaryCard(
-                                isInterState: _isInterState,
-                                subTotal: 0.0,
-                                totalCgst: 0.0,
-                                totalSgst: 0.0,
-                                totalIgst: 0.0,
-                                sundryTotal: 0.0,
-                                roundOff: 0.0,
-                                grandTotal: 0.0,
-                                totalsNotifier: _totalsNotifier,
-                                saveButtonFocusNode: _saveButtonFocusNode,
-                                onSave: _saveVoucher,
-                                onClose: _requestExit,
-                                saveShortcutLabel:
-                                    KeyboardShortcutService.labelForAction(
-                                  widget.keyboardSettings,
-                                  KeyboardShortcutService.saveVoucherAction,
-                                ),
-                                quitShortcutLabel:
-                                    KeyboardShortcutService.labelForAction(
-                                  widget.keyboardSettings,
-                                  KeyboardShortcutService.goBackAction,
-                                ),
+                              child: ValueListenableBuilder<VoucherTotalsResult>(
+                                valueListenable: _totalsNotifier,
+                                builder: (context, totals, _) {
+                                  return VoucherSummaryCard(
+                                    isInterState: _isInterState,
+                                    subTotal: totals.subTotal,
+                                    totalCgst: totals.totalCgst,
+                                    totalSgst: totals.totalSgst,
+                                    totalIgst: totals.totalIgst,
+                                    sundryTotal: totals.sundryTotal,
+                                    roundOff: totals.roundOff,
+                                    grandTotal: totals.grandTotal,
+                                    saveButtonFocusNode: _saveButtonFocusNode,
+                                    onSave: _saveVoucher,
+                                    onClose: _requestExit,
+                                    saveShortcutLabel:
+                                        KeyboardShortcutService.labelForAction(
+                                      widget.keyboardSettings,
+                                      KeyboardShortcutService.saveVoucherAction,
+                                    ),
+                                    quitShortcutLabel:
+                                        KeyboardShortcutService.labelForAction(
+                                      widget.keyboardSettings,
+                                      KeyboardShortcutService.goBackAction,
+                                    ),
+                                  );
+                                },
                               ),
                             ),
                           ],

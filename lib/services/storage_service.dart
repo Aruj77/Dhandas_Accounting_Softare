@@ -120,7 +120,7 @@ class StorageService {
       await baseDir.create(recursive: true);
     }
 
-    final folderRegex = RegExp(r'^DHAN-(\d{4,})$', caseSensitive: false);
+    final folderRegex = RegExp(r'^DHAN-(\d{3,}$)$', caseSensitive: false);
     int highestIndex = 0;
 
     await for (final entity in baseDir.list()) {
@@ -129,7 +129,9 @@ class StorageService {
         final match = folderRegex.firstMatch(folderName);
         if (match != null) {
           final parsedIndex = int.tryParse(match.group(1)!) ?? 0;
-          if (parsedIndex > highestIndex) highestIndex = parsedIndex;
+          if (parsedIndex > highestIndex) {
+            highestIndex = parsedIndex;
+          }
         }
       }
     }
@@ -144,14 +146,20 @@ class StorageService {
     final baseDir = Directory(directoryPath);
     if (!await baseDir.exists()) await baseDir.create(recursive: true);
 
+    // Get the next guaranteed unique folder ID (e.g., DHAN-001 -> DHAN-002)
     final folderId = await getNextCompanyFolderId(directoryPath);
     final companyDir = Directory('${baseDir.path}${Platform.pathSeparator}$folderId');
-    if (!await companyDir.exists()) await companyDir.create(recursive: true);
+    
+    if (await companyDir.exists()) {
+      await companyDir.delete(recursive: true);
+    }
+    await companyDir.create(recursive: true);
 
     final initialFys = ['2024-25', '2025-26', '2026-27'];
     const defaultActiveFy = '2026-27';
 
     final updatedData = Map<String, dynamic>.from(companyData)
+      ..['id'] = folderId
       ..['companyId'] = folderId
       ..['folderPath'] = companyDir.path
       ..['financialYears'] = companyData['financialYears'] ?? initialFys

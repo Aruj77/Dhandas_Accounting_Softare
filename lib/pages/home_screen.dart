@@ -163,6 +163,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           _activeListQuery = null;
         });
 
+        // Sync with Riverpod active company provider
+        ref.read(activeCompanyProvider.notifier).state = selectedCompany;
+
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _sidebarKey.currentState?.focusActiveItem();
         });
@@ -243,6 +246,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       _activeVoucherType = null;
       _activeListQuery = null;
     });
+
+    // Clear Riverpod active company provider
+    ref.read(activeCompanyProvider.notifier).state = null;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _sidebarKey.currentState?.focusActiveItem();
@@ -346,6 +352,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         _activeListQuery = null;
         _selectedIndex = 3;
       });
+      ref.read(activeCompanyProvider.notifier).state = null;
       return KeyEventResult.handled;
     }
 
@@ -471,6 +478,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           company: _activeCompany!,
           onCompanyUpdated: (updated) {
             setState(() => _activeCompany = updated);
+            ref.read(activeCompanyProvider.notifier).state = updated;
           },
         ),
       ],

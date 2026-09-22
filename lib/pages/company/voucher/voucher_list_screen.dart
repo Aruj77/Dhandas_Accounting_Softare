@@ -3,10 +3,12 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 import '../../../constants/app_colors.dart';
 import '../../../models/register_summary.dart';
+import '../../../provider/sync_provider.dart';
 import '../../../services/focus_policy_service.dart';
 import '../../../services/keyboard_shortcut_service.dart';
 import '../../../services/storage_service.dart';
@@ -20,7 +22,7 @@ import '../../../widgets/common/quick_metric_badge.dart';
 import 'voucher_entry_screen.dart';
 import '../../../services/loading_service.dart';
 
-class VoucherListScreen extends StatefulWidget {
+class VoucherListScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic> company;
   final String voucherType;
   final DateTime fromDate;
@@ -39,14 +41,14 @@ class VoucherListScreen extends StatefulWidget {
   });
 
   @override
-  State<VoucherListScreen> createState() => _VoucherListScreenState();
+  ConsumerState<VoucherListScreen> createState() => _VoucherListScreenState();
 }
 
-class _VoucherListScreenState extends State<VoucherListScreen> {
+class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
   final _searchCtrl = TextEditingController();
   final _searchFocusNode = FocusNode();
   final _horizontalHeaderCtrl = ScrollController();
-  final _horizontalBodyCtrl = ScrollController();
+  final _bodyHorizontalScrollCtrl = ScrollController();
   final _horizontalFooterCtrl = ScrollController();
 
   List<Map<String, dynamic>> _vouchers = [];
@@ -95,12 +97,21 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
     _loadAvailableSeries();
     _loadVouchers();
     _searchCtrl.addListener(_onSearch);
-    _horizontalBodyCtrl.addListener(() {
+    _bodyHorizontalScrollCtrl.addListener(() {
       for (final ctrl in [_horizontalHeaderCtrl, _horizontalFooterCtrl]) {
-        if (ctrl.hasClients && ctrl.offset != _horizontalBodyCtrl.offset) {
-          ctrl.jumpTo(_horizontalBodyCtrl.offset);
+        if (ctrl.hasClients && ctrl.offset != _bodyHorizontalScrollCtrl.offset) {
+          ctrl.jumpTo(_bodyHorizontalScrollCtrl.offset);
         }
       }
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final syncWorker = ref.read(syncWorkerProvider);
+      syncWorker?.onRemoteMutationReceived = () {
+        if (mounted) {
+          _loadVouchers();
+        }
+      };
     });
   }
 
@@ -132,10 +143,15 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
 
   @override
   void dispose() {
+    final syncWorker = ref.read(syncWorkerProvider);
+    if (syncWorker?.onRemoteMutationReceived != null) {
+      syncWorker?.onRemoteMutationReceived = null;
+    }
+
     _searchCtrl.dispose();
     _searchFocusNode.dispose();
     _horizontalHeaderCtrl.dispose();
-    _horizontalBodyCtrl.dispose();
+    _bodyHorizontalScrollCtrl.dispose();
     _horizontalFooterCtrl.dispose();
     for (final n in _rowFocusNodes) {
       n.dispose();
@@ -284,41 +300,41 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
   }
 
   Future<void> _handleExcelExport() async {
-      try {
-        final activeKeys = _columnLabels.keys.where(_isColVisible).toList();
+    try {
+      final activeKeys = _columnLabels.keys.where(_isColVisible).toList();
 
-        final savedPath = await VoucherExcelExportService.exportToExcel(
-          company: widget.company,
-          voucherType: widget.voucherType,
-          fromDate: widget.fromDate,
-          toDate: widget.toDate,
-          filteredVouchers: _filtered,
-          activeKeys: activeKeys,
-          columnLabels: _columnLabels,
-          extractPartyName: GstPartyUtils.extractPartyName,
-          extractPartyGstin: GstPartyUtils.extractPartyGstin,
-          getPlaceOfSupply: _getPos,
-          extractCessAmount: GstPartyUtils.extractCessAmount,
-          formatDate: AppDateUtils.formatDate,
-          totalQuantity: _summary.totalQuantity,
-          totalInvoiceValue: _summary.totalInvoiceValue,
-          totalTaxable: _summary.totalTaxable,
-          totalIgst: _summary.totalIgst,
-          totalCgst: _summary.totalCgst,
-          totalSgst: _summary.totalSgst,
-          totalCess: _summary.totalCess,
-          onConfirmOverwrite: (p) => ExportDialogUtils.confirmOverwrite(context, p),
-        );
-        if (savedPath != null && mounted) {
-          ExportDialogUtils.showSuccessDialog(context, savedPath, 'Excel Workbook (.xlsx)');
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Export failed: $e'), backgroundColor: AppColors.error),
-          );
-        }
+      final savedPath = await VoucherExcelExportService.exportToExcel(
+        company: widget.company,
+        voucherType: widget.voucherType,
+        fromDate: widget.fromDate,
+        toDate: widget.toDate,
+        filteredVouchers: _filtered,
+        activeKeys: activeKeys,
+        columnLabels: _columnLabels,
+        extractPartyName: GstPartyUtils.extractPartyName,
+        extractPartyGstin: GstPartyUtils.extractPartyGstin,
+        getPlaceOfSupply: _getPos,
+        extractCessAmount: GstPartyUtils.extractCessAmount,
+        formatDate: AppDateUtils.formatDate,
+        totalQuantity: _summary.totalQuantity,
+        totalInvoiceValue: _summary.totalInvoiceValue,
+        totalTaxable: _summary.totalTaxable,
+        totalIgst: _summary.totalIgst,
+        totalCgst: _summary.totalCgst,
+        totalSgst: _summary.totalSgst,
+        totalCess: _summary.totalCess,
+        onConfirmOverwrite: (p) => ExportDialogUtils.confirmOverwrite(context, p),
+      );
+      if (savedPath != null && mounted) {
+        ExportDialogUtils.showSuccessDialog(context, savedPath, 'Excel Workbook (.xlsx)');
       }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Export failed: $e'), backgroundColor: AppColors.error),
+        );
+      }
+    }
   }
 
   Future<void> _exportToJson() async {
@@ -367,7 +383,9 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
         ),
       ),
     );
-    if (mounted) _loadVouchers();
+    if (mounted) {
+      await _loadVouchers();
+    }
   }
 
   void _openColumnSettingsDialog() {
@@ -670,31 +688,26 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
   KeyEventResult _handleGlobalKeyEvent(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
 
-    // Esc: Close register
     if (KeyboardShortcutService.isExit(event.logicalKey)) {
       widget.onClose();
       return KeyEventResult.handled;
     }
 
-    // Ctrl + P: Print Preview Studio
     if (KeyboardShortcutService.isPrint(event)) {
       _triggerPrint();
       return KeyEventResult.handled;
     }
 
-    // Ctrl + E: Excel Export
     if (KeyboardShortcutService.isExportExcel(event)) {
       _handleExcelExport();
       return KeyEventResult.handled;
     }
 
-    // Ctrl + J: JSON Export
     if (KeyboardShortcutService.isExportJson(event)) {
       _exportToJson();
       return KeyEventResult.handled;
     }
 
-    // Ctrl + Q: Columns Configuration
     if (KeyboardShortcutService.isColumnsDialog(event)) {
       _openColumnSettingsDialog();
       return KeyEventResult.handled;
@@ -763,7 +776,6 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
                       ),
                     ),
                     const SizedBox(width: 10),
-
                     Container(
                       height: 32,
                       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -917,7 +929,7 @@ class _VoucherListScreenState extends State<VoucherListScreen> {
                                   : _filtered.isEmpty
                                       ? const Center(child: Text('No matching vouchers found.'))
                                       : SingleChildScrollView(
-                                          controller: _horizontalBodyCtrl,
+                                          controller: _bodyHorizontalScrollCtrl,
                                           scrollDirection: Axis.horizontal,
                                           child: SizedBox(
                                             width: dynamicWidth,

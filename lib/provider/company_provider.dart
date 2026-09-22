@@ -4,14 +4,15 @@ import '../services/storage_service.dart';
 
 final companyRepositoryProvider = Provider((ref) => CompanyRepository());
 
+/// Holds the currently opened company details across the application
+final activeCompanyProvider = StateProvider<Map<String, dynamic>?>((ref) => null);
+
 final dataDirectoryProvider = StateNotifierProvider<DataDirectoryNotifier, String?>((ref) {
-  return DataDirectoryNotifier(ref.read(companyRepositoryProvider));
+  return DataDirectoryNotifier();
 });
 
 class DataDirectoryNotifier extends StateNotifier<String?> {
-  final CompanyRepository _repository;
-
-  DataDirectoryNotifier(this._repository) : super(null) {
+  DataDirectoryNotifier() : super(null) {
     _initDirectory();
   }
 
@@ -29,7 +30,7 @@ class DataDirectoryNotifier extends StateNotifier<String?> {
 final companiesProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final dir = ref.watch(dataDirectoryProvider);
   if (dir == null || dir.isEmpty) return [];
-  
+
   final repo = ref.read(companyRepositoryProvider);
   return await repo.loadCompanies(dir);
 });

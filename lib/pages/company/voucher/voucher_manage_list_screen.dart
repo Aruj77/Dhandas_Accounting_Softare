@@ -1,8 +1,10 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../constants/app_colors.dart';
 import '../../../models/register_summary.dart';
+import '../../../provider/sync_provider.dart';
 import '../../../services/focus_policy_service.dart';
 import '../../../services/keyboard_shortcut_service.dart';
 import '../../../services/storage_service.dart';
@@ -14,7 +16,7 @@ import 'voucher_entry_screen.dart';
 import '../../../widgets/common/app_confirm_dialog.dart';
 import '../../../services/loading_service.dart';
 
-class VoucherManageListScreen extends StatefulWidget {
+class VoucherManageListScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic> company;
   final String voucherType;
   final VoidCallback onClose;
@@ -27,10 +29,10 @@ class VoucherManageListScreen extends StatefulWidget {
   });
 
   @override
-  State<VoucherManageListScreen> createState() => _VoucherManageListScreenState();
+  ConsumerState<VoucherManageListScreen> createState() => _VoucherManageListScreenState();
 }
 
-class _VoucherManageListScreenState extends State<VoucherManageListScreen> {
+class _VoucherManageListScreenState extends ConsumerState<VoucherManageListScreen> {
   final _searchCtrl = TextEditingController();
   final _searchFocusNode = FocusNode();
   final _headerScrollCtrl = ScrollController();
@@ -64,10 +66,24 @@ class _VoucherManageListScreenState extends State<VoucherManageListScreen> {
         }
       }
     });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final syncWorker = ref.read(syncWorkerProvider);
+      syncWorker?.onRemoteMutationReceived = () {
+        if (mounted) {
+          _loadVouchers();
+        }
+      };
+    });
   }
 
   @override
   void dispose() {
+    final syncWorker = ref.read(syncWorkerProvider);
+    if (syncWorker?.onRemoteMutationReceived != null) {
+      syncWorker?.onRemoteMutationReceived = null;
+    }
+
     _searchCtrl.dispose();
     _searchFocusNode.dispose();
     _headerScrollCtrl.dispose();
@@ -133,8 +149,24 @@ class _VoucherManageListScreenState extends State<VoucherManageListScreen> {
     });
   }
 
-  void _editVoucher(Map<String, dynamic> voucher) {
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => VoucherEntryScreen(company: widget.company, voucherType: widget.voucherType, voucherToEdit: voucher, isEdit: true, keyboardSettings: KeyboardShortcutSettings.defaults(), onClose: () { Navigator.of(context).pop(); _loadVouchers(); })));
+  Future<void> _editVoucher(Map<String, dynamic> voucher) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => VoucherEntryScreen(
+          company: widget.company,
+          voucherType: widget.voucherType,
+          voucherToEdit: voucher,
+          isEdit: true,
+          keyboardSettings: KeyboardShortcutSettings.defaults(),
+          onClose: () {
+            Navigator.of(context).pop();
+          },
+        ),
+      ),
+    );
+    if (mounted) {
+      await _loadVouchers();
+    }
   }
 
   Future<void> _confirmAndDelete(List<Map<String, dynamic>> toDelete) async {
@@ -197,7 +229,10 @@ class _VoucherManageListScreenState extends State<VoucherManageListScreen> {
       child: Focus(
         autofocus: true,
         onKeyEvent: (_, e) {
-          if (e is KeyDownEvent && e.logicalKey == LogicalKeyboardKey.escape) { _handleSafeExit(); return KeyEventResult.handled; }
+          if (e is KeyDownEvent && e.logicalKey == LogicalKeyboardKey.escape) {
+            _handleSafeExit();
+            return KeyEventResult.handled;
+          }
           return KeyEventResult.ignored;
         },
         child: Scaffold(
