@@ -54,20 +54,16 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
                               WPARAM const wparam,
                               LPARAM const lparam) noexcept {
 
-  // Prevent Windows from producing the system beep for Alt+Key.
-  //
-  // This must happen BEFORE Flutter's keyboard/event handling.
-  // Otherwise Flutter's HandleTopLevelWindowProc() can receive WM_SYSCHAR
-  // first and Windows may produce the "no matching menu accelerator" beep.
-  if (message == WM_SYSCHAR) {
+  // Suppress Windows Alt+letter system character beep.
+  if (message == WM_SYSCHAR || message == WM_SYSDEADCHAR) {
     return 0;
   }
 
-  // Give Flutter, including plugins, an opportunity to handle window messages.
   if (flutter_controller_) {
     std::optional<LRESULT> result =
-        flutter_controller_->HandleTopLevelWindowProc(hwnd, message, wparam,
-                                                      lparam);
+        flutter_controller_->HandleTopLevelWindowProc(
+            hwnd, message, wparam, lparam);
+
     if (result) {
       return *result;
     }
