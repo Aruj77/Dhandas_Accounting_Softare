@@ -1405,7 +1405,15 @@ class _VoucherEntryScreenState extends State<VoucherEntryScreen> {
   Future<void> _executeVoucherPersistence() async {
     final payload = _buildCurrentVoucherPayload();
     final folderPath = widget.company['folderPath'];
-    if (folderPath == null) return;
+    if (folderPath == null) {
+      if (mounted) {
+        _showValidationError(
+          'Could not save: no company data folder is set for this company.',
+          null,
+        );
+      }
+      return;
+    }
 
     await StorageService.saveVoucher(
       folderPath: folderPath,

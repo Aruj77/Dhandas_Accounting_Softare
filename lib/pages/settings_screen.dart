@@ -706,10 +706,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildShortcutSelectorRow(KeyboardShortcutDefinition definition) {
-    final selectedKey = KeyboardShortcutService.shortcutFor(
+    // A saved shortcut can end up pointing at a key id that isn't in this
+    // action's own option list (e.g. leftover/stale preference data from an
+    // older build). DropdownButtonFormField crashes if its value isn't one
+    // of its items, so fall back to this action's default key in that case.
+    final storedKey = KeyboardShortcutService.shortcutFor(
       _keyboardSettings,
       definition.actionId,
     );
+    final selectedKey = definition.options.any((o) => o.id == storedKey)
+        ? storedKey
+        : (KeyboardShortcutService.defaultShortcuts[definition.actionId] ??
+            definition.options.first.id);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),

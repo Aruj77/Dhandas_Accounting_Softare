@@ -818,20 +818,11 @@ class _KeyboardScopeState extends State<KeyboardScope> {
       return false;
     }
 
-    if (!HardwareKeyboard.instance.isAltPressed) {
-      return false;
-    }
-
-    final command = KeyboardRegistry.instance.commandFor(
-      event,
-      only: widget.actionIds,
-    );
-
-    if (command != null) {
-      return false;
-    }
-
-    return true;
+    // Swallow every Alt+key combo here so Windows never gets to treat it as
+    // an unhandled menu-mnemonic accelerator (that's what triggers the
+    // system beep) — regardless of whether we have a mapped command for it.
+    // Actual dispatch still happens in `_handleKeyEvent` via the Focus tree.
+    return HardwareKeyboard.instance.isAltPressed;
   }
 
   @override

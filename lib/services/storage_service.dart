@@ -41,10 +41,25 @@ class StorageService {
 
   /// The single company row inside a per-company DB — created once when the
   /// company folder is set up, always id 1 in practice but fetched to be safe.
+  /// A company's .sqlite file should hold exactly one company row, but a
+  /// past bug (duplicate folder ids) could have left some files with more
+  /// than one. Rather than crash the whole app (getSingleOrNull throws on
+  /// 2+ rows), take the oldest row — the one everything was originally
+  /// saved against — and quietly soft-delete any duplicates so this file
+  /// self-heals over time.
   static Future<int> _requireCompanyId(AppDatabase db) async {
-    final row = await db.select(db.companies).getSingleOrNull();
-    if (row == null) throw StateError('Company database has no company row');
-    return row.id;
+    final rows =
+        await (db.select(db.companies)
+              ..where((c) => c.deletedAt.isNull())
+              ..orderBy([(c) => OrderingTerm.asc(c.id)]))
+            .get();
+    if (rows.isEmpty) throw StateError('Company database has no company row');
+    if (rows.length > 1) {
+      for (final extra in rows.skip(1)) {
+        await db.softDelete(db.companies, extra.id);
+      }
+    }
+    return rows.first.id;
   }
 
   static const Map<String, dynamic> defaultCompanyMasters = {
