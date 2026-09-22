@@ -4,6 +4,7 @@ from sqlalchemy import (
     ForeignKey,
     DateTime,
     Numeric,
+    JSON,
     Index,
 )
 from sqlalchemy.orm import Mapped, mapped_column

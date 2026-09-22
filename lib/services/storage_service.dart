@@ -1,15 +1,51 @@
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../database/app_database.dart';
 import '../utils/app_date_utils.dart';
+import 'company_directory_service.dart';
 
 class StorageService {
-  static const String _prefDirectoryKey = 'dhandas_data_directory_path';
-  static final AppDatabase _db = AppDatabase();
+  /// One open [AppDatabase] per company folder, keyed by folderId. Kept
+  /// alive across calls so switching back to a company doesn't reopen the
+  /// file every time; closed explicitly on directory migration.
+  static final Map<String, Future<AppDatabase>> _dbCache = {};
   static final Map<int, Map<String, dynamic>> _masterExtras = {};
+
+  static Future<AppDatabase?> _dbFor(String? folderPath) async {
+    final folderId = _folderId(folderPath);
+    if (folderId == null) return null;
+    return _dbCache.putIfAbsent(folderId, () async {
+      final root = await CompanyDirectoryService.getRootDirectory();
+      final file = CompanyDirectoryService.companyDbFile(root, folderId);
+      return AppDatabase.forFile(file);
+    });
+  }
+
+  static String? _folderId(String? folderPath) {
+    final s = folderPath?.trim();
+    if (s == null || s.isEmpty) return null;
+    return s;
+  }
+
+  /// Closes every open company DB connection. Must be called before moving
+  /// or deleting files on disk (e.g. directory migration) to release locks.
+  static Future<void> closeAll() async {
+    for (final future in _dbCache.values) {
+      final db = await future;
+      await db.close();
+    }
+    _dbCache.clear();
+  }
+
+  /// The single company row inside a per-company DB — created once when the
+  /// company folder is set up, always id 1 in practice but fetched to be safe.
+  static Future<int> _requireCompanyId(AppDatabase db) async {
+    final row = await db.select(db.companies).getSingleOrNull();
+    if (row == null) throw StateError('Company database has no company row');
+    return row.id;
+  }
 
   static const Map<String, dynamic> defaultCompanyMasters = {
     'debtors': [
@@ -126,27 +162,25 @@ class StorageService {
     ],
   };
 
-  static Future<String?> getSavedDirectory() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_prefDirectoryKey) ?? 'sqlite';
-  }
+  /// Root directory holding all company folders (saved pref, or a sane
+  /// default under the app's own documents dir — never bare "C:\").
+  static Future<String?> getSavedDirectory() =>
+      CompanyDirectoryService.getRootDirectory();
 
+  /// Directory migration: closes all open company DBs, moves every company
+  /// folder from the current root to [path], and remembers [path]. Safe to
+  /// call with the same path (no-op move).
   static Future<void> saveDirectory(String path) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_prefDirectoryKey, path);
+    final oldRoot = await CompanyDirectoryService.getRootDirectory();
+    await closeAll(); // release SQLite file locks before moving files
+    await CompanyDirectoryService.migrateRoot(oldRoot, path);
   }
 
   static String normalizeFySlug(String fy) =>
       fy.replaceAll(' ', '_').replaceAll('/', '-');
 
-  static Future<String> getNextCompanyFolderId(String baseDirectoryPath) async {
-    final row = await _db
-        .customSelect(
-          'SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM companies',
-        )
-        .getSingle();
-    return 'DB-${row.read<int>('next_id').toString().padLeft(4, '0')}';
-  }
+  static Future<String> getNextCompanyFolderId(String baseDirectoryPath) =>
+      CompanyDirectoryService.nextFolderId(baseDirectoryPath);
 
   static Future<String> saveCompanyLocally({
     required String directoryPath,
@@ -157,95 +191,111 @@ class StorageService {
                 AppDateUtils.defaultFinancialYear)
             .toString();
     final bounds = AppDateUtils.parseFinancialYearBounds(fy);
-    final companyId = await _db
-        .into(_db.companies)
-        .insert(
+    final name = (companyData['companyName'] ?? companyData['name'] ?? 'Untitled Company').toString();
+    final gstin = _blankToNull(companyData['gstin'] ?? companyData['gstNumber']);
+
+    final folderId = await CompanyDirectoryService.nextFolderId(directoryPath);
+    await CompanyDirectoryService.ensureCompanyFolder(directoryPath, folderId);
+    final db = (await _dbFor(folderId))!;
+
+    final companyId = await db.into(db.companies).insert(
           CompaniesCompanion.insert(
-            uuid: _db.newUuid(),
-            name:
-                (companyData['companyName'] ??
-                        companyData['name'] ??
-                        'Untitled Company')
-                    .toString(),
+            uuid: db.newUuid(),
+            name: name,
             fyStart: bounds.startDate,
-            gstin: Value(
-              _blankToNull(companyData['gstin'] ?? companyData['gstNumber']),
-            ),
+            gstin: Value(gstin),
             addressJson: Value(_addressJson(companyData)),
           ),
         );
-    await _seedCompanyMasters(companyId);
+    await _seedCompanyMasters(db, companyId);
     _masterExtras[companyId] = _defaultExtras();
-    return 'db:$companyId';
+
+    await CompanyDirectoryService.upsertRegistryEntry(directoryPath, {
+      'folder': folderId,
+      'companyName': name,
+      'name': name,
+      'gstin': gstin ?? '',
+      'fyStart': bounds.startDate.toIso8601String(),
+      'createdAt': DateTime.now().toIso8601String(),
+    });
+    return folderId;
   }
 
   static Future<void> updateCompanyLocally({
     required Map<String, dynamic> companyData,
   }) async {
-    final companyId = await _companyIdFromAny(
-      companyData['folderPath'] ?? companyData['companyId'],
-    );
-    if (companyId == null) return;
+    final folderId = companyData['folderPath'] ?? companyData['companyId'];
+    final db = await _dbFor(folderId?.toString());
+    if (db == null) return;
+    final companyId = await _requireCompanyId(db);
     final fy =
         (companyData['activeFinancialYear'] ??
                 AppDateUtils.defaultFinancialYear)
             .toString();
     final bounds = AppDateUtils.parseFinancialYearBounds(fy);
-    await (_db.update(
-      _db.companies,
+    final name = (companyData['companyName'] ?? companyData['name'] ?? 'Untitled Company').toString();
+    final gstin = _blankToNull(companyData['gstin'] ?? companyData['gstNumber']);
+    await (db.update(
+      db.companies,
     )..where((c) => c.id.equals(companyId))).write(
       CompaniesCompanion(
-        name: Value(
-          (companyData['companyName'] ??
-                  companyData['name'] ??
-                  'Untitled Company')
-              .toString(),
-        ),
-        gstin: Value(
-          _blankToNull(companyData['gstin'] ?? companyData['gstNumber']),
-        ),
+        name: Value(name),
+        gstin: Value(gstin),
         fyStart: Value(bounds.startDate),
         addressJson: Value(_addressJson(companyData)),
         updatedAt: Value(DateTime.now()),
       ),
     );
+    final root = await CompanyDirectoryService.getRootDirectory();
+    await CompanyDirectoryService.upsertRegistryEntry(root, {
+      'folder': folderId.toString(),
+      'companyName': name,
+      'name': name,
+      'gstin': gstin ?? '',
+      'fyStart': bounds.startDate.toIso8601String(),
+    });
   }
 
   static Future<void> deleteCompanyLocally({
     required Map<String, dynamic> companyData,
   }) async {
-    final companyId = await _companyIdFromAny(
-      companyData['folderPath'] ?? companyData['companyId'],
-    );
-    if (companyId != null) await _db.softDelete(_db.companies, companyId);
+    final folderId = (companyData['folderPath'] ?? companyData['companyId'])?.toString();
+    if (folderId == null) return;
+    final db = await _dbFor(folderId);
+    if (db != null) {
+      final companyId = await _requireCompanyId(db);
+      await db.softDelete(db.companies, companyId);
+    }
+    final root = await CompanyDirectoryService.getRootDirectory();
+    await CompanyDirectoryService.markDeleted(root, folderId);
   }
 
   static Future<Map<String, dynamic>> loadCompanyMasters({
     required String folderPath,
   }) async {
-    final companyId = await _companyIdFromAny(folderPath);
-    if (companyId == null)
-      return Map<String, dynamic>.from(defaultCompanyMasters);
-    await _seedCompanyMasters(companyId);
+    final db = await _dbFor(folderPath);
+    if (db == null) return Map<String, dynamic>.from(defaultCompanyMasters);
+    final companyId = await _requireCompanyId(db);
+    await _seedCompanyMasters(db, companyId);
 
     final groups =
-        await (_db.select(_db.accountGroups)..where(
+        await (db.select(db.accountGroups)..where(
               (g) => g.companyId.equals(companyId) & g.deletedAt.isNull(),
             ))
             .get();
     final groupById = {for (final g in groups) g.id: g};
     final accounts =
-        await (_db.select(_db.accounts)..where(
+        await (db.select(db.accounts)..where(
               (a) => a.companyId.equals(companyId) & a.deletedAt.isNull(),
             ))
             .get();
     final items =
-        await (_db.select(_db.items)..where(
+        await (db.select(db.items)..where(
               (i) => i.companyId.equals(companyId) & i.deletedAt.isNull(),
             ))
             .get();
     final godowns =
-        await (_db.select(_db.godowns)..where(
+        await (db.select(db.godowns)..where(
               (g) => g.companyId.equals(companyId) & g.deletedAt.isNull(),
             ))
             .get();
@@ -297,8 +347,9 @@ class StorageService {
     required String folderPath,
     required Map<String, dynamic> mastersData,
   }) async {
-    final companyId = await _companyIdFromAny(folderPath);
-    if (companyId == null) return;
+    final db = await _dbFor(folderPath);
+    if (db == null) return;
+    final companyId = await _requireCompanyId(db);
     _masterExtras[companyId] = Map<String, dynamic>.from(mastersData)
       ..remove('debtors')
       ..remove('creditors')
@@ -306,6 +357,7 @@ class StorageService {
       ..remove('accountGroups')
       ..remove('materialCenters');
     await _seedCompanyMasters(
+      db,
       companyId,
       groupNames: (mastersData['accountGroups'] as List? ?? []).map(
         (e) => e.toString(),
@@ -317,6 +369,7 @@ class StorageService {
     ]) {
       if (p is Map)
         await _ensureAccount(
+          db,
           companyId,
           p['name']?.toString() ?? '',
           p['group']?.toString() ?? 'Sundry Debtors',
@@ -326,6 +379,7 @@ class StorageService {
     for (final item in (mastersData['items'] as List? ?? [])) {
       if (item is Map) {
         await _ensureItem(
+          db,
           companyId,
           item['name']?.toString() ?? '',
           hsn: item['hsn']?.toString(),
@@ -335,7 +389,7 @@ class StorageService {
       }
     }
     for (final g in (mastersData['materialCenters'] as List? ?? [])) {
-      await _ensureGodown(companyId, g.toString());
+      await _ensureGodown(db, companyId, g.toString());
     }
   }
 
@@ -349,33 +403,36 @@ class StorageService {
     required String financialYear,
     required Map<String, dynamic> voucherData,
   }) async {
-    final companyId = await _companyIdFromAny(folderPath);
-    if (companyId == null) return;
-    await _seedCompanyMasters(companyId);
+    final db = await _dbFor(folderPath);
+    if (db == null) return;
+    final companyId = await _requireCompanyId(db);
+    await _seedCompanyMasters(db, companyId);
     final voucherTypeId = await _ensureVoucherType(
+      db,
       companyId,
       voucherData['voucherType']?.toString() ?? 'Sales',
     );
-    final partyId = await _ensurePartyFromVoucher(companyId, voucherData);
+    final partyId = await _ensurePartyFromVoucher(db, companyId, voucherData);
     final date =
         AppDateUtils.parseDate(voucherData['date']?.toString()) ??
         DateTime.now();
     final voucherNo = (voucherData['voucherNumber'] ?? '').toString();
     final uuid = (voucherData['id'] ?? '').toString();
 
-    await _db.transaction(() async {
+    await db.transaction(() async {
       var voucherId = await _findVoucherId(
+        db,
         companyId,
         voucherTypeId,
         uuid,
         voucherNo,
       );
       if (voucherId == null) {
-        voucherId = await _db
-            .into(_db.vouchers)
+        voucherId = await db
+            .into(db.vouchers)
             .insert(
               VouchersCompanion.insert(
-                uuid: uuid.length == 36 ? uuid : _db.newUuid(),
+                uuid: uuid.length == 36 ? uuid : db.newUuid(),
                 companyId: companyId,
                 voucherTypeId: voucherTypeId,
                 voucherNumber: voucherNo,
@@ -386,8 +443,8 @@ class StorageService {
               ),
             );
       } else {
-        await (_db.update(
-          _db.vouchers,
+        await (db.update(
+          db.vouchers,
         )..where((v) => v.id.equals(voucherId!))).write(
           VouchersCompanion(
             voucherNumber: Value(voucherNo),
@@ -399,16 +456,16 @@ class StorageService {
           ),
         );
         final existingVoucherId = voucherId;
-        await (_db.delete(
-          _db.voucherEntries,
+        await (db.delete(
+          db.voucherEntries,
         )..where((e) => e.voucherId.equals(existingVoucherId))).go();
       }
-      for (final line in await _voucherLines(companyId, voucherData, partyId)) {
-        await _db
-            .into(_db.voucherEntries)
+      for (final line in await _voucherLines(db, companyId, voucherData, partyId)) {
+        await db
+            .into(db.voucherEntries)
             .insert(
               VoucherEntriesCompanion.insert(
-                uuid: _db.newUuid(),
+                uuid: db.newUuid(),
                 voucherId: voucherId,
                 accountId: line.accountId,
                 drCr: line.drCr,
@@ -430,11 +487,12 @@ class StorageService {
     String? seriesName,
     required List<Map<String, dynamic>> vouchers,
   }) async {
-    final companyId = await _companyIdFromAny(folderPath);
-    if (companyId == null) return;
-    final typeId = await _ensureVoucherType(companyId, voucherType);
+    final db = await _dbFor(folderPath);
+    if (db == null) return;
+    final companyId = await _requireCompanyId(db);
+    final typeId = await _ensureVoucherType(db, companyId, voucherType);
     final rows =
-        await (_db.select(_db.vouchers)..where(
+        await (db.select(db.vouchers)..where(
               (v) =>
                   v.companyId.equals(companyId) &
                   v.voucherTypeId.equals(typeId),
@@ -445,7 +503,7 @@ class StorageService {
         .toSet();
     for (final row in rows) {
       if (!keep.contains(row.uuid) && !keep.contains(row.voucherNumber))
-        await _db.softDelete(_db.vouchers, row.id);
+        await db.softDelete(db.vouchers, row.id);
     }
   }
 
@@ -455,12 +513,13 @@ class StorageService {
     String? voucherType,
     String? seriesName,
   }) async {
-    final companyId = await _companyIdFromAny(folderPath);
-    if (companyId == null) return [];
-    final query = _db.select(_db.vouchers)
+    final db = await _dbFor(folderPath);
+    if (db == null) return [];
+    final companyId = await _requireCompanyId(db);
+    final query = db.select(db.vouchers)
       ..where((v) => v.companyId.equals(companyId) & v.deletedAt.isNull());
     if (voucherType != null) {
-      final typeId = await _ensureVoucherType(companyId, voucherType);
+      final typeId = await _ensureVoucherType(db, companyId, voucherType);
       query.where((v) => v.voucherTypeId.equals(typeId));
     }
     query.orderBy([
@@ -468,14 +527,15 @@ class StorageService {
       (v) => OrderingTerm.desc(v.id),
     ]);
     final vouchers = await query.get();
-    final types = await (_db.select(
-      _db.voucherTypes,
+    final types = await (db.select(
+      db.voucherTypes,
     )..where((t) => t.companyId.equals(companyId))).get();
     final typeById = {for (final t in types) t.id: t.name};
     final out = <Map<String, dynamic>>[];
     for (final v in vouchers) {
       out.add(
         await _voucherToMap(
+          db,
           v,
           typeById[v.voucherTypeId] ?? voucherType ?? 'Voucher',
         ),
@@ -484,36 +544,31 @@ class StorageService {
     return out;
   }
 
+  /// Fast list for the home screen: reads the JSON registry only — no
+  /// per-company SQLite file is opened just to show "recent companies".
   static Future<List<Map<String, dynamic>>> loadCompanies(
     String directoryPath,
   ) async {
-    final rows = await (_db.select(
-      _db.companies,
-    )..where((c) => c.deletedAt.isNull())).get();
-    return rows.map((c) {
-      final fy =
-          '${c.fyStart.year}-${(c.fyStart.year + 1).toString().substring(2)}';
+    final entries = await CompanyDirectoryService.listCompanies(directoryPath);
+    return entries.map((c) {
+      final fyStart = DateTime.tryParse(c['fyStart']?.toString() ?? '') ?? DateTime.now();
+      final fy = '${fyStart.year}-${(fyStart.year + 1).toString().substring(2)}';
+      final folder = c['folder'].toString();
       return {
-        'id': c.id,
-        'companyId': 'db:${c.id}',
-        'folderPath': 'db:${c.id}',
-        'companyName': c.name,
-        'name': c.name,
-        'gstin': c.gstin ?? '',
+        'id': folder,
+        'companyId': folder,
+        'folderPath': folder,
+        'companyName': c['companyName'] ?? c['name'] ?? '',
+        'name': c['name'] ?? c['companyName'] ?? '',
+        'gstin': c['gstin'] ?? '',
         'financialYears': AppDateUtils.defaultFinancialYears,
         'activeFinancialYear': fy,
       };
     }).toList();
   }
 
-  static Future<int?> _companyIdFromAny(Object? value) async {
-    final s = value?.toString() ?? '';
-    if (s.startsWith('db:')) return int.tryParse(s.substring(3));
-    if (s.startsWith('DB-')) return int.tryParse(s.substring(3));
-    return int.tryParse(s);
-  }
-
   static Future<void> _seedCompanyMasters(
+    AppDatabase db,
     int companyId, {
     Iterable<String> groupNames = const [],
   }) async {
@@ -534,11 +589,11 @@ class StorageService {
       ...defaults.keys,
       ...groupNames.where((e) => e.trim().isNotEmpty),
     }) {
-      await _ensureGroup(companyId, name, defaults[name] ?? 'expense');
+      await _ensureGroup(db, companyId, name, defaults[name] ?? 'expense');
     }
-    await _ensureAccount(companyId, 'Cash', 'Cash-in-hand');
-    await _ensureAccount(companyId, 'Sales', 'Sales Accounts');
-    await _ensureAccount(companyId, 'Purchase', 'Purchase Accounts');
+    await _ensureAccount(db, companyId, 'Cash', 'Cash-in-hand');
+    await _ensureAccount(db, companyId, 'Sales', 'Sales Accounts');
+    await _ensureAccount(db, companyId, 'Purchase', 'Purchase Accounts');
     for (final t in [
       'CGST',
       'SGST',
@@ -549,30 +604,32 @@ class StorageService {
       'Freight & Forwarding Charges',
     ]) {
       await _ensureAccount(
+        db,
         companyId,
         t,
         t == 'Discount' ? 'Direct Expenses' : 'Current Liabilities',
       );
     }
-    await _ensureGodown(companyId, 'Main Store');
+    await _ensureGodown(db, companyId, 'Main Store');
   }
 
   static Future<int> _ensureGroup(
+    AppDatabase db,
     int companyId,
     String name,
     String nature,
   ) async {
     final existing =
-        await (_db.select(_db.accountGroups)..where(
+        await (db.select(db.accountGroups)..where(
               (g) => g.companyId.equals(companyId) & g.name.equals(name),
             ))
             .getSingleOrNull();
     if (existing != null) return existing.id;
-    return _db
-        .into(_db.accountGroups)
+    return db
+        .into(db.accountGroups)
         .insert(
           AccountGroupsCompanion.insert(
-            uuid: _db.newUuid(),
+            uuid: db.newUuid(),
             companyId: companyId,
             name: name,
             nature: nature,
@@ -582,29 +639,31 @@ class StorageService {
   }
 
   static Future<int> _ensureAccount(
+    AppDatabase db,
     int companyId,
     String name,
     String groupName, {
     String? gstin,
   }) async {
     final clean = name.trim();
-    if (clean.isEmpty) return _ensureAccount(companyId, 'Cash', 'Cash-in-hand');
+    if (clean.isEmpty) return _ensureAccount(db, companyId, 'Cash', 'Cash-in-hand');
     final existing =
-        await (_db.select(_db.accounts)..where(
+        await (db.select(db.accounts)..where(
               (a) => a.companyId.equals(companyId) & a.name.equals(clean),
             ))
             .getSingleOrNull();
     if (existing != null) return existing.id;
     final groupId = await _ensureGroup(
+      db,
       companyId,
       groupName,
       _natureForGroup(groupName),
     );
-    return _db
-        .into(_db.accounts)
+    return db
+        .into(db.accounts)
         .insert(
           AccountsCompanion.insert(
-            uuid: _db.newUuid(),
+            uuid: db.newUuid(),
             companyId: companyId,
             groupId: groupId,
             name: clean,
@@ -614,6 +673,7 @@ class StorageService {
   }
 
   static Future<int> _ensureItem(
+    AppDatabase db,
     int companyId,
     String name, {
     String? hsn,
@@ -623,16 +683,16 @@ class StorageService {
     final clean = name.trim();
     if (clean.isEmpty) return 0;
     final existing =
-        await (_db.select(_db.items)..where(
+        await (db.select(db.items)..where(
               (i) => i.companyId.equals(companyId) & i.name.equals(clean),
             ))
             .getSingleOrNull();
     if (existing != null) return existing.id;
-    return _db
-        .into(_db.items)
+    return db
+        .into(db.items)
         .insert(
           ItemsCompanion.insert(
-            uuid: _db.newUuid(),
+            uuid: db.newUuid(),
             companyId: companyId,
             name: clean,
             hsnCode: Value(_blankToNull(hsn)),
@@ -642,38 +702,38 @@ class StorageService {
         );
   }
 
-  static Future<int> _ensureGodown(int companyId, String name) async {
+  static Future<int> _ensureGodown(AppDatabase db, int companyId, String name) async {
     final clean = name.trim();
     final existing =
-        await (_db.select(_db.godowns)..where(
+        await (db.select(db.godowns)..where(
               (g) => g.companyId.equals(companyId) & g.name.equals(clean),
             ))
             .getSingleOrNull();
     if (existing != null) return existing.id;
-    return _db
-        .into(_db.godowns)
+    return db
+        .into(db.godowns)
         .insert(
           GodownsCompanion.insert(
-            uuid: _db.newUuid(),
+            uuid: db.newUuid(),
             companyId: companyId,
             name: clean,
           ),
         );
   }
 
-  static Future<int> _ensureVoucherType(int companyId, String name) async {
+  static Future<int> _ensureVoucherType(AppDatabase db, int companyId, String name) async {
     final clean = name.trim().isEmpty ? 'Voucher' : name.trim();
     final existing =
-        await (_db.select(_db.voucherTypes)..where(
+        await (db.select(db.voucherTypes)..where(
               (t) => t.companyId.equals(companyId) & t.name.equals(clean),
             ))
             .getSingleOrNull();
     if (existing != null) return existing.id;
-    return _db
-        .into(_db.voucherTypes)
+    return db
+        .into(db.voucherTypes)
         .insert(
           VoucherTypesCompanion.insert(
-            uuid: _db.newUuid(),
+            uuid: db.newUuid(),
             companyId: companyId,
             name: clean,
             nature: _voucherNature(clean),
@@ -683,6 +743,7 @@ class StorageService {
   }
 
   static Future<int> _ensurePartyFromVoucher(
+    AppDatabase db,
     int companyId,
     Map<String, dynamic> voucher,
   ) {
@@ -693,6 +754,7 @@ class StorageService {
         ? 'Sundry Debtors'
         : 'Sundry Creditors';
     return _ensureAccount(
+      db,
       companyId,
       name.isEmpty ? 'Cash' : name,
       group,
@@ -701,19 +763,20 @@ class StorageService {
   }
 
   static Future<int?> _findVoucherId(
+    AppDatabase db,
     int companyId,
     int voucherTypeId,
     String uuid,
     String number,
   ) async {
     if (uuid.length == 36) {
-      final byUuid = await (_db.select(
-        _db.vouchers,
+      final byUuid = await (db.select(
+        db.vouchers,
       )..where((v) => v.uuid.equals(uuid))).getSingleOrNull();
       if (byUuid != null) return byUuid.id;
     }
     final byNumber =
-        await (_db.select(_db.vouchers)..where(
+        await (db.select(db.vouchers)..where(
               (v) =>
                   v.companyId.equals(companyId) &
                   v.voucherTypeId.equals(voucherTypeId) &
@@ -724,17 +787,20 @@ class StorageService {
   }
 
   static Future<List<_DbVoucherLine>> _voucherLines(
+    AppDatabase db,
     int companyId,
     Map<String, dynamic> v,
     int partyId,
   ) async {
     final isSales = _isSales(v['voucherType']?.toString() ?? '');
     final salesOrPurchase = await _ensureAccount(
+      db,
       companyId,
       isSales ? 'Sales' : 'Purchase',
       isSales ? 'Sales Accounts' : 'Purchase Accounts',
     );
     final godownId = await _ensureGodown(
+      db,
       companyId,
       (v['materialCenter'] ?? 'Main Store').toString(),
     );
@@ -746,6 +812,7 @@ class StorageService {
       if (item is! Map) continue;
       final amount = _num(item['taxable']);
       final itemId = await _ensureItem(
+        db,
         companyId,
         item['item']?.toString() ?? '',
         hsn: item['hsn']?.toString(),
@@ -771,6 +838,7 @@ class StorageService {
         lines.add(
           _DbVoucherLine(
             await _ensureAccount(
+              db,
               companyId,
               tax.toUpperCase(),
               'Current Liabilities',
@@ -789,6 +857,7 @@ class StorageService {
       lines.add(
         _DbVoucherLine(
           await _ensureAccount(
+            db,
             companyId,
             name,
             negative ? 'Direct Expenses' : 'Current Liabilities',
@@ -809,6 +878,7 @@ class StorageService {
       lines.add(
         _DbVoucherLine(
           await _ensureAccount(
+            db,
             companyId,
             diff > 0 ? 'Round Off-' : 'Round Off+',
             'Current Liabilities',
@@ -821,14 +891,15 @@ class StorageService {
   }
 
   static Future<Map<String, dynamic>> _voucherToMap(
+    AppDatabase db,
     Voucher v,
     String typeName,
   ) async {
-    final entries = await (_db.select(
-      _db.voucherEntries,
+    final entries = await (db.select(
+      db.voucherEntries,
     )..where((e) => e.voucherId.equals(v.id))).get();
-    final accounts = await _db.select(_db.accounts).get();
-    final items = await _db.select(_db.items).get();
+    final accounts = await db.select(db.accounts).get();
+    final items = await db.select(db.items).get();
     final accById = {for (final a in accounts) a.id: a};
     final itemById = {for (final i in items) i.id: i};
     final party = v.partyId == null ? '' : accById[v.partyId]?.name ?? '';

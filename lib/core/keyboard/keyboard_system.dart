@@ -809,10 +809,34 @@ class _KeyboardScopeState extends State<KeyboardScope> {
   void initState() {
     super.initState();
     _focusNode = FocusNode(debugLabel: 'GlobalKeyboardScope');
+
+    HardwareKeyboard.instance.addHandler(_globalKeyHandler);
+  }
+
+  bool _globalKeyHandler(KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return false;
+    }
+
+    if (!HardwareKeyboard.instance.isAltPressed) {
+      return false;
+    }
+
+    final command = KeyboardRegistry.instance.commandFor(
+      event,
+      only: widget.actionIds,
+    );
+
+    if (command != null) {
+      return false;
+    }
+
+    return true;
   }
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_globalKeyHandler);
     _focusNode.dispose();
     super.dispose();
   }

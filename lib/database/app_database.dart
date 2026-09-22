@@ -36,6 +36,16 @@ part 'app_database.g.dart';
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
+  /// Opens (or creates) the SQLite file for one specific company. Each
+  /// company gets its own isolated file — fast open/switch, small backups,
+  /// no cross-company locking.
+  factory AppDatabase.forFile(File file) {
+    return AppDatabase(LazyDatabase(() async {
+      await file.parent.create(recursive: true);
+      return NativeDatabase.createInBackground(file);
+    }));
+  }
+
   static const _uuid = Uuid();
   String newUuid() => _uuid.v4();
 
