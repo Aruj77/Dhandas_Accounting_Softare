@@ -1,3 +1,4 @@
+// desktop/lib/pages/company/voucher/voucher_list_screen.dart
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
@@ -21,6 +22,7 @@ import '../../../widgets/common/data_table_cells.dart';
 import '../../../widgets/common/quick_metric_badge.dart';
 import 'voucher_entry_screen.dart';
 import '../../../services/loading_service.dart';
+import '../../../services/sync_worker.dart';
 
 class VoucherListScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic> company;
@@ -58,6 +60,8 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
   List<FocusNode> _rowFocusNodes = [];
   late String _selectedSeries;
   List<String> _availableSeries = ['All', 'Main'];
+
+  SyncWorker? _cachedSyncWorker;
 
   final Map<String, String> _columnLabels = {
     'sno': 'S.No.',
@@ -106,8 +110,9 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final syncWorker = ref.read(syncWorkerProvider);
-      syncWorker?.onRemoteMutationReceived = () {
+      if (!mounted) return;
+      _cachedSyncWorker = ref.read(syncWorkerProvider);
+      _cachedSyncWorker?.onRemoteMutationReceived = () {
         if (mounted) {
           _loadVouchers();
         }
@@ -143,9 +148,9 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
 
   @override
   void dispose() {
-    final syncWorker = ref.read(syncWorkerProvider);
-    if (syncWorker?.onRemoteMutationReceived != null) {
-      syncWorker?.onRemoteMutationReceived = null;
+    // Safe cleanup using cached worker reference instead of calling ref.read() post-disposal
+    if (_cachedSyncWorker?.onRemoteMutationReceived != null) {
+      _cachedSyncWorker?.onRemoteMutationReceived = null;
     }
 
     _searchCtrl.dispose();

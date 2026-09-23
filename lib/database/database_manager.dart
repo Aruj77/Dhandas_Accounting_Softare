@@ -38,11 +38,10 @@ class DatabaseManager {
       return AppDatabase(NativeDatabase.createInBackground(
         file,
         setup: (rawDb) {
-          // Tune SQLite pragma flags for desktop read/write performance
           rawDb.execute('PRAGMA journal_mode = WAL;');
           rawDb.execute('PRAGMA synchronous = NORMAL;');
           rawDb.execute('PRAGMA temp_store = MEMORY;');
-          rawDb.execute('PRAGMA cache_size = -64000;'); // 64MB memory page cache
+          rawDb.execute('PRAGMA cache_size = -64000;');
         },
       ));
     });

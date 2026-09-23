@@ -25,6 +25,7 @@ import 'company/reports_dashboard_screen.dart';
 import 'company/voucher/voucher_entry_screen.dart';
 import 'company/voucher/voucher_list_screen.dart';
 import 'company/masters_dashboard_screen.dart';
+import 'company/gstr2b_reconciliation_screen.dart';
 
 class _ListParams {
   final String voucherType;
@@ -474,6 +475,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           subtitle: 'Stock items, HSN codes, batches, and unit measurements.',
         ),
         ReportsDashboardScreen(company: _activeCompany!),
+        const Gstr2bReconciliationScreen(),
         AdministrationScreen(
           company: _activeCompany!,
           onCompanyUpdated: (updated) {

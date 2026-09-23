@@ -9,7 +9,7 @@ import '../database/app_database.dart';
 class StorageService {
   static const String _prefDirectoryKey = 'dhandas_data_directory_path';
   static final Map<String, Map<String, dynamic>> _mastersMemoryCache = {};
-  
+
   static const Map<String, dynamic> defaultCompanyMasters = {
     'debtors': [
       {'name': 'Cash', 'gstin': '', 'group': 'Cash-in-hand'},
@@ -146,7 +146,6 @@ class StorageService {
     final baseDir = Directory(directoryPath);
     if (!await baseDir.exists()) await baseDir.create(recursive: true);
 
-    // Get the next guaranteed unique folder ID (e.g., DHAN-001 -> DHAN-002)
     final folderId = await getNextCompanyFolderId(directoryPath);
     final companyDir = Directory('${baseDir.path}${Platform.pathSeparator}$folderId');
     
@@ -307,7 +306,7 @@ class StorageService {
   }
 
   static Future<List<Map<String, dynamic>>> loadVouchers({
-  required String folderPath,
+    required String folderPath,
     required String financialYear,
     String? voucherType,
     String? seriesName,
@@ -325,12 +324,13 @@ class StorageService {
       }
       return [];
     }
+    
     await for (final entity in fyDir.list()) {
       if (entity is File && entity.path.endsWith('.sqlite')) {
         final fileName = entity.uri.pathSegments.last.toLowerCase();
         
-        if (voucherType != null) {
-          final targetBase = voucherType.toLowerCase().contains('sale') ? 'sales' : 'purchase';
+        if (voucherType != null && voucherType.toLowerCase() != 'all') {
+          final targetBase = resolveVoucherFileName(voucherType, seriesName).split('_').first;
           if (!fileName.contains(targetBase)) continue;
         }
         if (seriesName != null && seriesName.toLowerCase() != 'all') {
@@ -354,7 +354,6 @@ class StorageService {
         vouchers.add(jsonDecode(r.payloadJson) as Map<String, dynamic>);
       }
     } catch (_) {
-      // Handle read errors silently or log in debug mode
     } finally {
       await db.close();
     }
