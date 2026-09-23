@@ -131,7 +131,7 @@ class ScanAiService {
 
     http.StreamedResponse streamed;
     try {
-      streamed = await request.send().timeout(const Duration(seconds: 40));
+      streamed = await request.send().timeout(const Duration(seconds: 120));
     } catch (e) {
       throw ScanAiException(
           'Could not reach the OCR server at $_baseUrl. Ensure the Python server is running ($e).');

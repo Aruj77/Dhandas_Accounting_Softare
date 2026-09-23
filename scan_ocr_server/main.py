@@ -28,6 +28,133 @@ def run_ocr(image: Image.Image) -> str:
     return "\n".join([r[1] for r in result if r[1].strip()])
 
 
+def run_ocr_boxes(image: Image.Image) -> List[Dict]:
+    """Run OCR and keep each detected box's text + position so table rows/columns
+    can be reconstructed. Plain run_ocr() loses this and is why image / scanned
+    invoices could not extract line items reliably."""
+    engine = get_ocr_engine()
+    arr = np.array(image.convert("RGB"))
+    result, _ = engine(arr)
+    boxes = []
+    if not result:
+        return boxes
+    for box, text, _conf in result:
+        text = str(text).strip()
+        if not text:
+            continue
+        xs = [p[0] for p in box]
+        ys = [p[1] for p in box]
+        boxes.append({
+            "text": text,
+            "x": min(xs),
+            "y": (min(ys) + max(ys)) / 2.0,
+            "h": max(ys) - min(ys) or 10.0,
+        })
+    return boxes
+
+
+def group_boxes_into_rows(boxes: List[Dict]) -> List[List[Dict]]:
+    boxes = sorted(boxes, key=lambda b: b["y"])
+    rows: List[List[Dict]] = []
+    for b in boxes:
+        placed = False
+        for row in rows:
+            ref_y = sum(r["y"] for r in row) / len(row)
+            avg_h = sum(r["h"] for r in row) / len(row)
+            if abs(b["y"] - ref_y) < max(avg_h, 10) * 0.6:
+                row.append(b)
+                placed = True
+                break
+        if not placed:
+            rows.append([b])
+    for row in rows:
+        row.sort(key=lambda b: b["x"])
+    rows.sort(key=lambda row: sum(b["y"] for b in row) / len(row))
+    return rows
+
+
+def extract_items_from_ocr_rows(rows: List[List[Dict]]) -> List[Dict]:
+    """Reconstruct a line-item table from OCR'd word/line boxes. This is the
+    fallback used for scanned PDFs and photographed/image invoices, where
+    there is no vector table and text has no pipe/column separators."""
+    header_idx = -1
+    col_map: Dict[str, int] = {}
+    header_kw = ["item", "description", "particular", "hsn", "qty", "quantity",
+                 "rate", "price", "unit", "gst", "amount"]
+
+    for i, row in enumerate(rows):
+        texts = [c["text"].lower() for c in row]
+        hits = sum(1 for t in texts for k in header_kw if k in t)
+        if hits >= 2 and len(row) >= 3:
+            header_idx = i
+            for idx, t in enumerate(texts):
+                if "name" not in col_map and any(k in t for k in ["item", "description", "particular"]):
+                    col_map["name"] = idx
+                elif "hsn" not in col_map and "hsn" in t:
+                    col_map["hsn"] = idx
+                elif "qty" not in col_map and ("qty" in t or "quantity" in t):
+                    col_map["qty"] = idx
+                elif "unit" not in col_map and "unit" in t:
+                    col_map["unit"] = idx
+                elif "rate" not in col_map and ("rate" in t or "price" in t):
+                    col_map["rate"] = idx
+                elif "tax" not in col_map and ("gst" in t or "%" in t or "tax" in t):
+                    col_map["tax"] = idx
+            break
+
+    if header_idx == -1 or "name" not in col_map:
+        return []
+
+    stop_kw = ["total", "taxable", "cgst", "sgst", "subtotal", "amount in words", "grand total"]
+    items = []
+    for row in rows[header_idx + 1:]:
+        texts = [c["text"] for c in row]
+        joined_low = " ".join(texts).lower()
+        if any(k in joined_low for k in stop_kw):
+            break
+        if len(texts) < 2:
+            continue
+
+        def col(key: str, default: str = "") -> str:
+            idx = col_map.get(key)
+            return texts[idx] if idx is not None and idx < len(texts) else default
+
+        name = col("name")
+        if not name or name.isdigit() or len(name) < 2:
+            alpha_cells = [t for t in texts if not t.replace(".", "").replace(",", "").isdigit() and len(t) > 2]
+            name = max(alpha_cells, key=len) if alpha_cells else ""
+        if not name or len(name) < 2 or name.isdigit():
+            continue
+
+        hsn = col("hsn")
+        if hsn and not re.match(r"^\d{4,8}$", hsn):
+            hsn = ""
+        if not hsn:
+            for t in texts:
+                if re.match(r"^\d{4,8}$", t):
+                    hsn = t
+                    break
+
+        qty = _clean_num(col("qty", "1")) or 1.0
+        unit = col("unit", "PCS").upper()
+        rate = _clean_num(col("rate", "0"))
+
+        tax = 18.0
+        t_m = re.findall(r"(\d{1,2})\s*%", col("tax", ""))
+        if t_m:
+            tax = float(t_m[0])
+
+        items.append({
+            "name": name.strip(),
+            "hsn": hsn,
+            "qty": qty if qty > 0 else 1.0,
+            "unit": unit if len(unit) <= 5 else "PCS",
+            "rate": rate,
+            "taxRatePercent": tax,
+        })
+    return items
+
+
 def _clean_num(val_str: str) -> float:
     try:
         cleaned = re.sub(r"[^\d.]", "", val_str)
@@ -38,6 +165,43 @@ def _clean_num(val_str: str) -> float:
 
 GSTIN_RE = re.compile(r"\b\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z\d]\b", re.I)
 DATE_RE = re.compile(r"\b(\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4})\b")
+
+# Matches a line-item row that is on a SINGLE line with space-separated
+# columns, e.g. "1  LED Panel Light 18W  94054090  25  PCS  420.00  10,500.00  18%".
+# This is the common shape for real (digital-text) PDF invoices that have no
+# visible ruling lines, so fitz.find_tables() can't detect a table and the
+# old pipe-only fallback never matched them either.
+ITEM_LINE_RE = re.compile(
+    r"^\s*\d{0,3}\.?\s+"
+    r"(?P<name>[A-Za-z][A-Za-z0-9\s\-&/().]{1,60}?)\s+"
+    r"(?:(?P<hsn>\d{4,8})\s+)?"
+    r"(?P<qty>\d+(?:\.\d+)?)\s+"
+    r"(?P<unit>[A-Za-z]{2,6})\s+"
+    r"(?P<rate>[\d,]+(?:\.\d{1,2})?)\s+"
+    r"(?:(?P<taxable>[\d,]+(?:\.\d{1,2})?)\s+)?"
+    r"(?P<gst>\d{1,2})\s*%\s*$"
+)
+
+
+def extract_items_from_text_lines(lines: List[str]) -> List[Dict]:
+    items = []
+    for l in lines:
+        m = ITEM_LINE_RE.match(l)
+        if not m:
+            continue
+        name = m.group("name").strip()
+        if not name or name.isdigit() or len(name) < 2:
+            continue
+        unit = m.group("unit").upper()
+        items.append({
+            "name": name,
+            "hsn": m.group("hsn") or "",
+            "qty": _clean_num(m.group("qty")) or 1.0,
+            "unit": unit if len(unit) <= 5 else "PCS",
+            "rate": _clean_num(m.group("rate")),
+            "taxRatePercent": float(m.group("gst")),
+        })
+    return items
 
 
 def extract_tables_from_pdf(doc: fitz.Document) -> List[Dict]:
@@ -171,6 +335,9 @@ def parse_invoice_text(raw_text: str, pre_extracted_items: Optional[List[Dict]] 
                 break
 
     party_name = re.sub(r"^(?:bill\s*to|buyer|customer)[\s.:]*", "", party_name, flags=re.I).strip()
+    # Two-column headers (e.g. "Bill To ... | Due Date ...") put unrelated
+    # text on the same line separated by a wide gap; cut it off there.
+    party_name = re.split(r"\s{2,}", party_name)[0].strip()
 
     # 5. Sundries (Discount & Freight)
     sundries: List[Dict] = []
@@ -191,6 +358,9 @@ def parse_invoice_text(raw_text: str, pre_extracted_items: Optional[List[Dict]] 
 
     # 6. Items Resolution
     items = pre_extracted_items or []
+
+    if not items:
+        items = extract_items_from_text_lines(lines)
 
     if not items:
         pipe_cells = []
@@ -259,17 +429,40 @@ async def scan(file: UploadFile = File(...)) -> Dict:
         raise HTTPException(400, "Empty file")
 
     filename = (file.filename or "invoice.pdf").lower()
-    pre_extracted_items = []
+    pre_extracted_items: List[Dict] = []
+    ocr_texts: List[str] = []
 
     try:
         if filename.endswith(".pdf") or file.content_type == "application/pdf":
             doc = fitz.open(stream=data, filetype="pdf")
             pre_extracted_items = extract_tables_from_pdf(doc)
             raw_text = "\n".join([page.get_text("text") for page in doc]).strip()
+
+            # A scanned/photographed PDF has little to no extractable text and
+            # no vector tables (find_tables needs real text). Previously this
+            # meant such files silently returned zero items even though the
+            # digital-PDF path worked fine - render each page and OCR it.
+            needs_ocr_fallback = (not pre_extracted_items) and len(raw_text) < 40
+            if needs_ocr_fallback:
+                ocr_rows: List[List[Dict]] = []
+                page_limit = min(len(doc), 15)  # keep it scalable/bounded
+                for page in doc[:page_limit]:
+                    pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
+                    img = Image.open(io.BytesIO(pix.tobytes("png")))
+                    boxes = run_ocr_boxes(img)
+                    ocr_texts.append("\n".join(b["text"] for b in boxes))
+                    ocr_rows.extend(group_boxes_into_rows(boxes))
+                if ocr_rows:
+                    pre_extracted_items = extract_items_from_ocr_rows(ocr_rows)
+                if not raw_text.strip():
+                    raw_text = "\n".join(ocr_texts).strip()
             doc.close()
         else:
             img = Image.open(io.BytesIO(data))
-            raw_text = run_ocr(img)
+            boxes = run_ocr_boxes(img)
+            raw_text = "\n".join(b["text"] for b in boxes)
+            rows = group_boxes_into_rows(boxes)
+            pre_extracted_items = extract_items_from_ocr_rows(rows)
     except Exception as e:
         raise HTTPException(422, f"Could not read document: {e}")
 
