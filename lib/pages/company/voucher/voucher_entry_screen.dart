@@ -19,7 +19,6 @@ import '../../../services/voucher_calculation_service.dart';
 import '../../../services/voucher_numbering_service.dart';
 import '../../../utils/app_date_utils.dart';
 import '../../../utils/gst_party_utils.dart';
-import '../../../utils/voucher_master_actions.dart';
 import '../../../widgets/voucher/popup/add_item_dialog.dart';
 import '../../../widgets/voucher/popup/add_party_dialog.dart';
 import '../../../widgets/voucher/popup/add_series_dialog.dart';
@@ -151,7 +150,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     if (widget.isEdit && widget.voucherToEdit != null) {
       _loadExistingVoucherData(widget.voucherToEdit!);
     } else {
-      _loadCompanyMastersOnly().then((_) => _initializeNewVoucher());
+      _loadCompanyMastersOnly(showLoading: true).then((_) => _initializeNewVoucher());
     }
   }
 
@@ -160,7 +159,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     super.didUpdateWidget(oldWidget);
     if (!const DeepCollectionEquality().equals(oldWidget.company, widget.company) ||
         oldWidget.voucherType != widget.voucherType) {
-      _loadCompanyMastersOnly().then((_) {
+      _loadCompanyMastersOnly(showLoading: false).then((_) {
         if (mounted) {
           setState(() {
             _checkGstMode(autoAdjustSaleType: true);
@@ -186,6 +185,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     super.dispose();
   }
 
+  // --- String Formatting & Lookup Helpers ---
   String _formatPartyDisplay(String name, String gstin) {
     final cleanName = GstPartyUtils.extractPartyName(name).trim();
     final cleanGstin = gstin.trim().isNotEmpty
@@ -219,6 +219,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     };
   }
 
+  // --- Calculation Pipeline ---
   void _scheduleRecalculation([VoidCallback? action]) {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 100), () {
@@ -323,6 +324,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     );
   }
 
+  // --- Data Loading & Hydration ---
   void _loadExistingVoucherData(Map<String, dynamic> v) {
     if (!mounted) return;
     setState(() {
@@ -390,12 +392,12 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
       _addSundryRow();
     }
 
-    _loadCompanyMastersOnly();
+    _loadCompanyMastersOnly(showLoading: false);
     _calculateAllTotals();
   }
 
-  Future<void> _loadCompanyMastersOnly() async {
-    await LoadingService.wrap(() async {
+  Future<void> _loadCompanyMastersOnly({bool showLoading = false}) async {
+    Future<void> doLoad() async {
       final folderPath = _currentCompany['folderPath'];
       if (folderPath == null) return;
       final raw = await StorageService.loadCompanyMasters(folderPath: folderPath);
@@ -457,60 +459,62 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
       }
 
       if (mounted) setState(() {});
-    }, message: 'Loading Master Records...');
+    }
+
+    if (showLoading) {
+      await LoadingService.wrap(doLoad, message: 'Loading Master Records...');
+    } else {
+      await doLoad();
+    }
   }
 
   Future<void> _syncMastersToFile() async {
-    await LoadingService.wrap(() async {
-      final folderPath = _currentCompany['folderPath'];
-      if (folderPath == null) return;
-      _rebuildFastLookupCaches();
-      await StorageService.saveCompanyMasters(
-        folderPath: folderPath,
-        mastersData: {
-          'debtors': _debtorsList
-              .map((d) => {'name': d.name, 'gstin': d.gstin, 'group': d.group})
-              .toList(),
-          'creditors': _creditorsList
-              .map((c) => {'name': c.name, 'gstin': c.gstin, 'group': c.group})
-              .toList(),
-          'items': _itemsMasterList
-              .map((i) => {
-                    'name': i.name,
-                    'hsn': i.hsn,
-                    'unit': i.unit,
-                    'taxCategory': i.taxCategory,
-                    'taxRate': i.taxRate,
-                    'salesPrice': i.salesPrice,
-                    'purchasePrice': i.purchasePrice,
-                    'mrp': i.mrp,
-                  })
-              .toList(),
-          'series': _availableSeries,
-          'seriesSettings': _seriesSettings,
-          'saleTypes': _availableSaleTypes,
-          'billSundries': _availableSundries,
-          'materialCenters': _availableMaterialCenters,
-          'units': _availableUnits,
-          'taxCategories': _availableTaxCategories,
-          'accountGroups': _availableAccountGroups,
-        },
-      );
-    }, message: 'Updating Masters Records...');
+    final folderPath = _currentCompany['folderPath'];
+    if (folderPath == null) return;
+    _rebuildFastLookupCaches();
+    await StorageService.saveCompanyMasters(
+      folderPath: folderPath,
+      mastersData: {
+        'debtors': _debtorsList
+            .map((d) => {'name': d.name, 'gstin': d.gstin, 'group': d.group})
+            .toList(),
+        'creditors': _creditorsList
+            .map((c) => {'name': c.name, 'gstin': c.gstin, 'group': c.group})
+            .toList(),
+        'items': _itemsMasterList
+            .map((i) => {
+                  'name': i.name,
+                  'hsn': i.hsn,
+                  'unit': i.unit,
+                  'taxCategory': i.taxCategory,
+                  'taxRate': i.taxRate,
+                  'salesPrice': i.salesPrice,
+                  'purchasePrice': i.purchasePrice,
+                  'mrp': i.mrp,
+                })
+            .toList(),
+        'series': _availableSeries,
+        'seriesSettings': _seriesSettings,
+        'saleTypes': _availableSaleTypes,
+        'billSundries': _availableSundries,
+        'materialCenters': _availableMaterialCenters,
+        'units': _availableUnits,
+        'taxCategories': _availableTaxCategories,
+        'accountGroups': _availableAccountGroups,
+      },
+    );
   }
 
   Future<void> _autogenerateVoucherNumber(String seriesName) async {
-    await LoadingService.wrap(() async {
-      final nextNo = await VoucherNumberingService.autogenerate(
-        company: _currentCompany,
-        voucherType: widget.voucherType,
-        seriesName: seriesName,
-        seriesSettings: _seriesSettings[seriesName] ?? {},
-      );
-      if (nextNo != null && mounted) {
-        setState(() => _h.vchNo.text = nextNo);
-      }
-    }, message: '');
+    final nextNo = await VoucherNumberingService.autogenerate(
+      company: _currentCompany,
+      voucherType: widget.voucherType,
+      seriesName: seriesName,
+      seriesSettings: _seriesSettings[seriesName] ?? {},
+    );
+    if (nextNo != null && mounted) {
+      setState(() => _h.vchNo.text = nextNo);
+    }
   }
 
   void _attachItemRowListeners(VoucherItemRow row) {
@@ -652,6 +656,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     });
   }
 
+  // --- Header Field Listeners & Party Selection Sync ---
   void _attachHeaderListeners() {
     _h.dateFocus.addListener(() {
       if (!_h.dateFocus.hasFocus) _parseAndValidateDate();
@@ -697,7 +702,8 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
         message:
             '"$text" does not exist in your account ledger masters. Would you like to add it now?',
         onAdd: () async {
-          if (!(await _openAddPartyDialog())) {
+          final added = await _openAddPartyDialog();
+          if (!added) {
             _h.party.clear();
             _h.partyFocus.requestFocus();
           }
@@ -1111,36 +1117,36 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
           folderPath: _currentCompany['folderPath'],
           isEdit: existingItem != null,
           initialItem: existingItem,
+          onItemCreated: (data) async {
+            // Silently refresh masters without showing nested modal LoadingService dialogs
+            await _loadCompanyMastersOnly(showLoading: false);
+            if (!mounted) return;
+            setState(() {
+              _rebuildFastLookupCaches();
+              int targetIndex = index;
+              if (targetIndex < 0) {
+                final emptyIdx =
+                    _items.indexWhere((r) => r.item.text.trim().isEmpty);
+                targetIndex = emptyIdx != -1 ? emptyIdx : _items.length;
+              }
+              while (targetIndex >= _items.length) {
+                _addItemRow();
+              }
+
+              final itemName = data['name']?.toString() ?? '';
+              _items[targetIndex].item.text = itemName;
+
+              final matched = _itemCache[itemName.toLowerCase().trim()];
+              if (matched != null) _onItemMasterSelected(targetIndex, matched);
+            });
+            created = true;
+            _notify(existingItem != null
+                ? 'Item updated!'
+                : 'Registered: ${data['name']}');
+          },
         ),
       );
-
-      if (itemData != null && mounted) {
-        created = true;
-        await _loadCompanyMastersOnly();
-        if (!mounted) return created;
-        setState(() {
-          _rebuildFastLookupCaches();
-          int targetIndex = index;
-          if (targetIndex < 0) {
-            final emptyIdx =
-                _items.indexWhere((r) => r.item.text.trim().isEmpty);
-            targetIndex = emptyIdx != -1 ? emptyIdx : _items.length;
-          }
-          while (targetIndex >= _items.length) {
-            _addItemRow();
-          }
-
-          final itemName = itemData['name']?.toString() ?? '';
-          _items[targetIndex].item.text = itemName;
-
-          final matched = _itemCache[itemName.toLowerCase().trim()];
-          if (matched != null) _onItemMasterSelected(targetIndex, matched);
-        });
-
-        _notify(existingItem != null
-            ? 'Item updated!'
-            : 'Registered: ${itemData['name']}');
-      }
+      if (itemData != null) created = true;
     } finally {
       _isItemDialogOpen = false;
     }
@@ -1154,18 +1160,13 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     final folderPath = _currentCompany['folderPath']?.toString();
 
     try {
-      await showDialog(
+      final result = await showDialog<Map<String, dynamic>>(
         context: context,
-        builder: (dialogContext) => AddPartyDialog(
+        builder: (_) => AddPartyDialog(
           voucherType: widget.voucherType,
           isEdit: existingParty != null,
           initialParty: existingParty,
           onPartyCreated: (data) async {
-            created = true;
-            if (dialogContext.mounted && Navigator.of(dialogContext).canPop()) {
-              Navigator.of(dialogContext).pop(data);
-            }
-
             if (folderPath != null && folderPath.isNotEmpty) {
               try {
                 final raw =
@@ -1200,7 +1201,9 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
               }
             }
 
-            await _loadCompanyMastersOnly();
+            // Silently reload without modal LoadingService
+            await _loadCompanyMastersOnly(showLoading: false);
+
             if (!mounted) return;
             setState(() {
               _rebuildFastLookupCaches();
@@ -1211,12 +1214,14 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
               _refreshTaxesOnAllRows();
             });
 
+            created = true;
             _notify(existingParty != null
                 ? 'Party updated!'
                 : 'Registered: ${data['name']}');
           },
         ),
       );
+      if (result != null) created = true;
     } finally {
       _isPartyDialogOpen = false;
     }
@@ -1235,11 +1240,8 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
         _isSeriesDialogOpen = true;
         showDialog(
           context: context,
-          builder: (dialogContext) => AddSeriesDialog(
+          builder: (_) => AddSeriesDialog(
             onSeriesCreated: (data) async {
-              if (dialogContext.mounted && Navigator.of(dialogContext).canPop()) {
-                Navigator.of(dialogContext).pop(true);
-              }
               final name = data['name']?.toString() ?? 'Main';
               if (!mounted) return;
               setState(() {
@@ -1293,6 +1295,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
   }
 
   bool _handleAltE() {
+    // 1. Party field modification
     if (_h.partyFocus.hasFocus) {
       final partyText = _h.party.text.trim();
       if (partyText.isNotEmpty) {
@@ -1304,6 +1307,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
       }
     }
 
+    // 2. Line Items modification
     for (int i = 0; i < _items.length; i++) {
       final r = _items[i];
       final isItemRowFocused = [
@@ -1337,51 +1341,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
       }
     }
 
-    final cleanPartyName = GstPartyUtils.extractPartyName(_h.party.text).trim();
-    final sanitizedPartyController = TextEditingController(
-      text: cleanPartyName.isNotEmpty ? cleanPartyName : _h.party.text.trim(),
-    );
-
-    try {
-      return VoucherMasterActions.handleAltE(
-        context: context,
-        company: _currentCompany,
-        partyFocus: _h.partyFocus,
-        partyController: sanitizedPartyController,
-        availableParties: _currentParties,
-        voucherType: widget.voucherType,
-        items: _items,
-        itemsMasterList: _itemsMasterList,
-        onPartyUpdated: (updated) async {
-          await _loadCompanyMastersOnly();
-          if (!mounted) return;
-          setState(() {
-            _h.party.text = _formatPartyDisplay(updated.name, updated.gstin);
-            _checkGstMode(autoAdjustSaleType: true);
-            _refreshTaxesOnAllRows();
-          });
-        },
-        onItemUpdated: (i, updated) async {
-          await _loadCompanyMastersOnly();
-          if (!mounted) return;
-          setState(() {
-            for (final r in _items.where((r) {
-              final n = r.item.text.trim().toLowerCase();
-              return n == updated.name.trim().toLowerCase();
-            })) {
-              r.item.text = updated.name;
-              r.hsn = updated.hsn;
-              r.unit.text = updated.unit;
-              r.gstRate = updated.taxRate;
-            }
-            _onItemMasterSelected(i, updated);
-          });
-        },
-        onSyncMasters: () async => await _loadCompanyMastersOnly(),
-      );
-    } finally {
-      sanitizedPartyController.dispose();
-    }
+    return false;
   }
 
   void _showValidationError(String msg, FocusNode? focus) {
@@ -1688,7 +1648,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
   Widget build(BuildContext context) {
     ref.listen<Map<String, dynamic>?>(activeCompanyProvider, (previous, next) {
       if (next != null && !const DeepCollectionEquality().equals(previous, next)) {
-        _loadCompanyMastersOnly().then((_) {
+        _loadCompanyMastersOnly(showLoading: false).then((_) {
           if (mounted) {
             setState(() {
               _checkGstMode(autoAdjustSaleType: true);
