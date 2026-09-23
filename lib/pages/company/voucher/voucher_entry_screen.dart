@@ -1140,27 +1140,21 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     );
   }
 
-  Future<bool> _openAddItemDialog(int index) async {
+  Future<bool> _openAddItemDialog(int index, [ItemMasterModel? existingItem]) async {
     bool created = false;
     await showDialog(
       context: context,
       builder: (_) => AddItemDialog(
         company: widget.company,
+        folderPath: widget.company['folderPath'],
+        isEdit: existingItem != null,
+        initialItem: existingItem,
         onItemCreated: (itemData) async {
-          final newModel = ItemMasterModel(
-            name: itemData['name'],
-            hsn: itemData['hsn'],
-            unit: itemData['unit'],
-            taxCategory: itemData['taxCategory'],
-            taxRate: itemData['taxRate'],
-            salesPrice: itemData['salesPrice'],
-            purchasePrice: itemData['purchasePrice'],
-            mrp: itemData['mrp'],
-          );
+          // Immediately reload from disk to reflect freshly saved masters
+          await _loadCompanyMastersOnly();
 
           if (!mounted) return;
           setState(() {
-            _itemsMasterList.add(newModel);
             _rebuildFastLookupCaches();
             int targetIndex = index;
             if (targetIndex < 0) {
@@ -1172,43 +1166,65 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
               _addItemRow();
             }
 
-            _items[targetIndex].item.text = newModel.name;
-            _onItemMasterSelected(targetIndex, newModel);
+            final itemName = itemData['name']?.toString() ?? '';
+            _items[targetIndex].item.text = itemName;
+
+            final matched = _itemCache[itemName.toLowerCase().trim()];
+            if (matched != null) {
+              _onItemMasterSelected(targetIndex, matched);
+            }
           });
 
-          await _syncMastersToFile();
-          if (!mounted) return;
           created = true;
-          _notify('Registered: ${newModel.name}');
+          _notify(existingItem != null ? 'Item updated!' : 'Registered: ${itemData['name']}');
         },
       ),
     );
     return created;
   }
 
-  Future<bool> _openAddPartyDialog() async {
+  Future<bool> _openAddPartyDialog([PartyMasterModel? existingParty]) async {
     bool created = false;
+    final folderPath = widget.company['folderPath']?.toString();
+
     await showDialog(
       context: context,
       builder: (_) => AddPartyDialog(
         voucherType: widget.voucherType,
+        isEdit: existingParty != null,
+        initialParty: existingParty,
         onPartyCreated: (data) async {
-          final model = PartyMasterModel(
-            name: data['name'] ?? '',
-            gstin: data['gstin'] ?? '',
-            group: data['group'] ??
-                (_isSalesVoucher ? 'Sundry Debtors' : 'Sundry Creditors'),
-          );
+          // If creating a new party, persist it directly to disk
+          if (existingParty == null && folderPath != null && folderPath.isNotEmpty) {
+            try {
+              final raw = await StorageService.loadCompanyMasters(folderPath: folderPath);
+              final isCreditor = (data['group'] ?? '').toString().toLowerCase().contains('creditor');
+              final listKey = isCreditor ? 'creditors' : 'debtors';
+
+              final list = (raw[listKey] as List? ?? [])
+                  .map((e) => Map<String, dynamic>.from(e as Map))
+                  .toList();
+
+              list.add(data);
+              raw[listKey] = list;
+              await StorageService.saveCompanyMasters(folderPath: folderPath, mastersData: raw);
+            } catch (e) {
+              debugPrint('Error creating party: $e');
+            }
+          }
+
+          // Reload from disk to keep local memory fresh
+          await _loadCompanyMastersOnly();
+
           if (!mounted) return;
           setState(() {
-            (_isSalesVoucher ? _debtorsList : _creditorsList).add(model);
             _rebuildFastLookupCaches();
-            _partyController.text = model.displayName;
+            final partyName = data['name']?.toString() ?? '';
+            _partyController.text = partyName;
           });
-          await _syncMastersToFile();
-          if (!mounted) return;
+
           created = true;
-          _notify('Registered: ${model.displayName}');
+          _notify(existingParty != null ? 'Party updated!' : 'Registered: ${data['name']}');
         },
       ),
     );
@@ -1244,40 +1260,35 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
   }
 
   bool _handleAltE() {
+    final focusedRow = _items.where((r) => r.itemFocus.hasFocus || r.amountFocus.hasFocus).firstOrNull;
+    final originalItemName = focusedRow?.item.text.trim().toLowerCase() ?? '';
+
     return VoucherMasterActions.handleAltE(
       context: context,
+      company: widget.company,
       partyFocus: _partyFocus,
       partyController: _partyController,
       availableParties: _currentAvailableParties,
       voucherType: widget.voucherType,
       items: _items,
       itemsMasterList: _itemsMasterList,
-      onPartyUpdated: (updated) {
+      onPartyUpdated: (updated) async {
+        await _loadCompanyMastersOnly();
         if (!mounted) return;
         setState(() {
-          void updateList(List<PartyMasterModel> list) {
-            final i = list
-                .indexWhere((p) => p.name.toLowerCase() == updated.name.toLowerCase());
-            if (i != -1) list[i] = updated;
-          }
-
-          updateList(_debtorsList);
-          updateList(_creditorsList);
-          _rebuildFastLookupCaches();
           _partyController.text = updated.displayName;
           _checkGstMode(autoAdjustSaleType: true);
           _refreshTaxesOnAllRows();
         });
       },
-      onItemUpdated: (i, updated) {
+      onItemUpdated: (i, updated) async {
+        await _loadCompanyMastersOnly();
         if (!mounted) return;
         setState(() {
-          final idx = _itemsMasterList
-              .indexWhere((m) => m.name.toLowerCase() == updated.name.toLowerCase());
-          if (idx != -1) _itemsMasterList[idx] = updated;
-          _rebuildFastLookupCaches();
-          for (final r in _items.where(
-              (r) => r.item.text.toLowerCase() == updated.name.toLowerCase())) {
+          for (final r in _items.where((r) {
+            final n = r.item.text.trim().toLowerCase();
+            return n == originalItemName || n == updated.name.trim().toLowerCase();
+          })) {
             r.item.text = updated.name;
             r.hsn = updated.hsn;
             r.unit.text = updated.unit;
@@ -1286,7 +1297,10 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
           _onItemMasterSelected(i, updated);
         });
       },
-      onSyncMasters: _syncMastersToFile,
+      onSyncMasters: () async {
+        // Reload directly from disk to keep local memory fresh without overwriting disk
+        await _loadCompanyMastersOnly();
+      },
     );
   }
 
@@ -1430,14 +1444,12 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     final financialYear = widget.company['activeFinancialYear']?.toString() ??
         AppDateUtils.defaultFinancialYear;
 
-    // 1. ALWAYS persist via StorageService so VoucherListScreen and reports load it immediately
     await StorageService.saveVoucher(
       folderPath: folderPath,
       financialYear: financialYear,
       voucherData: payload,
     );
 
-    // 2. Also persist and broadcast via SyncWorker (for real-time multi-branch and HLC sync)
     final syncWorker = ref.read(syncWorkerProvider);
     if (syncWorker != null) {
       final db = AppDatabase.forCompany(folderPath);

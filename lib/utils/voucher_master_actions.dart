@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../constants/app_colors.dart';
 import '../../../models/item_master_model.dart';
 import '../../../models/party_master_model.dart';
+import '../../../services/storage_service.dart';
 import '../../../utils/gst_party_utils.dart';
 import './../widgets/voucher/popup/add_item_dialog.dart';
 import './../widgets/voucher/popup/add_party_dialog.dart';
@@ -10,6 +11,7 @@ import './../widgets/voucher/voucher_item_row.dart';
 class VoucherMasterActions {
   static bool handleAltE({
     required BuildContext context,
+    required Map<String, dynamic> company,
     required FocusNode partyFocus,
     required TextEditingController partyController,
     required List<PartyMasterModel> availableParties,
@@ -20,6 +22,8 @@ class VoucherMasterActions {
     required Function(int index, ItemMasterModel updated) onItemUpdated,
     required Future<void> Function() onSyncMasters,
   }) {
+    final folderPath = company['folderPath']?.toString();
+
     // 1. Party Field Check
     if (partyFocus.hasFocus) {
       final text = partyController.text.trim();
@@ -42,13 +46,49 @@ class VoucherMasterActions {
             initialParty: matchedParty,
             isEdit: true,
             onPartyCreated: (partyData) async {
+              final originalName = matchedParty.name.trim().toLowerCase();
+
+              // Save directly to masters.json on disk
+              if (folderPath != null && folderPath.isNotEmpty) {
+                try {
+                  final raw = await StorageService.loadCompanyMasters(folderPath: folderPath);
+                  final isCreditor = (partyData['group'] ?? '').toString().toLowerCase().contains('creditor');
+                  final listKey = isCreditor ? 'creditors' : 'debtors';
+                  final oppKey = isCreditor ? 'debtors' : 'creditors';
+
+                  // Remove from opposite list if group changed
+                  (raw[oppKey] as List?)?.removeWhere((p) =>
+                      (p['name'] ?? '').toString().trim().toLowerCase() == originalName);
+
+                  final list = (raw[listKey] as List? ?? [])
+                      .map((e) => Map<String, dynamic>.from(e as Map))
+                      .toList();
+
+                  final idx = list.indexWhere((p) =>
+                      (p['name'] ?? '').toString().trim().toLowerCase() == originalName);
+
+                  if (idx != -1) {
+                    list[idx] = partyData;
+                  } else {
+                    list.add(partyData);
+                  }
+
+                  raw[listKey] = list;
+                  await StorageService.saveCompanyMasters(folderPath: folderPath, mastersData: raw);
+                } catch (e) {
+                  debugPrint('Error saving party master: $e');
+                }
+              }
+
               final updated = PartyMasterModel(
                 name: partyData['name'] ?? '',
                 gstin: partyData['gstin'] ?? '',
                 group: partyData['group'] ?? matchedParty.group,
               );
+
               onPartyUpdated(updated);
               await onSyncMasters();
+
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -86,6 +126,8 @@ class VoucherMasterActions {
           showDialog(
             context: context,
             builder: (_) => AddItemDialog(
+              company: company,
+              folderPath: folderPath,
               initialItem: matchedItem,
               isEdit: true,
               onItemCreated: (itemData) async {
@@ -99,8 +141,10 @@ class VoucherMasterActions {
                   purchasePrice: itemData['purchasePrice'],
                   mrp: itemData['mrp'],
                 );
+
                 onItemUpdated(i, updated);
                 await onSyncMasters();
+
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(

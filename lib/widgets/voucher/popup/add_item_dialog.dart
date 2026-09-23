@@ -64,7 +64,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
           .map((e) => e.toString())
           .toList();
 
-  String _selectedTaxCategory = 'GST 18%';
+  String _selectedTaxCategory = '';
   String? _hsnStatusMessage;
   bool _isHsnValid = false;
   bool _isValidatingHsn = false;
@@ -84,17 +84,16 @@ class _AddItemDialogState extends State<AddItemDialog> {
       _hsnController.text = item.hsn;
 
       final matchedUnit = _units
-          .where((u) => u.toLowerCase() == item.unit.trim().toLowerCase())
+          .where((u) => u.trim().toLowerCase() == item.unit.trim().toLowerCase())
           .firstOrNull;
 
-      _unitController.text = matchedUnit ??
-          (_units.isNotEmpty ? _units.first : item.unit.toUpperCase());
+      _unitController.text = matchedUnit ?? item.unit.toUpperCase();
 
       _selectedTaxCategory = _taxCategories.firstWhere(
-        (c) => c.contains('${item.taxRate.toInt()}%'),
-        orElse: () => _taxCategories.contains(item.taxCategory)
-            ? item.taxCategory
-            : (_taxCategories.isNotEmpty ? _taxCategories.first : 'GST 18%'),
+        (c) =>
+            c.toLowerCase().contains('${item.taxRate.toInt()}%') ||
+            c.trim().toLowerCase() == item.taxCategory.trim().toLowerCase(),
+        orElse: () => item.taxCategory,
       );
 
       _taxCategoryController.text = _selectedTaxCategory;
@@ -110,10 +109,9 @@ class _AddItemDialogState extends State<AddItemDialog> {
         _validateHsn();
       }
     } else {
-      _unitController.text = _units.isNotEmpty ? _units.first : 'PCS';
-      _selectedTaxCategory =
-          _taxCategories.isNotEmpty ? _taxCategories.first : 'GST 18%';
-      _taxCategoryController.text = _selectedTaxCategory;
+      _unitController.text = '';
+      _selectedTaxCategory = '';
+      _taxCategoryController.text = '';
     }
 
     _hsnController.addListener(_autoGenerateName);
@@ -130,9 +128,13 @@ class _AddItemDialogState extends State<AddItemDialog> {
 
   void _enforceValidUnitSelection() {
     final current = _unitController.text.trim().toUpperCase();
+    if (current.isEmpty) {
+      _autoGenerateName();
+      return;
+    }
     final match = _units.firstWhere(
-      (u) => u.toUpperCase() == current,
-      orElse: () => _units.isNotEmpty ? _units.first : '',
+      (u) => u.trim().toUpperCase() == current,
+      orElse: () => _unitController.text.trim(),
     );
     if (_unitController.text != match) {
       _unitController.text = match;
@@ -142,9 +144,14 @@ class _AddItemDialogState extends State<AddItemDialog> {
 
   void _enforceValidTaxCategorySelection() {
     final current = _taxCategoryController.text.trim().toUpperCase();
+    if (current.isEmpty) {
+      _selectedTaxCategory = '';
+      _autoGenerateName();
+      return;
+    }
     final match = _taxCategories.firstWhere(
-      (t) => t.toUpperCase() == current,
-      orElse: () => _selectedTaxCategory,
+      (t) => t.trim().toUpperCase() == current,
+      orElse: () => _taxCategoryController.text.trim(),
     );
     _taxCategoryController.text = match;
     _selectedTaxCategory = match;
@@ -153,9 +160,8 @@ class _AddItemDialogState extends State<AddItemDialog> {
 
   Future<void> _loadMastersData() async {
     await LoadingService.wrap(() async {
-      final path =
-          widget.folderPath ?? widget.company?['folderPath']?.toString();
-      if (path == null || path.isEmpty) return;
+      final path = _resolveFolderPath();
+      if (path.isEmpty) return;
 
       final raw = await StorageService.loadCompanyMasters(folderPath: path);
       if (!mounted) return;
@@ -169,23 +175,48 @@ class _AddItemDialogState extends State<AddItemDialog> {
           _taxCategories =
               (raw['taxCategories'] as List).map((e) => e.toString()).toList();
         }
-        if (!_taxCategories.contains(_selectedTaxCategory)) {
-          _selectedTaxCategory =
-              _taxCategories.isNotEmpty ? _taxCategories.first : 'GST 18%';
-        }
-        _taxCategoryController.text = _selectedTaxCategory;
 
-        if (!_units.contains(_unitController.text.trim().toUpperCase())) {
-          _unitController.text = _units.isNotEmpty ? _units.first : 'PCS';
+        if (_selectedTaxCategory.isNotEmpty) {
+          final matchedTax = _taxCategories.firstWhere(
+            (c) => c.trim().toLowerCase() == _selectedTaxCategory.trim().toLowerCase(),
+            orElse: () => '',
+          );
+          if (matchedTax.isNotEmpty) {
+            _selectedTaxCategory = matchedTax;
+            _taxCategoryController.text = matchedTax;
+          }
+        }
+
+        if (_unitController.text.isNotEmpty) {
+          final matchedUnit = _units.firstWhere(
+            (u) => u.trim().toLowerCase() == _unitController.text.trim().toLowerCase(),
+            orElse: () => '',
+          );
+          if (matchedUnit.isNotEmpty) {
+            _unitController.text = matchedUnit;
+          }
         }
       });
     }, message: '');
   }
 
+  String _resolveFolderPath() {
+    if (widget.folderPath != null && widget.folderPath!.trim().isNotEmpty) {
+      return widget.folderPath!.trim();
+    }
+    if (widget.company != null &&
+        widget.company!['folderPath'] != null &&
+        widget.company!['folderPath'].toString().trim().isNotEmpty) {
+      return widget.company!['folderPath'].toString().trim();
+    }
+    return '';
+  }
+
   String _extractTaxPercentage(String category) {
+    if (category.isEmpty) return '';
     if (category.contains('0%')) return '0%';
     final match = RegExp(r'(\d+)%').firstMatch(category);
-    return match != null ? '${match.group(1)}%' : '18%';
+    return match != null ? '${match.group(1)}%' : '';
   }
 
   void _autoGenerateName() {
@@ -193,7 +224,13 @@ class _AddItemDialogState extends State<AddItemDialog> {
     final tax = _extractTaxPercentage(_selectedTaxCategory);
     final unit = _unitController.text.trim().toUpperCase();
 
-    _nameController.text = hsn.isNotEmpty ? '$hsn $tax $unit' : '';
+    if (hsn.isEmpty) {
+      _nameController.text = '';
+      return;
+    }
+
+    final parts = [hsn, if (tax.isNotEmpty) tax, if (unit.isNotEmpty) unit];
+    _nameController.text = parts.join(' ');
   }
 
   Future<void> _validateHsn() async {
@@ -264,58 +301,57 @@ class _AddItemDialogState extends State<AddItemDialog> {
         cancelLabel: 'No',
         type: ConfirmDialogType.warning,
       );
-      if (!shouldContinue) return;
+      if (shouldContinue != true) return;
     }
 
     setState(() => _isSaving = true);
 
     await LoadingService.wrap(() async {
-      final taxMatch =
-          RegExp(r'(\d+)%').firstMatch(_selectedTaxCategory);
+      final taxMatch = RegExp(r'(\d+)%').firstMatch(_selectedTaxCategory);
       final rate = taxMatch != null
-          ? double.tryParse(taxMatch.group(1)!) ?? 18.0
-          : 0.0;
+          ? double.tryParse(taxMatch.group(1)!) ?? 0.0
+          : (widget.initialItem?.taxRate ?? 0.0);
 
-      final itemData = {
+      final itemData = <String, dynamic>{
         'name': _nameController.text.trim(),
         'hsn': _hsnController.text.trim(),
-        'unit': _unitController.text.trim().isEmpty
-            ? 'PCS'
-            : _unitController.text.trim().toUpperCase(),
-        'taxCategory': _selectedTaxCategory,
+        'unit': _unitController.text.trim().toUpperCase(),
+        'taxCategory': _selectedTaxCategory.isNotEmpty
+            ? _selectedTaxCategory
+            : _taxCategoryController.text.trim(),
         'taxRate': rate,
         'salesPrice':
             double.tryParse(_salesPriceController.text.trim()) ?? 0.0,
         'purchasePrice':
             double.tryParse(_purchasePriceController.text.trim()) ?? 0.0,
         'mrp': double.tryParse(_mrpController.text.trim()) ?? 0.0,
+        if (widget.isEdit && widget.initialItem != null)
+          'originalName': widget.initialItem!.name.trim(),
       };
 
-      final path =
-          widget.folderPath ?? widget.company?['folderPath']?.toString();
-      if (path != null && path.isNotEmpty) {
+      final path = _resolveFolderPath();
+      if (path.isNotEmpty) {
         try {
           final raw = await StorageService.loadCompanyMasters(folderPath: path);
           final itemsList = (raw['items'] as List? ?? [])
               .map((e) => Map<String, dynamic>.from(e as Map))
               .toList();
 
-          final originalName =
-              widget.initialItem?.name.trim().toLowerCase();
-          final newName =
-              itemData['name'].toString().trim().toLowerCase();
+          final originalName = widget.initialItem?.name.trim().toLowerCase();
+          int targetIdx = -1;
 
-          final idx = itemsList.indexWhere((i) {
-            final n = (i['name'] ?? '').toString().trim().toLowerCase();
-            return widget.isEdit &&
-                    originalName != null &&
-                    originalName.isNotEmpty
-                ? n == originalName
-                : n == newName;
-          });
+          if (widget.isEdit && originalName != null && originalName.isNotEmpty) {
+            targetIdx = itemsList.indexWhere((i) {
+              final n = (i['name'] ?? i['itemName'] ?? '')
+                  .toString()
+                  .trim()
+                  .toLowerCase();
+              return n == originalName;
+            });
+          }
 
-          if (idx != -1) {
-            itemsList[idx] = itemData;
+          if (targetIdx != -1) {
+            itemsList[targetIdx] = itemData;
           } else {
             itemsList.add(itemData);
           }
@@ -346,6 +382,9 @@ class _AddItemDialogState extends State<AddItemDialog> {
 
   @override
   void dispose() {
+    _hsnController.removeListener(_autoGenerateName);
+    _unitController.removeListener(_autoGenerateName);
+
     _hsnController.dispose();
     _hsnFocusNode.dispose();
     _nameController.dispose();
@@ -833,9 +872,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
                       query: value,
                       labelExtractor: (u) => u,
                     );
-                    final selected = matches.isNotEmpty
-                        ? matches.first
-                        : (_units.isNotEmpty ? _units.first : value);
+                    final selected = matches.isNotEmpty ? matches.first : value;
                     controller.text = selected;
                     _autoGenerateName();
                     _taxCategoryFocusNode.requestFocus();
@@ -844,11 +881,6 @@ class _AddItemDialogState extends State<AddItemDialog> {
                     if (val == null || val.trim().isEmpty) {
                       return 'Unit is required';
                     }
-                    final match = _units.any(
-                      (u) =>
-                          u.toUpperCase() == val.trim().toUpperCase(),
-                    );
-                    if (!match) return 'Select a valid unit';
                     return null;
                   },
                 );
@@ -909,11 +941,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
                       query: value,
                       labelExtractor: (t) => t,
                     );
-                    final selected = matches.isNotEmpty
-                        ? matches.first
-                        : (_taxCategories.isNotEmpty
-                            ? _taxCategories.first
-                            : value);
+                    final selected = matches.isNotEmpty ? matches.first : value;
                     controller.text = selected;
                     setState(() {
                       _selectedTaxCategory = selected;
@@ -925,11 +953,6 @@ class _AddItemDialogState extends State<AddItemDialog> {
                     if (val == null || val.trim().isEmpty) {
                       return 'Tax category is required';
                     }
-                    final match = _taxCategories.any(
-                      (c) =>
-                          c.toUpperCase() == val.trim().toUpperCase(),
-                    );
-                    if (!match) return 'Select a valid tax category';
                     return null;
                   },
                 );
@@ -958,8 +981,8 @@ class _AddItemDialogState extends State<AddItemDialog> {
     required ValueChanged<String> onSubmitted,
     String? Function(String?)? validator,
   }) {
-    return SizedBox(
-      height: 46,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 46),
       child: TextFormField(
         controller: controller,
         focusNode: focusNode,
@@ -1101,8 +1124,8 @@ class _AddItemDialogState extends State<AddItemDialog> {
       children: [
         _buildFieldLabel(label, required: required),
         const SizedBox(height: 6),
-        SizedBox(
-          height: 46,
+        ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 46),
           child: TextFormField(
             controller: controller,
             focusNode: focusNode,

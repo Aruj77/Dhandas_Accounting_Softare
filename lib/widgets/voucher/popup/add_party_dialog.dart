@@ -88,6 +88,7 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
       _c['pincode']!.text = p.pincode;
       _c['aadhaar']!.text = p.aadhaar;
       _c['mobile']!.text = p.mobile;
+      _c['pan']!.text = GstinService.extractPan(p.gstin) ?? '';
 
       if (p.gstin.isNotEmpty) {
         WidgetsBinding.instance.addPostFrameCallback((_) => _validateGstin());
@@ -149,8 +150,12 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
     party['gstin'] = party['gstin']!.toUpperCase();
     party['pan'] = party['pan']!.toUpperCase();
 
+    if (widget.isEdit && widget.initialParty != null) {
+      party['originalName'] = widget.initialParty!.name.trim();
+    }
+
     widget.onPartyCreated(party);
-    Navigator.of(context).pop();
+    Navigator.of(context).pop(party);
   }
 
   @override

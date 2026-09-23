@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:drift/drift.dart' hide Column;
 import 'package:drift/native.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../database/app_database.dart';
 
@@ -200,8 +201,13 @@ class StorageService {
   }
 
   static Future<Map<String, dynamic>> loadCompanyMasters({required String folderPath}) async {
+    if (folderPath.trim().isEmpty) {
+      debugPrint('StorageService: loadCompanyMasters called with empty folderPath!');
+      return Map<String, dynamic>.from(defaultCompanyMasters);
+    }
+
     if (_mastersMemoryCache.containsKey(folderPath)) {
-      return _mastersMemoryCache[folderPath]!;
+      return jsonDecode(jsonEncode(_mastersMemoryCache[folderPath]!)) as Map<String, dynamic>;
     }
 
     final file = File('$folderPath${Platform.pathSeparator}masters.json');
@@ -210,8 +216,10 @@ class StorageService {
         final content = await file.readAsString();
         final data = jsonDecode(content) as Map<String, dynamic>;
         _mastersMemoryCache[folderPath] = data;
-        return data;
-      } catch (_) {}
+        return jsonDecode(jsonEncode(data)) as Map<String, dynamic>;
+      } catch (e) {
+        debugPrint('StorageService: Error parsing masters.json: $e');
+      }
     }
     final initial = Map<String, dynamic>.from(defaultCompanyMasters);
     await saveCompanyMasters(folderPath: folderPath, mastersData: initial);
@@ -222,9 +230,14 @@ class StorageService {
     required String folderPath,
     required Map<String, dynamic> mastersData,
   }) async {
+    if (folderPath.trim().isEmpty) {
+      debugPrint('StorageService: ERROR - saveCompanyMasters called with empty folderPath!');
+      return;
+    }
     _mastersMemoryCache[folderPath] = mastersData;
     final file = File('$folderPath${Platform.pathSeparator}masters.json');
     await file.writeAsString(const JsonEncoder.withIndent('  ').convert(mastersData));
+    debugPrint('StorageService: Successfully saved masters to ${file.path}');
   }
 
   static Future<void> saveVoucher({
