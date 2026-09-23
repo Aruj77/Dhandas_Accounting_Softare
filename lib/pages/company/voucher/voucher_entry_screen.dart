@@ -274,12 +274,125 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
       (s) => [s.nameFocus, s.percentFocus, s.amountFocus].any((f) => f.hasFocus));
 
   bool _handleGlobalHardwareKey(KeyEvent event) {
-    if (!mounted || ModalRoute.of(context)?.isCurrent != true || event is! KeyDownEvent) {
+      debugPrint('KEY EVENT: ${event.logicalKey} alt=${HardwareKeyboard.instance.isAltPressed}');
+    if (!mounted) {
+      return false;
+    }
+    final route = ModalRoute.of(context);
+    if (route != null && !route.isCurrent && route is! PageRoute) {
       return false;
     }
 
-    if (event.logicalKey == LogicalKeyboardKey.tab &&
-        !HardwareKeyboard.instance.isShiftPressed) {
+    if (event is! KeyDownEvent) return false;
+
+    final hw = HardwareKeyboard.instance;
+    final isAlt = hw.isAltPressed ||
+        hw.logicalKeysPressed.contains(LogicalKeyboardKey.altLeft) ||
+        hw.logicalKeysPressed.contains(LogicalKeyboardKey.altRight);
+
+    // =========================================================
+    // 1. [Alt + C] -> QUICK ADD MASTER DIALOG
+    // =========================================================
+    if (isAlt &&
+        (event.logicalKey == LogicalKeyboardKey.keyC ||
+            event.physicalKey == PhysicalKeyboardKey.keyC)) {
+      if (!_handleQuickAddShortcut()) {
+        // If not focused on party/series/saleType, default to Add Item Dialog
+        _openAddItemDialog(-1);
+      }
+      return true; // Prevents beep & confirms handled
+    }
+
+    // =========================================================
+    // 2. [Alt + E] -> EDIT MASTER / TAX DETAILS DIALOG
+    // =========================================================
+    if (isAlt &&
+        (event.logicalKey == LogicalKeyboardKey.keyE ||
+            event.physicalKey == PhysicalKeyboardKey.keyE)) {
+      if (!_handleAltE()) {
+        // Fallback: Open tax details dialog for the first item row
+        _openTaxDetailsDialog(0);
+      }
+      return true;
+    }
+
+    // =========================================================
+    // 3. [Alt + N] -> NEXT VOUCHER
+    // =========================================================
+    if (isAlt &&
+        (event.logicalKey == LogicalKeyboardKey.keyN ||
+            event.physicalKey == PhysicalKeyboardKey.keyN)) {
+      if (_sessionSavedVouchers.isEmpty || _sessionIndex == -1) {
+        _notify('Currently on newest voucher. No next voucher in session.',
+            bg: AppColors.info);
+      } else {
+        _navigateToNextVoucher();
+      }
+      return true;
+    }
+
+    // =========================================================
+    // 4. [Alt + P] -> PREVIOUS VOUCHER
+    // =========================================================
+    if (isAlt &&
+        (event.logicalKey == LogicalKeyboardKey.keyP ||
+            event.physicalKey == PhysicalKeyboardKey.keyP)) {
+      if (_sessionSavedVouchers.isEmpty) {
+        _notify('No previous vouchers saved in this session.',
+            bg: AppColors.info);
+      } else {
+        _navigateToPreviousVoucher();
+      }
+      return true;
+    }
+
+    // =========================================================
+    // 5. [F4] -> CALCULATOR DIALOG
+    // =========================================================
+    if (event.logicalKey == LogicalKeyboardKey.f4) {
+      bool handled = false;
+      for (final r in _items) {
+        final targets = [
+          (r.qtyFocus, 'qty', r.qty),
+          (r.priceFocus, 'price', r.price),
+          (r.taxableFocus, 'taxable', r.taxable),
+          (r.amountFocus, 'amount', r.amount),
+        ];
+        for (final (focus, name, ctrl) in targets) {
+          if (focus.hasFocus) {
+            _openCalculatorForController(ctrl, r, name);
+            handled = true;
+            break;
+          }
+        }
+        if (handled) break;
+      }
+      if (!handled) {
+        _openCalculatorForController(TextEditingController());
+      }
+      return true;
+    }
+
+    // =========================================================
+    // 6. [F2] / [Ctrl + S] -> SAVE VOUCHER DIALOG
+    // =========================================================
+    if (KeyboardShortcutService.isSave(event)) {
+      _saveVoucher();
+      return true;
+    }
+
+    // =========================================================
+    // 7. [Ctrl + P] -> PRINT PREVIEW DIALOG
+    // =========================================================
+    if (KeyboardShortcutService.isPrint(event)) {
+      _openPrintPreview();
+      return true;
+    }
+
+    // =========================================================
+    // 8. [Tab] -> FOCUS JUMP FROM TABLE TO SUNDRY
+    // =========================================================
+    if (event.logicalKey == LogicalKeyboardKey.tab && !hw.isShiftPressed) {
       if (_isAnyItemCellFocused()) {
         _sundries.firstOrNull?.nameFocus.requestFocus();
         return true;
@@ -290,14 +403,21 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
       }
     }
 
-    if (KeyboardShortcutService.matchesAction(
-      widget.keyboardSettings,
-      KeyboardShortcutService.goBackAction,
-      event,
-    )) {
+    // =========================================================
+    // 9. [Esc] -> EXIT CONFIRMATION DIALOG
+    // =========================================================
+    if (event.logicalKey == LogicalKeyboardKey.escape) {
       _requestExit();
       return true;
     }
+
+    // =========================================================
+    // 10. SILENCE ALL OTHER ALT + [A-Z] KEYS (PREVENTS BEEP)
+    // =========================================================
+    if (isAlt) {
+      return true; // Swallows any other Alt combinations cleanly
+    }
+
     return false;
   }
 
@@ -1132,10 +1252,12 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
   }
 
   void _openTaxDetailsDialog(int index) {
+    if (_items.isEmpty) return;
+    final safeIndex = (index >= 0 && index < _items.length) ? index : 0;
     showDialog(
       context: context,
       builder: (_) => ItemTaxDetailsDialog(
-        row: _items[index],
+        row: _items[safeIndex],
         isInterState: _isInterState,
         onUpdated: _calculateAllTotals,
       ),
@@ -1622,19 +1744,27 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
   }
 
   void _navigateToPreviousVoucher() {
-    if (_sessionSavedVouchers.isEmpty) return;
+    if (_sessionSavedVouchers.isEmpty) {
+      _notify('No previous vouchers saved in this session.', bg: AppColors.info);
+      return;
+    }
     if (_sessionIndex == -1) {
       _sessionIndex = _sessionSavedVouchers.length - 1;
       _loadExistingVoucherData(_sessionSavedVouchers[_sessionIndex]);
     } else if (_sessionIndex > 0) {
       _sessionIndex--;
       _loadExistingVoucherData(_sessionSavedVouchers[_sessionIndex]);
+    } else {
+      _notify('Already at first voucher in this session.', bg: AppColors.info);
     }
     if (mounted) setState(() {});
   }
 
   void _navigateToNextVoucher() {
-    if (_sessionSavedVouchers.isEmpty || _sessionIndex == -1) return;
+    if (_sessionSavedVouchers.isEmpty || _sessionIndex == -1) {
+      _notify('No next voucher in session. Currently at newest.', bg: AppColors.info);
+      return;
+    }
     if (_sessionIndex < _sessionSavedVouchers.length - 1) {
       _sessionIndex++;
       _loadExistingVoucherData(_sessionSavedVouchers[_sessionIndex]);
@@ -1675,55 +1805,6 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
             ? _sundries[index + 1].nameFocus.requestFocus()
             : _h.saveButtonFocus.requestFocus();
     }
-  }
-
-  KeyEventResult _onGlobalKeyAction(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent) return KeyEventResult.ignored;
-
-    if (KeyboardShortcutService.isPreviousVoucher(event)) {
-      _navigateToPreviousVoucher();
-      return KeyEventResult.handled;
-    }
-    if (KeyboardShortcutService.isNextVoucher(event)) {
-      _navigateToNextVoucher();
-      return KeyEventResult.handled;
-    }
-    if (KeyboardShortcutService.isPrint(event)) {
-      _openPrintPreview();
-      return KeyEventResult.handled;
-    }
-    if (KeyboardShortcutService.isModifyOrTaxDetails(event)) {
-      if (_handleAltE()) return KeyEventResult.handled;
-      return KeyEventResult.ignored;
-    }
-    if (KeyboardShortcutService.isCalculator(event)) {
-      for (final r in _items) {
-        final targets = [
-          (r.qtyFocus, 'qty', r.qty),
-          (r.priceFocus, 'price', r.price),
-          (r.taxableFocus, 'taxable', r.taxable),
-          (r.amountFocus, 'amount', r.amount),
-        ];
-        for (final (focus, name, ctrl) in targets) {
-          if (focus.hasFocus) {
-            _openCalculatorForController(ctrl, r, name);
-            return KeyEventResult.handled;
-          }
-        }
-      }
-    }
-    if (KeyboardShortcutService.isQuickAdd(event)) {
-      if (_handleQuickAddShortcut()) return KeyEventResult.handled;
-    }
-    if (KeyboardShortcutService.matchesAction(
-      widget.keyboardSettings,
-      KeyboardShortcutService.saveVoucherAction,
-      event,
-    )) {
-      _saveVoucher();
-      return KeyEventResult.handled;
-    }
-    return KeyEventResult.ignored;
   }
 
   Future<void> _handleScanWithAiPro() async {
@@ -1769,7 +1850,12 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     try {
       if (source != null) {
         final picker = ImagePicker();
-        final picked = await picker.pickImage(source: source, imageQuality: 90);
+        final picked = await picker.pickImage(
+          source: source,
+          maxWidth: 1024,
+          maxHeight: 1024,
+          imageQuality: 80,
+        );
         if (picked == null) return;
         fileBytes = await picked.readAsBytes();
         fileName = picked.name;
@@ -1809,9 +1895,6 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
 
     if (scanned == null || !mounted) return;
 
-    debugPrint('Scan result: party=${scanned!.partyName}, items=${scanned!.items.length}');
-
-    // Header info
     if (scanned!.invoiceDate.isNotEmpty) {
       _h.date.text = scanned!.invoiceDate;
       _parseAndValidateDate();
@@ -1822,13 +1905,9 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
       _allowDuplicateVchNo = true;
     }
 
-    // 1. Resolve party
     await _resolveScannedParty(scanned!.partyName, scanned!.partyGstin);
-
-    // 2. Resolve items with interactive modal support for missing items
     await _resolveScannedItems(scanned!.items);
 
-    // 3. Resolve Bill Sundries (Discount, Freight, etc.)
     if (scanned!.sundries.isNotEmpty) {
       for (int i = 0; i < scanned!.sundries.length; i++) {
         final sData = scanned!.sundries[i];
@@ -1842,7 +1921,6 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
       }
     }
 
-    // 4. Update all calculations and totals
     _calculateAllTotals();
     _notify('Invoice scanned & populated successfully!', bg: AppColors.success);
   }
@@ -1906,9 +1984,6 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
 
   Future<void> _resolveScannedItems(List<ScannedItem> scannedItems) async {
     final itemsToProcess = scannedItems.where((i) => i.name.trim().isNotEmpty).toList();
-
-    debugPrint('Items to process: ${itemsToProcess.length}');
-
     if (itemsToProcess.isEmpty) {
       _notify('No line items detected from invoice.', bg: AppColors.warning);
       return;
@@ -1919,20 +1994,14 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
       final cleanScannedName = sItem.name.toLowerCase().trim();
 
       ItemMasterModel? matched;
-
-      // 1. Check exact name in Item Master
       if (_itemCache.containsKey(cleanScannedName)) {
         matched = _itemCache[cleanScannedName];
       }
-
-      // 2. Check by HSN code
       if (matched == null && sItem.hsn.trim().isNotEmpty) {
         matched = _itemsMasterList.firstWhereOrNull(
           (it) => it.hsn.trim() == sItem.hsn.trim(),
         );
       }
-
-      // 3. Fuzzy match name
       if (matched == null) {
         final matchResult = MasterMatcher.bestMatch(
           sItem.name,
@@ -1945,7 +2014,6 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
         }
       }
 
-      // 4. If Item is NOT in Master -> Open AddItemDialog PRE-FILLED!
       if (matched == null) {
         final createdData = await showDialog<Map<String, dynamic>>(
           context: context,
@@ -1968,12 +2036,10 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
         }
       }
 
-      // Ensure row exists at index i
       while (_items.length <= i) {
         _addItemRow();
       }
 
-      // 5. Populate directly into row[i]
       final row = _items[i];
       row.item.text = matched?.name ?? sItem.name;
       row.hsn = (matched != null && matched.hsn.isNotEmpty) ? matched.hsn : sItem.hsn;
@@ -2029,142 +2095,124 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
         onPopInvokedWithResult: (didPop, _) {
           if (!didPop) _requestExit();
         },
-        child: Focus(
-          autofocus: true,
-          onKeyEvent: _onGlobalKeyAction,
-          child: Scaffold(
-            backgroundColor: _screenBg,
-            body: Column(
-              children: [
-                _buildTopBar(fy),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                    child: Column(
-                      children: [
-                        VoucherHeaderCard(
-                          seriesController: _h.series,
-                          seriesFocus: _h.seriesFocus,
-                          availableSeries: _availableSeries,
-                          dateController: _h.date,
-                          dateFocus: _h.dateFocus,
-                          dateError: _dateError,
-                          vchNoController: _h.vchNo,
-                          vchNoFocus: _h.vchNoFocus,
-                          partyController: _h.party,
-                          partyFocus: _h.partyFocus,
-                          availableParties: _currentParties,
-                          saleTypeController: _h.saleType,
-                          saleTypeFocus: _h.saleTypeFocus,
-                          matCenterController: _h.matCenter,
-                          matCenterFocus: _h.matCenterFocus,
-                          narrationController: _h.narration,
-                          narrationFocus: _h.narrationFocus,
-                          onValidateDate: _parseAndValidateDate,
-                          onQuickAdd: _openQuickAddDialog,
-                          onAddParty: _openAddPartyDialog,
-                          onNarrationSubmitted: () =>
-                              _items.firstOrNull?.itemFocus.requestFocus(),
+        child: Scaffold(
+          backgroundColor: _screenBg,
+          body: Column(
+            children: [
+              _buildTopBar(fy),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                  child: Column(
+                    children: [
+                      VoucherHeaderCard(
+                        seriesController: _h.series,
+                        seriesFocus: _h.seriesFocus,
+                        availableSeries: _availableSeries,
+                        dateController: _h.date,
+                        dateFocus: _h.dateFocus,
+                        dateError: _dateError,
+                        vchNoController: _h.vchNo,
+                        vchNoFocus: _h.vchNoFocus,
+                        partyController: _h.party,
+                        partyFocus: _h.partyFocus,
+                        availableParties: _currentParties,
+                        saleTypeController: _h.saleType,
+                        saleTypeFocus: _h.saleTypeFocus,
+                        matCenterController: _h.matCenter,
+                        matCenterFocus: _h.matCenterFocus,
+                        narrationController: _h.narration,
+                        narrationFocus: _h.narrationFocus,
+                        onValidateDate: _parseAndValidateDate,
+                        onQuickAdd: _openQuickAddDialog,
+                        onAddParty: _openAddPartyDialog,
+                        onNarrationSubmitted: () =>
+                            _items.firstOrNull?.itemFocus.requestFocus(),
+                      ),
+                      const SizedBox(height: 10),
+                      Expanded(
+                        child: ValueListenableBuilder<VoucherTotalsResult>(
+                          valueListenable: _totalsNotifier,
+                          builder: (context, totals, _) => VoucherItemsTable(
+                            items: _items,
+                            availableItems: _itemsMasterList,
+                            isInterState: _isInterState,
+                            totalQty: totals.totalQty,
+                            totalTaxable: totals.subTotal,
+                            totalAmount: totals.totalItemAmount,
+                            onAddRow: () => setState(_addItemRow),
+                            onRowEnter: _handleItemRowEnter,
+                            onAddItem: _openAddItemDialog,
+                            onItemSelected: _onItemMasterSelected,
+                            onOpenTaxDetails: _openTaxDetailsDialog,
+                            onTabToSundry: () =>
+                                _sundries.firstOrNull?.nameFocus.requestFocus(),
+                          ),
                         ),
-                        const SizedBox(height: 10),
-                        Expanded(
-                          child: Focus(
-                            canRequestFocus: false,
-                            skipTraversal: true,
-                            onKeyEvent: (node, event) {
-                              if (event is KeyDownEvent &&
-                                  event.logicalKey == LogicalKeyboardKey.tab &&
-                                  !HardwareKeyboard.instance.isShiftPressed) {
-                                _sundries.firstOrNull?.nameFocus.requestFocus();
-                                return KeyEventResult.handled;
-                              }
-                              return KeyEventResult.ignored;
-                            },
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 55,
                             child: ValueListenableBuilder<VoucherTotalsResult>(
                               valueListenable: _totalsNotifier,
-                              builder: (context, totals, _) => VoucherItemsTable(
-                                items: _items,
-                                availableItems: _itemsMasterList,
-                                isInterState: _isInterState,
-                                totalQty: totals.totalQty,
-                                totalTaxable: totals.subTotal,
-                                totalAmount: totals.totalItemAmount,
-                                onAddRow: () => setState(_addItemRow),
-                                onRowEnter: _handleItemRowEnter,
-                                onAddItem: _openAddItemDialog,
-                                onItemSelected: _onItemMasterSelected,
-                                onOpenTaxDetails: _openTaxDetailsDialog,
-                                onTabToSundry: () => _sundries
-                                    .firstOrNull?.nameFocus
-                                    .requestFocus(),
+                              builder: (context, totals, _) => VoucherSundryCard(
+                                sundries: _sundries,
+                                availableSundries: _availableSundries,
+                                autoRoundOff: _autoRoundOff,
+                                roundOff: totals.roundOff,
+                                onAddSundry: () => setState(_addSundryRow),
+                                onToggleRoundOff: () {
+                                  _autoRoundOff = !_autoRoundOff;
+                                  _calculateAllTotals();
+                                },
+                                onRowEnter: _handleSundryRowEnter,
+                                onTabToSave: () =>
+                                    _h.saveButtonFocus.requestFocus(),
                               ),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 10),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              flex: 55,
-                              child: ValueListenableBuilder<VoucherTotalsResult>(
-                                valueListenable: _totalsNotifier,
-                                builder: (context, totals, _) => VoucherSundryCard(
-                                  sundries: _sundries,
-                                  availableSundries: _availableSundries,
-                                  autoRoundOff: _autoRoundOff,
-                                  roundOff: totals.roundOff,
-                                  onAddSundry: () => setState(_addSundryRow),
-                                  onToggleRoundOff: () {
-                                    _autoRoundOff = !_autoRoundOff;
-                                    _calculateAllTotals();
-                                  },
-                                  onRowEnter: _handleSundryRowEnter,
-                                  onTabToSave: () =>
-                                      _h.saveButtonFocus.requestFocus(),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 45,
+                            child: ValueListenableBuilder<VoucherTotalsResult>(
+                              valueListenable: _totalsNotifier,
+                              builder: (context, totals, _) =>
+                                  VoucherSummaryCard(
+                                isInterState: _isInterState,
+                                subTotal: totals.subTotal,
+                                totalCgst: totals.totalCgst,
+                                totalSgst: totals.totalSgst,
+                                totalIgst: totals.totalIgst,
+                                sundryTotal: totals.sundryTotal,
+                                roundOff: totals.roundOff,
+                                grandTotal: totals.grandTotal,
+                                saveButtonFocusNode: _h.saveButtonFocus,
+                                onSave: _saveVoucher,
+                                onClose: _requestExit,
+                                saveShortcutLabel:
+                                    KeyboardShortcutService.labelForAction(
+                                  widget.keyboardSettings,
+                                  KeyboardShortcutService.saveVoucherAction,
+                                ),
+                                quitShortcutLabel:
+                                    KeyboardShortcutService.labelForAction(
+                                  widget.keyboardSettings,
+                                  KeyboardShortcutService.goBackAction,
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              flex: 45,
-                              child: ValueListenableBuilder<VoucherTotalsResult>(
-                                valueListenable: _totalsNotifier,
-                                builder: (context, totals, _) =>
-                                    VoucherSummaryCard(
-                                  isInterState: _isInterState,
-                                  subTotal: totals.subTotal,
-                                  totalCgst: totals.totalCgst,
-                                  totalSgst: totals.totalSgst,
-                                  totalIgst: totals.totalIgst,
-                                  sundryTotal: totals.sundryTotal,
-                                  roundOff: totals.roundOff,
-                                  grandTotal: totals.grandTotal,
-                                  saveButtonFocusNode: _h.saveButtonFocus,
-                                  onSave: _saveVoucher,
-                                  onClose: _requestExit,
-                                  saveShortcutLabel:
-                                      KeyboardShortcutService.labelForAction(
-                                    widget.keyboardSettings,
-                                    KeyboardShortcutService.saveVoucherAction,
-                                  ),
-                                  quitShortcutLabel:
-                                      KeyboardShortcutService.labelForAction(
-                                    widget.keyboardSettings,
-                                    KeyboardShortcutService.goBackAction,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                _buildFooterBar(),
-              ],
-            ),
+              ),
+              _buildFooterBar(),
+            ],
           ),
         ),
       ),
