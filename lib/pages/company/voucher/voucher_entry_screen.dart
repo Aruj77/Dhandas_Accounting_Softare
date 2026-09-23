@@ -1,8 +1,12 @@
+// desktop/lib/features/voucher_entry/presentation/screens/voucher_entry_screen.dart
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:collection/collection.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../constants/app_colors.dart';
 import '../../../constants/gst_constants.dart';
 import '../../../database/app_database.dart';
@@ -14,11 +18,14 @@ import '../../../provider/sync_provider.dart';
 import '../../../services/focus_policy_service.dart';
 import '../../../services/keyboard_shortcut_service.dart';
 import '../../../services/loading_service.dart';
+import '../../../services/scan_ai_service.dart';
 import '../../../services/storage_service.dart';
 import '../../../services/voucher_calculation_service.dart';
 import '../../../services/voucher_numbering_service.dart';
 import '../../../utils/app_date_utils.dart';
 import '../../../utils/gst_party_utils.dart';
+import '../../../utils/master_matcher.dart';
+import '../../../utils/voucher_master_actions.dart';
 import '../../../widgets/voucher/popup/add_item_dialog.dart';
 import '../../../widgets/voucher/popup/add_party_dialog.dart';
 import '../../../widgets/voucher/popup/add_series_dialog.dart';
@@ -42,6 +49,7 @@ class VoucherEntryScreen extends ConsumerStatefulWidget {
   final KeyboardShortcutSettings keyboardSettings;
   final Map<String, dynamic>? voucherToEdit;
   final bool isEdit;
+  final Map<String, dynamic>? scanPrefill;
 
   const VoucherEntryScreen({
     super.key,
@@ -51,6 +59,7 @@ class VoucherEntryScreen extends ConsumerStatefulWidget {
     required this.keyboardSettings,
     this.voucherToEdit,
     this.isEdit = false,
+    this.scanPrefill,
   });
 
   @override
@@ -149,8 +158,10 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
 
     if (widget.isEdit && widget.voucherToEdit != null) {
       _loadExistingVoucherData(widget.voucherToEdit!);
+    } else if (widget.scanPrefill != null) {
+      _applyScanPrefill(widget.scanPrefill!);
     } else {
-      _loadCompanyMastersOnly(showLoading: true).then((_) => _initializeNewVoucher());
+      _loadCompanyMastersOnly().then((_) => _initializeNewVoucher());
     }
   }
 
@@ -159,7 +170,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     super.didUpdateWidget(oldWidget);
     if (!const DeepCollectionEquality().equals(oldWidget.company, widget.company) ||
         oldWidget.voucherType != widget.voucherType) {
-      _loadCompanyMastersOnly(showLoading: false).then((_) {
+      _loadCompanyMastersOnly().then((_) {
         if (mounted) {
           setState(() {
             _checkGstMode(autoAdjustSaleType: true);
@@ -185,7 +196,6 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     super.dispose();
   }
 
-  // --- String Formatting & Lookup Helpers ---
   String _formatPartyDisplay(String name, String gstin) {
     final cleanName = GstPartyUtils.extractPartyName(name).trim();
     final cleanGstin = gstin.trim().isNotEmpty
@@ -219,7 +229,6 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     };
   }
 
-  // --- Calculation Pipeline ---
   void _scheduleRecalculation([VoidCallback? action]) {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 100), () {
@@ -324,7 +333,37 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     );
   }
 
-  // --- Data Loading & Hydration ---
+  void _applyScanPrefill(Map<String, dynamic> v) {
+    if (!mounted) return;
+
+    _h.date.text = v['date']?.toString() ?? '';
+    _h.vchNo.text = v['vchNo']?.toString() ?? '';
+    final rawParty = v['party']?.toString() ?? '';
+    final rawGstin = v['partyGstin']?.toString() ?? '';
+    _h.party.text = _formatPartyDisplay(rawParty, rawGstin);
+    _allowEmptyVchNo = _h.vchNo.text.trim().isEmpty;
+    _allowDuplicateVchNo = true;
+
+    _items.clear();
+    for (final i in (v['items'] as List? ?? [])) {
+      final row = VoucherItemRow()
+        ..item.text = i['item']?.toString() ?? ''
+        ..hsn = i['hsn']?.toString() ?? ''
+        ..qty.text = i['qty']?.toString() ?? ''
+        ..unit.text = i['unit']?.toString() ?? 'PCS'
+        ..price.text = i['price']?.toString() ?? ''
+        ..gstRate = double.tryParse(i['gstRate']?.toString() ?? '18') ?? 18.0;
+      _attachItemRowListeners(row);
+      _items.add(row);
+    }
+    while (_items.length < 15) {
+      _addItemRow();
+    }
+
+    _loadCompanyMastersOnly();
+    _calculateAllTotals();
+  }
+
   void _loadExistingVoucherData(Map<String, dynamic> v) {
     if (!mounted) return;
     setState(() {
@@ -392,12 +431,12 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
       _addSundryRow();
     }
 
-    _loadCompanyMastersOnly(showLoading: false);
+    _loadCompanyMastersOnly();
     _calculateAllTotals();
   }
 
-  Future<void> _loadCompanyMastersOnly({bool showLoading = false}) async {
-    Future<void> doLoad() async {
+  Future<void> _loadCompanyMastersOnly() async {
+    await LoadingService.wrap(() async {
       final folderPath = _currentCompany['folderPath'];
       if (folderPath == null) return;
       final raw = await StorageService.loadCompanyMasters(folderPath: folderPath);
@@ -459,62 +498,60 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
       }
 
       if (mounted) setState(() {});
-    }
-
-    if (showLoading) {
-      await LoadingService.wrap(doLoad, message: 'Loading Master Records...');
-    } else {
-      await doLoad();
-    }
+    }, message: 'Loading Master Records...');
   }
 
   Future<void> _syncMastersToFile() async {
-    final folderPath = _currentCompany['folderPath'];
-    if (folderPath == null) return;
-    _rebuildFastLookupCaches();
-    await StorageService.saveCompanyMasters(
-      folderPath: folderPath,
-      mastersData: {
-        'debtors': _debtorsList
-            .map((d) => {'name': d.name, 'gstin': d.gstin, 'group': d.group})
-            .toList(),
-        'creditors': _creditorsList
-            .map((c) => {'name': c.name, 'gstin': c.gstin, 'group': c.group})
-            .toList(),
-        'items': _itemsMasterList
-            .map((i) => {
-                  'name': i.name,
-                  'hsn': i.hsn,
-                  'unit': i.unit,
-                  'taxCategory': i.taxCategory,
-                  'taxRate': i.taxRate,
-                  'salesPrice': i.salesPrice,
-                  'purchasePrice': i.purchasePrice,
-                  'mrp': i.mrp,
-                })
-            .toList(),
-        'series': _availableSeries,
-        'seriesSettings': _seriesSettings,
-        'saleTypes': _availableSaleTypes,
-        'billSundries': _availableSundries,
-        'materialCenters': _availableMaterialCenters,
-        'units': _availableUnits,
-        'taxCategories': _availableTaxCategories,
-        'accountGroups': _availableAccountGroups,
-      },
-    );
+    await LoadingService.wrap(() async {
+      final folderPath = _currentCompany['folderPath'];
+      if (folderPath == null) return;
+      _rebuildFastLookupCaches();
+      await StorageService.saveCompanyMasters(
+        folderPath: folderPath,
+        mastersData: {
+          'debtors': _debtorsList
+              .map((d) => {'name': d.name, 'gstin': d.gstin, 'group': d.group})
+              .toList(),
+          'creditors': _creditorsList
+              .map((c) => {'name': c.name, 'gstin': c.gstin, 'group': c.group})
+              .toList(),
+          'items': _itemsMasterList
+              .map((i) => {
+                    'name': i.name,
+                    'hsn': i.hsn,
+                    'unit': i.unit,
+                    'taxCategory': i.taxCategory,
+                    'taxRate': i.taxRate,
+                    'salesPrice': i.salesPrice,
+                    'purchasePrice': i.purchasePrice,
+                    'mrp': i.mrp,
+                  })
+              .toList(),
+          'series': _availableSeries,
+          'seriesSettings': _seriesSettings,
+          'saleTypes': _availableSaleTypes,
+          'billSundries': _availableSundries,
+          'materialCenters': _availableMaterialCenters,
+          'units': _availableUnits,
+          'taxCategories': _availableTaxCategories,
+          'accountGroups': _availableAccountGroups,
+        },
+      );
+    }, message: 'Updating Masters Records...');
   }
 
   Future<void> _autogenerateVoucherNumber(String seriesName) async {
-    final nextNo = await VoucherNumberingService.autogenerate(
-      company: _currentCompany,
-      voucherType: widget.voucherType,
-      seriesName: seriesName,
-      seriesSettings: _seriesSettings[seriesName] ?? {},
-    );
-    if (nextNo != null && mounted) {
-      setState(() => _h.vchNo.text = nextNo);
-    }
+    await LoadingService.wrap(() async {
+      final nextNo = await VoucherNumberingService.autogenerate(
+        company: _currentCompany,
+        voucherType: widget.voucherType,
+        seriesName: seriesName,
+        seriesSettings: _seriesSettings[seriesName] ?? {},
+      );
+      if (nextNo != null && mounted) {
+        setState(() => _h.vchNo.text = nextNo);
+      }
+    }, message: '');
   }
 
   void _attachItemRowListeners(VoucherItemRow row) {
@@ -656,7 +693,6 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     });
   }
 
-  // --- Header Field Listeners & Party Selection Sync ---
   void _attachHeaderListeners() {
     _h.dateFocus.addListener(() {
       if (!_h.dateFocus.hasFocus) _parseAndValidateDate();
@@ -702,8 +738,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
         message:
             '"$text" does not exist in your account ledger masters. Would you like to add it now?',
         onAdd: () async {
-          final added = await _openAddPartyDialog();
-          if (!added) {
+          if (!(await _openAddPartyDialog())) {
             _h.party.clear();
             _h.partyFocus.requestFocus();
           }
@@ -1079,10 +1114,13 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     final defaultPrice = _isSalesVoucher
         ? selectedItem.salesPrice
         : selectedItem.purchasePrice;
-    if (defaultPrice > 0) row.price.text = defaultPrice.toStringAsFixed(2);
+    if (defaultPrice > 0 && row.price.text.isEmpty) {
+      row.price.text = defaultPrice.toStringAsFixed(2);
+    }
 
     final q = double.tryParse(row.qty.text) ?? 0.0;
-    if (q > 0 && defaultPrice > 0) {
+    final p = double.tryParse(row.price.text) ?? 0.0;
+    if (q > 0 && p > 0) {
       VoucherCalculationService.recalculateTaxableAndTaxes(row, _isInterState);
     } else if (row.taxable.text.isNotEmpty) {
       VoucherCalculationService.recalculateTaxesFromTaxable(row, _isInterState);
@@ -1117,36 +1155,36 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
           folderPath: _currentCompany['folderPath'],
           isEdit: existingItem != null,
           initialItem: existingItem,
-          onItemCreated: (data) async {
-            // Silently refresh masters without showing nested modal LoadingService dialogs
-            await _loadCompanyMastersOnly(showLoading: false);
-            if (!mounted) return;
-            setState(() {
-              _rebuildFastLookupCaches();
-              int targetIndex = index;
-              if (targetIndex < 0) {
-                final emptyIdx =
-                    _items.indexWhere((r) => r.item.text.trim().isEmpty);
-                targetIndex = emptyIdx != -1 ? emptyIdx : _items.length;
-              }
-              while (targetIndex >= _items.length) {
-                _addItemRow();
-              }
-
-              final itemName = data['name']?.toString() ?? '';
-              _items[targetIndex].item.text = itemName;
-
-              final matched = _itemCache[itemName.toLowerCase().trim()];
-              if (matched != null) _onItemMasterSelected(targetIndex, matched);
-            });
-            created = true;
-            _notify(existingItem != null
-                ? 'Item updated!'
-                : 'Registered: ${data['name']}');
-          },
         ),
       );
-      if (itemData != null) created = true;
+
+      if (itemData != null && mounted) {
+        created = true;
+        await _loadCompanyMastersOnly();
+        if (!mounted) return created;
+        setState(() {
+          _rebuildFastLookupCaches();
+          int targetIndex = index;
+          if (targetIndex < 0) {
+            final emptyIdx =
+                _items.indexWhere((r) => r.item.text.trim().isEmpty);
+            targetIndex = emptyIdx != -1 ? emptyIdx : _items.length;
+          }
+          while (targetIndex >= _items.length) {
+            _addItemRow();
+          }
+
+          final itemName = itemData['name']?.toString() ?? '';
+          _items[targetIndex].item.text = itemName;
+
+          final matched = _itemCache[itemName.toLowerCase().trim()];
+          if (matched != null) _onItemMasterSelected(targetIndex, matched);
+        });
+
+        _notify(existingItem != null
+            ? 'Item updated!'
+            : 'Registered: ${itemData['name']}');
+      }
     } finally {
       _isItemDialogOpen = false;
     }
@@ -1162,11 +1200,12 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     try {
       final result = await showDialog<Map<String, dynamic>>(
         context: context,
-        builder: (_) => AddPartyDialog(
+        builder: (dialogContext) => AddPartyDialog(
           voucherType: widget.voucherType,
           isEdit: existingParty != null,
           initialParty: existingParty,
           onPartyCreated: (data) async {
+            created = true;
             if (folderPath != null && folderPath.isNotEmpty) {
               try {
                 final raw =
@@ -1200,28 +1239,26 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
                 debugPrint('Error saving party: $e');
               }
             }
-
-            // Silently reload without modal LoadingService
-            await _loadCompanyMastersOnly(showLoading: false);
-
-            if (!mounted) return;
-            setState(() {
-              _rebuildFastLookupCaches();
-              final partyName = data['name']?.toString() ?? '';
-              final gstin = data['gstin']?.toString() ?? '';
-              _h.party.text = _formatPartyDisplay(partyName, gstin);
-              _checkGstMode(autoAdjustSaleType: true);
-              _refreshTaxesOnAllRows();
-            });
-
-            created = true;
-            _notify(existingParty != null
-                ? 'Party updated!'
-                : 'Registered: ${data['name']}');
           },
         ),
       );
-      if (result != null) created = true;
+
+      if (result != null && mounted) {
+        await _loadCompanyMastersOnly();
+        if (!mounted) return true;
+        setState(() {
+          _rebuildFastLookupCaches();
+          final partyName = result['name']?.toString() ?? '';
+          final gstin = result['gstin']?.toString() ?? '';
+          _h.party.text = _formatPartyDisplay(partyName, gstin);
+          _checkGstMode(autoAdjustSaleType: true);
+          _refreshTaxesOnAllRows();
+        });
+
+        _notify(existingParty != null
+            ? 'Party updated!'
+            : 'Registered: ${result['name']}');
+      }
     } finally {
       _isPartyDialogOpen = false;
     }
@@ -1240,8 +1277,11 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
         _isSeriesDialogOpen = true;
         showDialog(
           context: context,
-          builder: (_) => AddSeriesDialog(
+          builder: (dialogContext) => AddSeriesDialog(
             onSeriesCreated: (data) async {
+              if (dialogContext.mounted && Navigator.of(dialogContext).canPop()) {
+                Navigator.of(dialogContext).pop(true);
+              }
               final name = data['name']?.toString() ?? 'Main';
               if (!mounted) return;
               setState(() {
@@ -1295,7 +1335,6 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
   }
 
   bool _handleAltE() {
-    // 1. Party field modification
     if (_h.partyFocus.hasFocus) {
       final partyText = _h.party.text.trim();
       if (partyText.isNotEmpty) {
@@ -1307,7 +1346,6 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
       }
     }
 
-    // 2. Line Items modification
     for (int i = 0; i < _items.length; i++) {
       final r = _items[i];
       final isItemRowFocused = [
@@ -1341,7 +1379,51 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
       }
     }
 
-    return false;
+    final cleanPartyName = GstPartyUtils.extractPartyName(_h.party.text).trim();
+    final sanitizedPartyController = TextEditingController(
+      text: cleanPartyName.isNotEmpty ? cleanPartyName : _h.party.text.trim(),
+    );
+
+    try {
+      return VoucherMasterActions.handleAltE(
+        context: context,
+        company: _currentCompany,
+        partyFocus: _h.partyFocus,
+        partyController: sanitizedPartyController,
+        availableParties: _currentParties,
+        voucherType: widget.voucherType,
+        items: _items,
+        itemsMasterList: _itemsMasterList,
+        onPartyUpdated: (updated) async {
+          await _loadCompanyMastersOnly();
+          if (!mounted) return;
+          setState(() {
+            _h.party.text = _formatPartyDisplay(updated.name, updated.gstin);
+            _checkGstMode(autoAdjustSaleType: true);
+            _refreshTaxesOnAllRows();
+          });
+        },
+        onItemUpdated: (i, updated) async {
+          await _loadCompanyMastersOnly();
+          if (!mounted) return;
+          setState(() {
+            for (final r in _items.where((r) {
+              final n = r.item.text.trim().toLowerCase();
+              return n == updated.name.trim().toLowerCase();
+            })) {
+              r.item.text = updated.name;
+              r.hsn = updated.hsn;
+              r.unit.text = updated.unit;
+              r.gstRate = updated.taxRate;
+            }
+            _onItemMasterSelected(i, updated);
+          });
+        },
+        onSyncMasters: () async => await _loadCompanyMastersOnly(),
+      );
+    } finally {
+      sanitizedPartyController.dispose();
+    }
   }
 
   void _showValidationError(String msg, FocusNode? focus) {
@@ -1644,11 +1726,288 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     return KeyEventResult.ignored;
   }
 
+  Future<void> _handleScanWithAiPro() async {
+    final source = await showModalBottomSheet<ImageSource?>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Wrap(
+          children: [
+            const ListTile(
+              title: Text('Scan with AI Pro',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Text('Upload invoice image or PDF document'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined),
+              title: const Text('Camera'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.image_outlined),
+              title: const Text('Gallery (Image)'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.picture_as_pdf_outlined),
+              title: const Text('PDF Document'),
+              onTap: () => Navigator.pop(ctx, null),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (source == null && !mounted) return;
+
+    Uint8List? fileBytes;
+    String fileName = 'invoice.pdf';
+    String mediaType = 'application/pdf';
+
+    try {
+      if (source != null) {
+        final picker = ImagePicker();
+        final picked = await picker.pickImage(source: source, imageQuality: 90);
+        if (picked == null) return;
+        fileBytes = await picked.readAsBytes();
+        fileName = picked.name;
+        mediaType = picked.name.toLowerCase().endsWith('.png')
+            ? 'image/png'
+            : 'image/jpeg';
+      } else {
+        final result = await FilePicker.platform.pickFiles(
+          type: FileType.custom,
+          allowedExtensions: ['pdf'],
+          withData: true,
+        );
+        if (result == null || result.files.single.bytes == null) return;
+        fileBytes = result.files.single.bytes!;
+        fileName = result.files.single.name;
+        mediaType = 'application/pdf';
+      }
+    } catch (e) {
+      _notify('Failed to select file: $e', bg: AppColors.error);
+      return;
+    }
+
+    if (fileBytes == null || !mounted) return;
+
+    ScannedVoucherData? scanned;
+    await LoadingService.wrap(() async {
+      try {
+        scanned = await ScanAiService.extractFromFile(
+          fileBytes!,
+          fileName: fileName,
+          mediaType: mediaType,
+        );
+      } catch (e) {
+        _notify(e.toString(), bg: AppColors.error);
+      }
+    }, message: 'AI is analyzing invoice details...');
+
+    if (scanned == null || !mounted) return;
+
+    debugPrint('Scan result: party=${scanned!.partyName}, items=${scanned!.items.length}');
+
+    // Header info
+    if (scanned!.invoiceDate.isNotEmpty) {
+      _h.date.text = scanned!.invoiceDate;
+      _parseAndValidateDate();
+    }
+    if (scanned!.invoiceNo.isNotEmpty && !scanned!.invoiceNo.toLowerCase().contains("invoice")) {
+      _h.vchNo.text = scanned!.invoiceNo;
+      _allowEmptyVchNo = false;
+      _allowDuplicateVchNo = true;
+    }
+
+    // 1. Resolve party
+    await _resolveScannedParty(scanned!.partyName, scanned!.partyGstin);
+
+    // 2. Resolve items with interactive modal support for missing items
+    await _resolveScannedItems(scanned!.items);
+
+    // 3. Resolve Bill Sundries (Discount, Freight, etc.)
+    if (scanned!.sundries.isNotEmpty) {
+      for (int i = 0; i < scanned!.sundries.length; i++) {
+        final sData = scanned!.sundries[i];
+        while (_sundries.length <= i) {
+          _addSundryRow();
+        }
+        final sRow = _sundries[i];
+        sRow.name.text = sData.name;
+        sRow.amount.text = sData.amount.toStringAsFixed(2);
+        sRow.isNegative = sData.isNegative;
+      }
+    }
+
+    // 4. Update all calculations and totals
+    _calculateAllTotals();
+    _notify('Invoice scanned & populated successfully!', bg: AppColors.success);
+  }
+
+  Future<void> _resolveScannedParty(String partyName, String partyGstin) async {
+    final cleanName = partyName.replaceAll(RegExp(r'^(?:bill\s*to|buyer|customer)[\s.:]*', caseSensitive: false), '').trim();
+    if (cleanName.isEmpty && partyGstin.trim().isEmpty) return;
+
+    PartyMasterModel? matched;
+    if (partyGstin.trim().isNotEmpty) {
+      matched = _currentParties.firstWhereOrNull(
+        (p) => p.gstin.trim().toLowerCase() == partyGstin.trim().toLowerCase(),
+      );
+    }
+    if (matched == null && cleanName.isNotEmpty) {
+      final matchResult = MasterMatcher.bestMatch(
+        cleanName,
+        _currentParties.map((p) => {'name': p.name, 'gstin': p.gstin}).toList(),
+      );
+      if (!matchResult.isNew && matchResult.match != null) {
+        matched = _findParty(matchResult.match!['name'].toString());
+      }
+    }
+
+    if (matched != null) {
+      _h.party.text = _formatPartyDisplay(matched.name, matched.gstin);
+      _checkGstMode(autoAdjustSaleType: true);
+      _refreshTaxesOnAllRows();
+    } else {
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogCtx) => AddPartyDialog(
+          voucherType: widget.voucherType,
+          initialName: cleanName,
+          initialGstin: partyGstin,
+          onPartyCreated: (data) async {
+            final folderPath = _currentCompany['folderPath']?.toString();
+            if (folderPath != null && folderPath.isNotEmpty) {
+              final raw = await StorageService.loadCompanyMasters(folderPath: folderPath);
+              final isCreditor = (data['group'] ?? '').toString().toLowerCase().contains('creditor');
+              final listKey = isCreditor ? 'creditors' : 'debtors';
+              final list = (raw[listKey] as List? ?? []).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+              list.add(data);
+              raw[listKey] = list;
+              await StorageService.saveCompanyMasters(folderPath: folderPath, mastersData: raw);
+            }
+            await _loadCompanyMastersOnly();
+            if (!mounted) return;
+            setState(() {
+              _rebuildFastLookupCaches();
+              _h.party.text = _formatPartyDisplay(data['name']?.toString() ?? '', data['gstin']?.toString() ?? '');
+              _checkGstMode(autoAdjustSaleType: true);
+              _refreshTaxesOnAllRows();
+            });
+          },
+        ),
+      );
+    }
+  }
+
+  Future<void> _resolveScannedItems(List<ScannedItem> scannedItems) async {
+    final itemsToProcess = scannedItems.where((i) => i.name.trim().isNotEmpty).toList();
+
+    debugPrint('Items to process: ${itemsToProcess.length}');
+
+    if (itemsToProcess.isEmpty) {
+      _notify('No line items detected from invoice.', bg: AppColors.warning);
+      return;
+    }
+
+    for (int i = 0; i < itemsToProcess.length; i++) {
+      final sItem = itemsToProcess[i];
+      final cleanScannedName = sItem.name.toLowerCase().trim();
+
+      ItemMasterModel? matched;
+
+      // 1. Check exact name in Item Master
+      if (_itemCache.containsKey(cleanScannedName)) {
+        matched = _itemCache[cleanScannedName];
+      }
+
+      // 2. Check by HSN code
+      if (matched == null && sItem.hsn.trim().isNotEmpty) {
+        matched = _itemsMasterList.firstWhereOrNull(
+          (it) => it.hsn.trim() == sItem.hsn.trim(),
+        );
+      }
+
+      // 3. Fuzzy match name
+      if (matched == null) {
+        final matchResult = MasterMatcher.bestMatch(
+          sItem.name,
+          _itemsMasterList.map((it) => {'name': it.name, 'hsn': it.hsn}).toList(),
+          threshold: 0.65,
+        );
+        if (!matchResult.isNew && matchResult.match != null) {
+          final mName = matchResult.match!['name'].toString().toLowerCase().trim();
+          matched = _itemCache[mName];
+        }
+      }
+
+      // 4. If Item is NOT in Master -> Open AddItemDialog PRE-FILLED!
+      if (matched == null) {
+        final createdData = await showDialog<Map<String, dynamic>>(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogCtx) => AddItemDialog(
+            company: _currentCompany,
+            folderPath: _currentCompany['folderPath'],
+            initialName: sItem.name,
+            initialHsn: sItem.hsn,
+            initialUnit: sItem.unit.isNotEmpty ? sItem.unit : 'PCS',
+            initialPrice: sItem.rate > 0 ? sItem.rate : null,
+            initialGstRate: sItem.taxRatePercent > 0 ? sItem.taxRatePercent : 18.0,
+          ),
+        );
+
+        if (createdData != null) {
+          await _loadCompanyMastersOnly();
+          _rebuildFastLookupCaches();
+          matched = _itemCache[createdData['name']?.toString().toLowerCase().trim()];
+        }
+      }
+
+      // Ensure row exists at index i
+      while (_items.length <= i) {
+        _addItemRow();
+      }
+
+      // 5. Populate directly into row[i]
+      final row = _items[i];
+      row.item.text = matched?.name ?? sItem.name;
+      row.hsn = (matched != null && matched.hsn.isNotEmpty) ? matched.hsn : sItem.hsn;
+      row.qty.text = sItem.qty > 0 ? (sItem.qty % 1 == 0 ? sItem.qty.toInt().toString() : sItem.qty.toString()) : '1';
+      row.unit.text = (matched != null && matched.unit.isNotEmpty)
+          ? matched.unit
+          : (sItem.unit.isNotEmpty ? sItem.unit : 'PCS');
+      row.price.text = sItem.rate > 0
+          ? sItem.rate.toStringAsFixed(2)
+          : ((_isSalesVoucher ? matched?.salesPrice : matched?.purchasePrice) ?? 0.0) > 0
+              ? (_isSalesVoucher ? matched!.salesPrice : matched!.purchasePrice).toStringAsFixed(2)
+              : '0.00';
+      row.gstRate = sItem.taxRatePercent > 0
+          ? sItem.taxRatePercent
+          : (matched?.taxRate ?? 18.0);
+
+      VoucherCalculationService.recalculateTaxableAndTaxes(row, _isInterState);
+    }
+
+    while (_items.length < 15) {
+      _addItemRow();
+    }
+
+    if (mounted) {
+      setState(() {});
+      _calculateAllTotals();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.listen<Map<String, dynamic>?>(activeCompanyProvider, (previous, next) {
       if (next != null && !const DeepCollectionEquality().equals(previous, next)) {
-        _loadCompanyMastersOnly(showLoading: false).then((_) {
+        _loadCompanyMastersOnly().then((_) {
           if (mounted) {
             setState(() {
               _checkGstMode(autoAdjustSaleType: true);
@@ -2036,11 +2395,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(10),
-          onTap: () => _notify(
-            'AI Scan: Initializing smart document recognition...',
-            bg: AppColors.purple,
-            icon: Icons.auto_awesome_rounded,
-          ),
+          onTap: _handleScanWithAiPro,
           child: const Padding(
             padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             child: Row(
