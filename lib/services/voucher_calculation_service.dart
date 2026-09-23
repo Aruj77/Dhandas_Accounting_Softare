@@ -14,17 +14,19 @@ class VoucherTotalsResult {
   final double totalItemAmount;
 
   const VoucherTotalsResult({
-    required this.totalQty,
-    required this.subTotal,
-    required this.totalCgst,
-    required this.totalSgst,
-    required this.totalIgst,
-    required this.totalTax,
-    required this.sundryTotal,
-    required this.roundOff,
-    required this.grandTotal,
-    required this.totalItemAmount,
+    this.totalQty = 0.0,
+    this.subTotal = 0.0,
+    this.totalCgst = 0.0,
+    this.totalSgst = 0.0,
+    this.totalIgst = 0.0,
+    this.totalTax = 0.0,
+    this.sundryTotal = 0.0,
+    this.roundOff = 0.0,
+    this.grandTotal = 0.0,
+    this.totalItemAmount = 0.0,
   });
+
+  static const zero = VoucherTotalsResult();
 }
 
 class VoucherCalculationService {
