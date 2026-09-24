@@ -1,16 +1,23 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
+import '../../models/company_model.dart';
+import '../../models/voucher_model.dart';
 import '../../services/focus_policy_service.dart';
 import '../../services/loading_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/storage_service.dart';
-import '../../utils/app_date_utils.dart';
+import '../../utils/number_parsing_utils.dart';
 
 class ReportsDashboardScreen extends StatefulWidget {
-  final Map<String, dynamic> company;
+  final CompanyModel company;
 
-  const ReportsDashboardScreen({super.key, required this.company});
+  ReportsDashboardScreen({
+    super.key,
+    required dynamic company,
+  }) : company = company is CompanyModel
+            ? company
+            : CompanyModel.fromJson(company as Map<String, dynamic>);
 
   @override
   State<ReportsDashboardScreen> createState() => _ReportsDashboardScreenState();
@@ -22,7 +29,7 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
 
   final FocusNode _periodDropdownFocusNode = FocusNode();
 
-  List<Map<String, dynamic>> _allVouchers = [];
+  List<VoucherModel> _allVouchers = [];
   double _totalSales = 0.0;
   double _totalPurchases = 0.0;
   double _totalReceipts = 0.0;
@@ -31,7 +38,12 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
   double _totalTaxInput = 0.0;
 
   num get estimatedEquity =>
-      _totalSales - _totalPurchases - _totalReceipts - _totalPayments - _totalTaxOutput + _totalTaxInput;
+      _totalSales -
+      _totalPurchases -
+      _totalReceipts -
+      _totalPayments -
+      _totalTaxOutput +
+      _totalTaxInput;
 
   @override
   void initState() {
@@ -45,37 +57,33 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
     super.dispose();
   }
 
-  double _parseDouble(dynamic val) => double.tryParse(val?.toString() ?? '0') ?? 0.0;
-
   Future<void> _loadFinancialData() async {
     await LoadingService.wrap(() async {
-      final folderPath = widget.company['folderPath']?.toString();
-      final fy = (widget.company['activeFinancialYear'] ?? AppDateUtils.defaultFinancialYear).toString();
+      final folderPath = widget.company.folderPath;
+      final fy = widget.company.activeFinancialYear;
 
-      if (folderPath != null) {
-        final vouchers = await StorageService.loadVouchers(
+      if (folderPath.isNotEmpty) {
+        final rawVouchers = await StorageService.loadVouchers(
           folderPath: folderPath,
           financialYear: fy,
         );
+
+        final vouchers = rawVouchers.map(VoucherModel.fromJson).toList();
 
         double sales = 0.0, purchases = 0.0, receipts = 0.0, payments = 0.0;
         double taxOut = 0.0, taxIn = 0.0;
 
         for (final v in vouchers) {
-          final type = (v['voucherType'] ?? '').toString().toLowerCase();
-          final grandTotal = _parseDouble(v['grandTotal']);
-          final tax = _parseDouble(v['totalTax']);
-
-          if (type.contains('sale')) {
-            sales += grandTotal;
-            taxOut += tax;
-          } else if (type.contains('purchase')) {
-            purchases += grandTotal;
-            taxIn += tax;
-          } else if (type.contains('receipt') || type.contains('payment in')) {
-            receipts += grandTotal;
-          } else if (type.contains('payment') || type.contains('payment out')) {
-            payments += grandTotal;
+          if (v.isSale) {
+            sales += v.grandTotal;
+            taxOut += v.totalTax;
+          } else if (v.isPurchase) {
+            purchases += v.grandTotal;
+            taxIn += v.totalTax;
+          } else if (v.isReceipt) {
+            receipts += v.grandTotal;
+          } else if (v.isPayment) {
+            payments += v.grandTotal;
           }
         }
 
@@ -105,8 +113,8 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final activeFy = widget.company['activeFinancialYear'] ?? AppDateUtils.defaultFinancialYear;
-    final companyName = widget.company['companyName'] ?? 'Organization';
+    final activeFy = widget.company.activeFinancialYear;
+    final companyName = widget.company.companyName;
 
     final grossProfit = _totalSales - (_totalPurchases * 0.7);
     final netProfit = grossProfit - (_totalPurchases * 0.15);
@@ -202,17 +210,52 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
                     ),
                     const SizedBox(height: 28),
 
-                    const Text('Executive Key Performance Indicators', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                    const Text(
+                      'Executive Key Performance Indicators',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                    ),
                     const SizedBox(height: 14),
                     Row(
                       children: [
-                        Expanded(child: _buildKpiCard('Total Revenue (Sales)', '₹${_totalSales.toStringAsFixed(2)}', '+12.4% vs last FY', Icons.trending_up_rounded, AppColors.success)),
+                        Expanded(
+                          child: _buildKpiCard(
+                            'Total Revenue (Sales)',
+                            '₹${_totalSales.toCurrency()}',
+                            '+12.4% vs last FY',
+                            Icons.trending_up_rounded,
+                            AppColors.success,
+                          ),
+                        ),
                         const SizedBox(width: 16),
-                        Expanded(child: _buildKpiCard('Gross Expenses', '₹${_totalPurchases.toStringAsFixed(2)}', 'Inward supply volume', Icons.shopping_bag_outlined, AppColors.purple)),
+                        Expanded(
+                          child: _buildKpiCard(
+                            'Gross Expenses',
+                            '₹${_totalPurchases.toCurrency()}',
+                            'Inward supply volume',
+                            Icons.shopping_bag_outlined,
+                            AppColors.purple,
+                          ),
+                        ),
                         const SizedBox(width: 16),
-                        Expanded(child: _buildKpiCard('Net Estimated Profit', '₹${netProfit.toStringAsFixed(2)}', '${profitMargin.toStringAsFixed(1)}% Net Margin', Icons.account_balance_wallet_rounded, AppColors.primary)),
+                        Expanded(
+                          child: _buildKpiCard(
+                            'Net Estimated Profit',
+                            '₹${netProfit.toCurrency()}',
+                            '${profitMargin.toStringAsFixed(1)}% Net Margin',
+                            Icons.account_balance_wallet_rounded,
+                            AppColors.primary,
+                          ),
+                        ),
                         const SizedBox(width: 16),
-                        Expanded(child: _buildKpiCard('Recorded Vouchers', '${_allVouchers.length} entries', 'Active F.Y. $activeFy', Icons.folder_open_rounded, AppColors.warning)),
+                        Expanded(
+                          child: _buildKpiCard(
+                            'Recorded Vouchers',
+                            '${_allVouchers.length} entries',
+                            'Active F.Y. $activeFy',
+                            Icons.folder_open_rounded,
+                            AppColors.warning,
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 28),
@@ -232,13 +275,29 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Cash Inflow vs Outflow Performance', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                                const Text(
+                                  'Cash Inflow vs Outflow Performance',
+                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                                ),
                                 const SizedBox(height: 4),
-                                const Text('Comparison of total cash collections (Receipts) against disbursements (Payments)', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                                const Text(
+                                  'Comparison of total cash collections (Receipts) against disbursements (Payments)',
+                                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                                ),
                                 const SizedBox(height: 24),
-                                _buildProgressMetricBar('Total Receipts (Inflows)', _totalReceipts, math.max(_totalReceipts, _totalPayments), AppColors.success),
+                                _buildProgressMetricBar(
+                                  'Total Receipts (Inflows)',
+                                  _totalReceipts,
+                                  math.max(_totalReceipts, _totalPayments),
+                                  AppColors.success,
+                                ),
                                 const SizedBox(height: 18),
-                                _buildProgressMetricBar('Total Payments (Outflows)', _totalPayments, math.max(_totalReceipts, _totalPayments), AppColors.error),
+                                _buildProgressMetricBar(
+                                  'Total Payments (Outflows)',
+                                  _totalPayments,
+                                  math.max(_totalReceipts, _totalPayments),
+                                  AppColors.error,
+                                ),
                                 const SizedBox(height: 20),
                                 Container(
                                   padding: const EdgeInsets.all(14),
@@ -254,7 +313,7 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
                                       Expanded(
                                         child: Text(
                                           _totalReceipts >= _totalPayments
-                                              ? 'Healthy cash surplus maintained. Inflows exceed outflows by ₹${(_totalReceipts - _totalPayments).toStringAsFixed(2)}.'
+                                              ? 'Healthy cash surplus maintained. Inflows exceed outflows by ₹${(_totalReceipts - _totalPayments).toCurrency()}.'
                                               : 'Caution: Outflows exceed recorded cash receipts. Review pending receivables.',
                                           style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
                                         ),
@@ -279,15 +338,26 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Key Financial Ratios', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                                const Text(
+                                  'Key Financial Ratios',
+                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                                ),
                                 const SizedBox(height: 4),
-                                const Text('Automated solvency & liquidity benchmarks', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                                const Text(
+                                  'Automated solvency & liquidity benchmarks',
+                                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                                ),
                                 const SizedBox(height: 20),
                                 _buildRatioTile('Current Ratio', '2.42 : 1', 'Safe liquidity benchmark (>1.5)', true),
                                 const Divider(height: 20, color: AppColors.border),
                                 _buildRatioTile('Quick Ratio', '1.85 : 1', 'Immediate debt coverage capacity', true),
                                 const Divider(height: 20, color: AppColors.border),
-                                _buildRatioTile('GST Tax Burden', '${_totalSales > 0 ? ((_totalTaxOutput / _totalSales) * 100).toStringAsFixed(1) : '0'}%', 'Average tax incidence on turnover', false),
+                                _buildRatioTile(
+                                  'GST Tax Burden',
+                                  '${_totalSales > 0 ? ((_totalTaxOutput / _totalSales) * 100).toStringAsFixed(1) : '0'}%',
+                                  'Average tax incidence on turnover',
+                                  false,
+                                ),
                               ],
                             ),
                           ),
@@ -388,17 +458,23 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('GST Tax Liability & ITC Reconciliation', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
+                          const Text(
+                            'GST Tax Liability & ITC Reconciliation',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AppColors.textPrimary),
+                          ),
                           const SizedBox(height: 4),
-                          const Text('Summary reconciliation of outward tax collected vs inward tax credit (ITC)', style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+                          const Text(
+                            'Summary reconciliation of outward tax collected vs inward tax credit (ITC)',
+                            style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                          ),
                           const Divider(height: 24, color: AppColors.border),
                           Row(
                             children: [
-                              Expanded(child: _buildGstMetricBox('Total Outward Tax (Output GST)', '₹${_totalTaxOutput.toStringAsFixed(2)}', AppColors.primary)),
+                              Expanded(child: _buildGstMetricBox('Total Outward Tax (Output GST)', '₹${_totalTaxOutput.toCurrency()}', AppColors.primary)),
                               const SizedBox(width: 16),
-                              Expanded(child: _buildGstMetricBox('Available Input Tax Credit (ITC)', '₹${_totalTaxInput.toStringAsFixed(2)}', AppColors.success)),
+                              Expanded(child: _buildGstMetricBox('Available Input Tax Credit (ITC)', '₹${_totalTaxInput.toCurrency()}', AppColors.success)),
                               const SizedBox(width: 16),
-                              Expanded(child: _buildGstMetricBox('Net GST Payable in Cash', '₹${netGstPayable.toStringAsFixed(2)}', AppColors.error)),
+                              Expanded(child: _buildGstMetricBox('Net GST Payable in Cash', '₹${netGstPayable.toCurrency()}', AppColors.error)),
                             ],
                           ),
                           const SizedBox(height: 20),
@@ -463,7 +539,7 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(label, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-            Text('₹${amount.toStringAsFixed(2)}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: color)),
+            Text('₹${amount.toCurrency()}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: color)),
           ],
         ),
         const SizedBox(height: 8),
@@ -522,7 +598,7 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textSecondary)),
-          Text('₹${amount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+          Text('₹${amount.toCurrency()}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
         ],
       ),
     );
@@ -540,8 +616,20 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(fontSize: isHighlight ? 14 : 13, fontWeight: FontWeight.w900, color: isHighlight ? AppColors.primary : AppColors.textPrimary)),
-          Text('₹${amount.toStringAsFixed(2)}', style: TextStyle(fontSize: isHighlight ? 15 : 13.5, fontWeight: FontWeight.w900, color: isNet ? (amount >= 0 ? AppColors.successDark : AppColors.error) : (isHighlight ? AppColors.primary : AppColors.textPrimary))),
+          Text(
+            label,
+            style: TextStyle(fontSize: isHighlight ? 14 : 13, fontWeight: FontWeight.w900, color: isHighlight ? AppColors.primary : AppColors.textPrimary),
+          ),
+          Text(
+            '₹${amount.toCurrency()}',
+            style: TextStyle(
+              fontSize: isHighlight ? 15 : 13.5,
+              fontWeight: FontWeight.w900,
+              color: isNet
+                  ? (amount >= 0 ? AppColors.successDark : AppColors.error)
+                  : (isHighlight ? AppColors.primary : AppColors.textPrimary),
+            ),
+          ),
         ],
       ),
     );
@@ -594,7 +682,10 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
               color: isDone ? AppColors.successLight : AppColors.warningLight,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Text(status, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: isDone ? AppColors.successDark : AppColors.warning)),
+            child: Text(
+              status,
+              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: isDone ? AppColors.successDark : AppColors.warning),
+            ),
           ),
         ],
       ),

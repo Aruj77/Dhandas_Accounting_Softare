@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../constants/app_colors.dart';
+import '../models/company_model.dart';
 import '../provider/company_provider.dart';
 import '../services/focus_policy_service.dart';
 import '../services/keyboard_shortcut_service.dart';
@@ -54,7 +55,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _selectedIndex = 0;
   KeyboardShortcutSettings _keyboardSettings = KeyboardShortcutSettings.defaults();
 
-  Map<String, dynamic>? _activeCompany;
+  CompanyModel? _activeCompany;
   String? _activeVoucherType;
   _ListParams? _activeListQuery;
 
@@ -140,7 +141,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       return;
     }
 
-    showGeneralDialog<Map<String, dynamic>>(
+    showGeneralDialog<dynamic>(
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Open Company Dialog',
@@ -159,14 +160,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       },
     ).then((selectedCompany) {
       if (selectedCompany != null && mounted) {
+        final companyModel = selectedCompany is CompanyModel
+            ? selectedCompany
+            : CompanyModel.fromJson(selectedCompany as Map<String, dynamic>);
+
         setState(() {
-          _activeCompany = selectedCompany;
+          _activeCompany = companyModel;
           _selectedIndex = 0;
           _activeVoucherType = null;
           _activeListQuery = null;
         });
 
-        ref.read(activeCompanyProvider.notifier).state = selectedCompany;
+        ref.read(activeCompanyProvider.notifier).state = companyModel;
 
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _sidebarKey.currentState?.focusActiveItem();
@@ -174,7 +179,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
         NotificationService.show(
           context,
-          message: 'Opened workspace for: ${selectedCompany['companyName']}',
+          message: 'Opened workspace for: ${companyModel.companyName}',
           type: NotificationType.success,
         );
       }
@@ -369,17 +374,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     Widget content;
+    final activeCompanyMap = _activeCompany?.toJson();
 
     if (_activeVoucherType != null) {
       content = VoucherEntryScreen(
-        company: _activeCompany!,
+        company: activeCompanyMap!,
         voucherType: _activeVoucherType!,
         onClose: () => setState(() => _activeVoucherType = null),
         keyboardSettings: _keyboardSettings,
       );
     } else if (_activeListQuery != null) {
       content = VoucherListScreen(
-        company: _activeCompany!,
+        company: activeCompanyMap!,
         voucherType: _activeListQuery!.voucherType,
         fromDate: _activeListQuery!.fromDate,
         toDate: _activeListQuery!.toDate,
@@ -393,7 +399,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           SideBar(
             key: _sidebarKey,
             selectedIndex: _selectedIndex,
-            activeCompany: _activeCompany,
+            activeCompany: activeCompanyMap,
             onSwitchCompany: _switchWorkspace,
             onMoveToRightPane: _jumpToRightPane,
             onItemSelected: (index) {
@@ -426,7 +432,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             Expanded(child: content),
             if (_activeCompany != null)
               CompanyWorkspaceFooter(
-                company: _activeCompany!,
+                company: activeCompanyMap!,
                 onChangeFy: () => setState(() {
                   _activeVoucherType = null;
                   _activeListQuery = null;
@@ -440,12 +446,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildActiveCompanyView() {
+    final activeCompanyMap = _activeCompany!.toJson();
+
     return IndexedStack(
       index: _selectedIndex,
       children: [
         TransactionsDashboard(
           key: _dashboardKey,
-          company: _activeCompany!,
+          company: activeCompanyMap,
           onMoveToSidebar: _jumpToSidebar,
           onAddTransaction: (vchType) {
             setState(() {
@@ -465,7 +473,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             });
           },
         ),
-        MastersDashboardScreen(company: _activeCompany!),
+        MastersDashboardScreen(company: activeCompanyMap),
         _buildPlaceholderView(
           icon: Icons.inventory_2_outlined,
           title: 'Inventory & Items',
@@ -474,10 +482,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ReportsDashboardScreen(company: _activeCompany!),
         const Gstr2bReconciliationScreen(),
         AdministrationScreen(
-          company: _activeCompany!,
+          company: activeCompanyMap,
           onCompanyUpdated: (updated) {
-            setState(() => _activeCompany = updated);
-            ref.read(activeCompanyProvider.notifier).state = updated;
+            final updatedModel = CompanyModel.fromJson(updated);
+            setState(() => _activeCompany = updatedModel);
+            ref.read(activeCompanyProvider.notifier).state = updatedModel;
           },
         ),
       ],
@@ -580,7 +589,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             children: [
               Expanded(
                 child: companiesAsync.when(
-                  data: (companies) => RecentCompaniesPanel(companies: companies),
+                  data: (companies) => RecentCompaniesPanel(
+                    companies: companies.map((c) => c.toJson()).toList(),
+                  ),
                   loading: () => const RecentCompaniesPanel(companies: []),
                   error: (_, __) => const RecentCompaniesPanel(companies: []),
                 ),

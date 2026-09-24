@@ -31,16 +31,18 @@ class RegisterSummary {
     double cess = 0.0;
 
     for (final v in vouchers) {
-      invVal += double.tryParse(v['grandTotal']?.toString() ?? '0') ?? 0.0;
-      taxable += double.tryParse(v['subTotal']?.toString() ?? '0') ?? 0.0;
-      igst += double.tryParse(v['igst']?.toString() ?? '0') ?? 0.0;
-      cgst += double.tryParse(v['cgst']?.toString() ?? '0') ?? 0.0;
-      sgst += double.tryParse(v['sgst']?.toString() ?? '0') ?? 0.0;
+      invVal += v['grandTotal'].toCleanDouble();
+      taxable += v['subTotal'].toCleanDouble();
+      igst += v['igst'].toCleanDouble();
+      cgst += v['cgst'].toCleanDouble();
+      sgst += v['sgst'].toCleanDouble();
       cess += GstPartyUtils.extractCessAmount(v);
 
-      final items = v['items'] as List? ?? [];
+      final items = v['items'] as List? ?? const [];
       for (final i in items) {
-        qty += double.tryParse(i['qty']?.toString() ?? '0') ?? 0.0;
+        if (i is Map) {
+          qty += i['qty'].toCleanDouble();
+        }
       }
     }
 
@@ -55,4 +57,4 @@ class RegisterSummary {
       totalCess: cess,
     );
   }
-} 
+}

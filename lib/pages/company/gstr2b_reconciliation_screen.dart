@@ -3,14 +3,21 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_colors.dart';
+import '../../models/company_model.dart';
+import '../../models/voucher_model.dart';
 import '../../provider/company_provider.dart';
 import '../../services/gstr2b_reconciliation_service.dart';
+import '../../services/notification_service.dart';
 import '../../services/storage_service.dart';
 import '../../utils/extensions.dart';
-import '../../services/notification_service.dart';
 
 class Gstr2bReconciliationScreen extends ConsumerStatefulWidget {
-  const Gstr2bReconciliationScreen({super.key});
+  final dynamic company;
+
+  const Gstr2bReconciliationScreen({
+    super.key,
+    this.company,
+  });
 
   @override
   ConsumerState<Gstr2bReconciliationScreen> createState() =>
@@ -22,6 +29,21 @@ class _Gstr2bReconciliationScreenState
   bool _isAnalyzing = false;
   ReconciliationResult? _result;
   String? _fileName;
+
+  CompanyModel? _resolveActiveCompany() {
+    if (widget.company != null) {
+      return widget.company is CompanyModel
+          ? widget.company as CompanyModel
+          : CompanyModel.fromJson(widget.company as Map<String, dynamic>);
+    }
+
+    final activeCompany = ref.read(activeCompanyProvider);
+    if (activeCompany != null) {
+      return activeCompany;
+    }
+
+    return null;
+  }
 
   Future<void> _pickAndReconcile() async {
     final picked = await FilePicker.platform.pickFiles(
@@ -41,24 +63,25 @@ class _Gstr2bReconciliationScreenState
       final file = File(picked.files.single.path!);
       final content = await file.readAsString();
 
-      final activeCompany = ref.read(activeCompanyProvider);
+      final activeCompany = _resolveActiveCompany();
       if (activeCompany == null) {
         throw Exception('No active company workspace selected.');
       }
 
-      final folderPath = (activeCompany['folderPath'] ?? '').toString();
-      final fy = (activeCompany['activeFinancialYear'] ?? '2026-27').toString();
+      final folderPath = activeCompany.folderPath;
+      final fy = activeCompany.activeFinancialYear;
 
-      // Load purchase vouchers through StorageService to query partitioned series databases
-      // and avoid multiple database instantiation conflicts
-      final localPurchases = await StorageService.loadVouchers(
+      // Load purchase vouchers through StorageService and map to typed VoucherModel
+      final rawPurchases = await StorageService.loadVouchers(
         folderPath: folderPath,
         financialYear: fy,
         voucherType: 'purchase',
       );
 
+      final localPurchases = rawPurchases.map(VoucherModel.fromJson).toList();
+
       final res = await Gstr2bReconciliationService.reconcile(
-        localPurchases: localPurchases,
+        localPurchases: localPurchases.map((v) => v.toJson()).toList(),
         gstr2bJsonString: content,
       );
 
@@ -298,8 +321,7 @@ class _Gstr2bReconciliationScreenState
                                   ),
                                   trailing: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.end,
+                                    crossAxisAlignment: CrossAxisAlignment.end,
                                     children: [
                                       Text(
                                         'Portal: ${portalVal.toINR()}',

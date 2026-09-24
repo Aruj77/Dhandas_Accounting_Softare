@@ -1,7 +1,5 @@
-// lib/pages/company/masters_dashboard_screen.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../constants/app_colors.dart';
 import '../../models/item_master_model.dart';
 import '../../models/party_master_model.dart';
@@ -10,12 +8,14 @@ import '../../services/focus_policy_service.dart';
 import '../../services/notification_service.dart';
 import '../../utils/app_action_bottom_sheet.dart';
 import '../../utils/app_date_utils.dart';
-import '../../utils/grid_keyboard_navigator.dart';
 import '../../widgets/common/app_confirm_dialog.dart';
 import '../../widgets/common/dashboard_action_chip.dart';
+import '../../widgets/common/interactive_dashboard_card.dart';
+import '../../widgets/common/company_dashboard_header.dart';
 import '../../widgets/voucher/popup/add_item_dialog.dart';
 import '../../widgets/voucher/popup/add_party_dialog.dart';
 import '../../widgets/voucher/popup/add_series_dialog.dart';
+import '../../widgets/common/app_input_dialog.dart';
 
 enum MasterCategory { accounts, inventory, configuration }
 enum MasterAction { add, modify }
@@ -181,8 +181,6 @@ class MastersDashboardScreenState extends State<MastersDashboardScreen> {
   static final List<List<int>> _gridSections = _sections.map((s) => s.indices).toList();
 
   late final List<FocusNode> _focusNodes = List.generate(_items.length, (_) => FocusNode());
-  int? _focusedIndex;
-  int? _hoveredIndex;
 
   @override
   void dispose() {
@@ -246,16 +244,7 @@ class MastersDashboardScreenState extends State<MastersDashboardScreen> {
             onItemCreated: (data) async {
               await MasterRepository.upsertItem(
                 folderPath: folderPath,
-                item: ItemMasterModel(
-                  name: data['name']?.toString() ?? '',
-                  hsn: data['hsn']?.toString() ?? '',
-                  unit: data['unit']?.toString() ?? 'PCS',
-                  taxCategory: data['taxCategory']?.toString() ?? 'GST 18%',
-                  taxRate: (data['taxRate'] as num?)?.toDouble() ?? 18.0,
-                  salesPrice: (data['salesPrice'] as num?)?.toDouble() ?? 0.0,
-                  purchasePrice: (data['purchasePrice'] as num?)?.toDouble() ?? 0.0,
-                  mrp: (data['mrp'] as num?)?.toDouble() ?? 0.0,
-                ),
+                item: ItemMasterModel.fromJson(data),
               );
               _onMasterAdded('Item "${data['name']}"');
             },
@@ -291,8 +280,11 @@ class MastersDashboardScreenState extends State<MastersDashboardScreen> {
   }
 
   Future<void> _addSimpleStringMaster(String key, String title, String? folderPath) async {
-    final controller = TextEditingController();
-    final name = await _showInputDialog(context, 'Add $title', 'Enter $title name', controller);
+    final name = await AppInputDialog.show(
+      context: context,
+      title: 'Add $title',
+      hintText: 'Enter $title name',
+    );
 
     if (name != null && name.isNotEmpty && folderPath != null) {
       final success = await MasterRepository.addSimpleMaster(
@@ -346,7 +338,12 @@ class MastersDashboardScreenState extends State<MastersDashboardScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildHeader(companyName, activeFy),
+                  CompanyDashboardHeader(
+                    companyName: companyName,
+                    financialYear: activeFy,
+                    subtitle: 'Master Data Management: Add and modify accounts, stock catalog, voucher series, and GST rules.',
+                    accentColor: AppColors.purple,
+                  ),
                   const SizedBox(height: 30),
                   for (final sec in _sections) ...[
                     _buildCategorySection(sec.title, sec.desc, sec.icon, sec.color, sec.indices, cols),
@@ -357,59 +354,6 @@ class MastersDashboardScreenState extends State<MastersDashboardScreen> {
             );
           },
         ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(String companyName, String financialYear) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 22),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
-        boxShadow: const [BoxShadow(color: AppColors.shadowColor, blurRadius: 18, offset: Offset(0, 5))],
-      ),
-      child: Row(
-        children: [
-          Container(width: 5, height: 58, decoration: BoxDecoration(color: AppColors.purple, borderRadius: BorderRadius.circular(10))),
-          const SizedBox(width: 18),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        companyName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 23, fontWeight: FontWeight.w900, color: AppColors.textPrimary, letterSpacing: -0.5),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: AppColors.purpleLight,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Text('FY $financialYear', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.purple)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 5),
-                const Text(
-                  'Master Data Management: Add and modify accounts, stock catalog, voucher series, and GST rules.',
-                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: AppColors.textSecondary),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -459,134 +403,43 @@ class MastersDashboardScreenState extends State<MastersDashboardScreen> {
               mainAxisSpacing: 14,
               mainAxisExtent: 220,
             ),
-            itemBuilder: (_, i) => _buildMasterCard(indices[i], cols),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMasterCard(int index, int cols) {
-    final item = _items[index];
-    final isFocused = _focusedIndex == index;
-    final isHovered = _hoveredIndex == index;
-
-    return Focus(
-      focusNode: _focusNodes[index],
-      onFocusChange: (has) {
-        setState(() => _focusedIndex = has ? index : null);
-        if (has) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) Scrollable.ensureVisible(context, alignment: 0.5, duration: const Duration(milliseconds: 250));
-          });
-        }
-      },
-      onKeyEvent: (_, event) {
-        if (event is! KeyDownEvent) return KeyEventResult.ignored;
-
-        if (GridKeyboardNavigator.isActionKey(event.logicalKey)) {
-          _showMasterActions(item);
-          return KeyEventResult.handled;
-        }
-
-        if (GridKeyboardNavigator.handleKeyEvent(
-          currentIndex: index,
-          key: event.logicalKey,
-          cols: cols,
-          focusNodes: _focusNodes,
-          sections: _gridSections,
-        )) {
-          return KeyEventResult.handled;
-        }
-
-        return KeyEventResult.ignored;
-      },
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        onEnter: (_) {
-          setState(() => _hoveredIndex = index);
-          _focusNodes[index].requestFocus();
-        },
-        onExit: (_) => setState(() => _hoveredIndex = null),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          transform: Matrix4.translationValues(0, (isHovered || isFocused) ? -3 : 0, 0),
-          decoration: BoxDecoration(
-            color: AppColors.cardBg,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: isFocused ? item.color : (isHovered ? item.color.withValues(alpha: .35) : AppColors.border),
-              width: isFocused ? 2 : 1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: isHovered || isFocused ? item.color.withValues(alpha: .10) : AppColors.shadowColor,
-                blurRadius: isHovered || isFocused ? 18 : 8,
-                offset: Offset(0, isHovered || isFocused ? 8 : 3),
-              ),
-            ],
-          ),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(20),
-            onTap: () {
-              _focusNodes[index].requestFocus();
-              _showMasterActions(item);
-            },
-            child: Padding(
-              padding: const EdgeInsets.all(18),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(color: item.color.withValues(alpha: .10), borderRadius: BorderRadius.circular(14)),
-                        child: Icon(item.icon, color: item.color, size: 22),
-                      ),
-                      const Spacer(),
-                      if (item.shortcut.isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(6)),
-                          child: Text(item.shortcut, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.textSecondary)),
-                        ),
-                    ],
-                  ),
-                  const Spacer(),
-                  Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
-                  const SizedBox(height: 3),
-                  Text(item.subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: item.color)),
-                  const SizedBox(height: 3),
-                  Text(item.description, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5, height: 1.35, fontWeight: FontWeight.w500, color: AppColors.textSecondary)),
-                  const Spacer(),
-                  Row(
-                    children: [
-                      if (!item.isReadOnly) ...[
-                        DashboardActionChip(
-                          label: 'Add',
-                          icon: Icons.add_rounded,
-                          color: AppColors.success,
-                          height: 32,
-                          onTap: () => _handleAction(item, MasterAction.add),
-                        ),
-                        const SizedBox(width: 8),
-                      ],
-                      DashboardActionChip(
-                        label: item.isReadOnly ? 'View List' : 'Modify',
-                        icon: item.isReadOnly ? Icons.visibility_outlined : Icons.edit_note_rounded,
-                        color: AppColors.primaryAccent,
-                        height: 32,
-                        onTap: () => _handleAction(item, MasterAction.modify),
-                      ),
-                    ],
+            itemBuilder: (_, i) {
+              final idx = indices[i];
+              final item = _items[idx];
+              return InteractiveDashboardCard(
+                index: idx,
+                cols: cols,
+                focusNode: _focusNodes[idx],
+                allFocusNodes: _focusNodes,
+                sections: _gridSections,
+                title: item.title,
+                subtitle: item.subtitle,
+                description: item.description,
+                icon: item.icon,
+                color: item.color,
+                shortcut: item.shortcut,
+                onPrimaryAction: () => _showMasterActions(item),
+                actionChips: [
+                  if (!item.isReadOnly)
+                    DashboardActionChip(
+                      label: 'Add',
+                      icon: Icons.add_rounded,
+                      color: AppColors.success,
+                      height: 32,
+                      onTap: () => _handleAction(item, MasterAction.add),
+                    ),
+                  DashboardActionChip(
+                    label: item.isReadOnly ? 'View List' : 'Modify',
+                    icon: item.isReadOnly ? Icons.visibility_outlined : Icons.edit_note_rounded,
+                    color: AppColors.primaryAccent,
+                    height: 32,
+                    onTap: () => _handleAction(item, MasterAction.modify),
                   ),
                 ],
-              ),
-            ),
+              );
+            },
           ),
-        ),
+        ],
       ),
     );
   }
@@ -701,16 +554,7 @@ class _MasterModifyDialogState extends State<MasterModifyDialog> {
             'title': i.name,
             'badge': '${i.taxRate}% GST',
             'detail': 'HSN: ${i.hsn.isEmpty ? "-" : i.hsn} | Unit: ${i.unit} | Sales Price: ₹${i.salesPrice}',
-            'raw': {
-              'name': i.name,
-              'hsn': i.hsn,
-              'unit': i.unit,
-              'taxCategory': i.taxCategory,
-              'taxRate': i.taxRate,
-              'salesPrice': i.salesPrice,
-              'purchasePrice': i.purchasePrice,
-              'mrp': i.mrp,
-            },
+            'raw': i.toJson(),
           });
         }
         break;
@@ -796,29 +640,13 @@ class _MasterModifyDialogState extends State<MasterModifyDialog> {
             company: widget.company,
             folderPath: _folderPath,
             isEdit: true,
-            initialItem: ItemMasterModel(
-              name: raw['name']?.toString() ?? title,
-              hsn: raw['hsn']?.toString() ?? '',
-              unit: raw['unit']?.toString() ?? 'PCS',
-              taxCategory: raw['taxCategory']?.toString() ?? 'GST 18%',
-              taxRate: (raw['taxRate'] as num?)?.toDouble() ?? 18.0,
-              salesPrice: (raw['salesPrice'] as num?)?.toDouble() ?? 0.0,
-              purchasePrice: (raw['purchasePrice'] as num?)?.toDouble() ?? 0.0,
-              mrp: (raw['mrp'] as num?)?.toDouble() ?? 0.0,
+            initialItem: ItemMasterModel.fromJson(raw).copyWith(
+              name: raw['name']?.toString().isNotEmpty == true ? raw['name'] : title,
             ),
             onItemCreated: (data) async {
               await MasterRepository.upsertItem(
                 folderPath: _folderPath!,
-                item: ItemMasterModel(
-                  name: data['name']?.toString() ?? '',
-                  hsn: data['hsn']?.toString() ?? '',
-                  unit: data['unit']?.toString() ?? 'PCS',
-                  taxCategory: data['taxCategory']?.toString() ?? 'GST 18%',
-                  taxRate: (data['taxRate'] as num?)?.toDouble() ?? 18.0,
-                  salesPrice: (data['salesPrice'] as num?)?.toDouble() ?? 0.0,
-                  purchasePrice: (data['purchasePrice'] as num?)?.toDouble() ?? 0.0,
-                  mrp: (data['mrp'] as num?)?.toDouble() ?? 0.0,
-                ),
+                item: ItemMasterModel.fromJson(data),
                 oldName: title,
               );
               _onMutationSuccess('Updated "${data['name']}"');
@@ -854,8 +682,12 @@ class _MasterModifyDialogState extends State<MasterModifyDialog> {
   }
 
   Future<void> _editSimpleStringMaster(String oldVal, String key) async {
-    final controller = TextEditingController(text: oldVal);
-    final updated = await _showInputDialog(context, 'Edit ${widget.item.title}', 'Name', controller);
+    final updated = await AppInputDialog.show(
+      context: context,
+      title: 'Edit ${widget.item.title}',
+      labelText: 'Name',
+      initialValue: oldVal,
+    );
     if (updated == null || updated.isEmpty || updated == oldVal || _folderPath == null) return;
 
     final success = await MasterRepository.updateSimpleMaster(
@@ -990,7 +822,6 @@ class _MasterModifyDialogState extends State<MasterModifyDialog> {
               ),
             ),
             const Divider(height: 1, color: AppColors.border),
-
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               child: Container(
@@ -1016,7 +847,6 @@ class _MasterModifyDialogState extends State<MasterModifyDialog> {
                 ),
               ),
             ),
-
             Expanded(
               child: _loading
                   ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
@@ -1072,24 +902,4 @@ class _MasterModifyDialogState extends State<MasterModifyDialog> {
       ),
     );
   }
-}
-
-Future<String?> _showInputDialog(BuildContext context, String title, String hint, TextEditingController controller) {
-  return showDialog<String>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      backgroundColor: AppColors.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-      content: TextField(controller: controller, decoration: InputDecoration(hintText: hint), autofocus: true),
-      actions: [
-        OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-        ElevatedButton(
-          onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-          style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-          child: const Text('Save', style: TextStyle(color: AppColors.surface)),
-        ),
-      ],
-    ),
-  );
 }

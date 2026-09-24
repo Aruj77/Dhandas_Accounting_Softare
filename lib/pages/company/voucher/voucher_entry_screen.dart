@@ -1,17 +1,18 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'package:collection/collection.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+
 import '../../../constants/app_colors.dart';
-import '../../../constants/gst_constants.dart';
 import '../../../database/app_database.dart';
+import '../../../models/company_model.dart';
 import '../../../models/item_master_model.dart';
 import '../../../models/party_master_model.dart';
 import '../../../models/voucher_header_controllers.dart';
+import '../../../models/voucher_model.dart';
 import '../../../provider/company_provider.dart';
 import '../../../provider/sync_provider.dart';
 import '../../../repositories/master_repository.dart';
@@ -23,9 +24,11 @@ import '../../../services/scan_ai_service.dart';
 import '../../../services/storage_service.dart';
 import '../../../services/voucher_calculation_service.dart';
 import '../../../services/voucher_numbering_service.dart';
+import '../../../utils/app_action_bottom_sheet.dart';
 import '../../../utils/app_date_utils.dart';
 import '../../../utils/gst_party_utils.dart';
 import '../../../utils/math_expression_evaluator.dart';
+import '../../../utils/number_parsing_utils.dart';
 import '../../../widgets/voucher/popup/add_item_dialog.dart';
 import '../../../widgets/voucher/popup/add_party_dialog.dart';
 import '../../../widgets/voucher/popup/add_series_dialog.dart';
@@ -43,25 +46,39 @@ import '../../../widgets/voucher/voucher_summary_card.dart';
 import '../../../widgets/voucher/voucher_sundry_card.dart';
 import '../../../widgets/voucher/voucher_sundry_row.dart';
 
+enum _ScanDocumentSource { camera, gallery, pdf }
+
 class VoucherEntryScreen extends ConsumerStatefulWidget {
-  final Map<String, dynamic> company;
+  final CompanyModel company;
   final String voucherType;
   final VoidCallback onClose;
   final KeyboardShortcutSettings keyboardSettings;
-  final Map<String, dynamic>? voucherToEdit;
+  final VoucherModel? voucherToEdit;
   final bool isEdit;
-  final Map<String, dynamic>? scanPrefill;
+  final VoucherModel? scanPrefill;
 
-  const VoucherEntryScreen({
+  VoucherEntryScreen({
     super.key,
-    required this.company,
+    required dynamic company,
     required this.voucherType,
     required this.onClose,
     required this.keyboardSettings,
-    this.voucherToEdit,
+    dynamic voucherToEdit,
     this.isEdit = false,
-    this.scanPrefill,
-  });
+    dynamic scanPrefill,
+  })  : company = company is CompanyModel
+            ? company
+            : CompanyModel.fromJson(company as Map<String, dynamic>),
+        voucherToEdit = voucherToEdit == null
+            ? null
+            : (voucherToEdit is VoucherModel
+                ? voucherToEdit
+                : VoucherModel.fromJson(voucherToEdit as Map<String, dynamic>)),
+        scanPrefill = scanPrefill == null
+            ? null
+            : (scanPrefill is VoucherModel
+                ? scanPrefill
+                : VoucherModel.fromJson(scanPrefill as Map<String, dynamic>));
 
   @override
   ConsumerState<VoucherEntryScreen> createState() => _VoucherEntryScreenState();
@@ -84,10 +101,10 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     ),
   );
 
-  final List<Map<String, dynamic>> _sessionSavedVouchers = [];
+  final List<VoucherModel> _sessionSavedVouchers = [];
   int _sessionIndex = -1;
   late bool _isEditingExisting;
-  Map<String, dynamic>? _activeEditingVoucher;
+  VoucherModel? _activeEditingVoucher;
 
   final List<VoucherItemRow> _items = [];
   final List<VoucherSundryRow> _sundries = [];
@@ -126,8 +143,11 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
 
   Timer? _debounceTimer;
 
-  Map<String, dynamic> get _currentCompany =>
-      ref.read(activeCompanyProvider) ?? widget.company;
+  CompanyModel get _currentCompany {
+    final active = ref.read(activeCompanyProvider);
+    if (active is CompanyModel) return active;
+    return widget.company;
+  }
 
   bool get _isSalesVoucher => widget.voucherType.toLowerCase().contains('sale');
   List<PartyMasterModel> get _currentParties =>
@@ -166,7 +186,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
   @override
   void didUpdateWidget(covariant VoucherEntryScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!const DeepCollectionEquality().equals(oldWidget.company, widget.company) ||
+    if (oldWidget.company.id != widget.company.id ||
         oldWidget.voucherType != widget.voucherType) {
       _loadCompanyMastersOnly().then((_) {
         if (mounted) {
@@ -292,14 +312,10 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
   }
 
   bool _handleGlobalHardwareKey(KeyEvent event) {
-    if (!mounted || event is! KeyDownEvent) {
-      return false;
-    }
+    if (!mounted || event is! KeyDownEvent) return false;
 
     final route = ModalRoute.of(context);
-    if (route != null && !route.isCurrent) {
-      return false;
-    }
+    if (route != null && !route.isCurrent) return false;
 
     final hw = HardwareKeyboard.instance;
     final isModifierPressed = hw.isControlPressed || hw.isMetaPressed;
@@ -307,21 +323,17 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     if (isModifierPressed && event.logicalKey == LogicalKeyboardKey.keyC) {
       if (_handleSmartCtrlC()) return true;
     }
-
     if (isModifierPressed && event.logicalKey == LogicalKeyboardKey.keyE) {
       if (_handleCtrlE()) return true;
     }
-
     if (isModifierPressed && event.logicalKey == LogicalKeyboardKey.keyB) {
       _navigateToPreviousVoucher();
       return true;
     }
-
     if (isModifierPressed && event.logicalKey == LogicalKeyboardKey.keyN) {
       _navigateToNextVoucher();
       return true;
     }
-
     if (isModifierPressed && event.logicalKey == LogicalKeyboardKey.keyS) {
       _saveVoucher();
       return true;
@@ -359,35 +371,32 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
 
   void _notify(String msg, {Color bg = AppColors.success, IconData? icon}) {
     if (!mounted) return;
-    final type = bg == AppColors.error ? NotificationType.error : NotificationType.success;
     NotificationService.show(
       context,
       message: msg,
-      type: type,
+      type: bg == AppColors.error ? NotificationType.error : NotificationType.success,
       icon: icon,
     );
   }
 
-  void _applyScanPrefill(Map<String, dynamic> v) {
+  void _applyScanPrefill(VoucherModel v) {
     if (!mounted) return;
 
-    _h.date.text = v['date']?.toString() ?? '';
-    _h.vchNo.text = v['vchNo']?.toString() ?? '';
-    final rawParty = v['party']?.toString() ?? '';
-    final rawGstin = v['partyGstin']?.toString() ?? '';
-    _h.party.text = _formatPartyDisplay(rawParty, rawGstin);
+    _h.date.text = v.date;
+    _h.vchNo.text = v.voucherNumber;
+    _h.party.text = _formatPartyDisplay(v.party, v.partyGstin);
     _allowEmptyVchNo = _h.vchNo.text.trim().isEmpty;
     _allowDuplicateVchNo = true;
 
     _items.clear();
-    for (final i in (v['items'] as List? ?? [])) {
+    for (final i in v.items) {
       final row = VoucherItemRow()
-        ..item.text = i['item']?.toString() ?? ''
-        ..hsn = i['hsn']?.toString() ?? ''
-        ..qty.text = i['qty']?.toString() ?? ''
-        ..unit.text = i['unit']?.toString() ?? 'PCS'
-        ..price.text = i['price']?.toString() ?? ''
-        ..gstRate = double.tryParse(i['gstRate']?.toString() ?? '18') ?? 18.0;
+        ..item.text = i.item
+        ..hsn = i.hsn
+        ..qty.text = i.qty % 1 == 0 ? i.qty.toInt().toString() : i.qty.toString()
+        ..unit.text = i.unit
+        ..price.text = i.price > 0 ? i.price.toCurrency() : ''
+        ..gstRate = i.gstRate;
       _attachItemRowListeners(row);
       _items.add(row);
     }
@@ -399,52 +408,45 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     _calculateAllTotals();
   }
 
-  void _loadExistingVoucherData(Map<String, dynamic> v) {
+  void _loadExistingVoucherData(VoucherModel v) {
     if (!mounted) return;
     setState(() {
       _isEditingExisting = true;
       _activeEditingVoucher = v;
     });
 
-    final series = v['series']?.toString() ?? 'Main';
+    final series = v.series.isNotEmpty ? v.series : 'Main';
     _h.series.text = series;
     if (!_availableSeries.contains(series)) _availableSeries.add(series);
 
-    _h.date.text = v['date']?.toString() ?? '';
-    _h.vchNo.text = v['voucherNumber']?.toString() ?? '';
-
-    final rawParty = v['party']?.toString() ?? '';
-    final rawGstin = v['partyGstin']?.toString() ?? '';
-    _h.party.text = _formatPartyDisplay(rawParty, rawGstin);
-
-    _h.saleType.text = v['saleType']?.toString() ?? 'Local Itemwise';
-    _h.matCenter.text = v['materialCenter']?.toString() ?? 'Main Store';
-    _h.narration.text = v['narration']?.toString() ?? '';
-    _isInterState = v['isInterState'] == true;
-    _allowEmptyVchNo = _h.vchNo.text.trim().isEmpty;
+    _h.date.text = v.date;
+    _h.vchNo.text = v.voucherNumber;
+    _h.party.text = _formatPartyDisplay(v.party, v.partyGstin);
+    _h.saleType.text = v.saleType;
+    _h.matCenter.text = v.materialCenter;
+    _h.narration.text = v.narration;
+    _isInterState = v.isInterState;
+    _allowEmptyVchNo = v.voucherNumber.isEmpty;
     _allowDuplicateVchNo = true;
 
-    final fy = v['financialYear']?.toString() ??
-        _currentCompany['activeFinancialYear']?.toString() ??
-        AppDateUtils.defaultFinancialYear;
-    final bounds = AppDateUtils.parseFinancialYearBounds(fy);
+    final bounds = _currentCompany.fyBounds;
     _fyStartDate = bounds.startDate;
     _fyEndDate = bounds.endDate;
 
     _items.clear();
-    for (final i in (v['items'] as List? ?? [])) {
+    for (final i in v.items) {
       final row = VoucherItemRow()
-        ..item.text = i['item']?.toString() ?? ''
-        ..hsn = i['hsn']?.toString() ?? ''
-        ..qty.text = i['qty']?.toString() ?? ''
-        ..unit.text = i['unit']?.toString() ?? 'PCS'
-        ..price.text = i['price']?.toString() ?? ''
-        ..taxable.text = i['taxable']?.toString() ?? ''
-        ..cgst.text = i['cgst']?.toString() ?? ''
-        ..sgst.text = i['sgst']?.toString() ?? ''
-        ..igst.text = i['igst']?.toString() ?? ''
-        ..amount.text = i['amount']?.toString() ?? ''
-        ..gstRate = double.tryParse(i['gstRate']?.toString() ?? '18') ?? 18.0;
+        ..item.text = i.item
+        ..hsn = i.hsn
+        ..qty.text = i.qty % 1 == 0 ? i.qty.toInt().toString() : i.qty.toString()
+        ..unit.text = i.unit
+        ..price.text = i.price > 0 ? i.price.toCurrency() : ''
+        ..taxable.text = i.taxable > 0 ? i.taxable.toCurrency() : ''
+        ..cgst.text = i.cgst > 0 ? i.cgst.toCurrency() : ''
+        ..sgst.text = i.sgst > 0 ? i.sgst.toCurrency() : ''
+        ..igst.text = i.igst > 0 ? i.igst.toCurrency() : ''
+        ..amount.text = i.amount > 0 ? i.amount.toCurrency() : ''
+        ..gstRate = i.gstRate;
       _attachItemRowListeners(row);
       _items.add(row);
     }
@@ -453,12 +455,12 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     }
 
     _sundries.clear();
-    for (final s in (v['sundries'] as List? ?? [])) {
+    for (final s in v.sundries) {
       final row = VoucherSundryRow()
-        ..name.text = s['name']?.toString() ?? ''
-        ..percent.text = s['percent']?.toString() ?? ''
-        ..amount.text = s['amount']?.toString() ?? ''
-        ..isNegative = s['isNegative'] == true;
+        ..name.text = s.name
+        ..percent.text = s.percent
+        ..amount.text = s.amount > 0 ? s.amount.toCurrency() : ''
+        ..isNegative = s.isNegative;
       _attachSundryRowListeners(row);
       _sundries.add(row);
     }
@@ -472,8 +474,8 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
 
   Future<void> _loadCompanyMastersOnly() async {
     await LoadingService.wrap(() async {
-      final folderPath = _currentCompany['folderPath'];
-      if (folderPath == null) return;
+      final folderPath = _currentCompany.folderPath;
+      if (folderPath.isEmpty) return;
       final masters = await MasterRepository.loadMasters(folderPath: folderPath);
       if (!mounted) return;
 
@@ -507,7 +509,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
   Future<void> _autogenerateVoucherNumber(String seriesName) async {
     await LoadingService.wrap(() async {
       final nextNo = await VoucherNumberingService.autogenerate(
-        company: _currentCompany,
+        company: _currentCompany.toJson(),
         voucherType: widget.voucherType,
         seriesName: seriesName,
         seriesSettings: _seriesSettings[seriesName] ?? {},
@@ -540,10 +542,10 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     switch (field) {
       case 'qty':
         _evaluateField(row.qty, isQty: true);
-        final q = MathExpressionEvaluator.tryEvaluate(row.qty.text) ?? double.tryParse(row.qty.text) ?? 0.0;
-        final p = MathExpressionEvaluator.tryEvaluate(row.price.text) ?? double.tryParse(row.price.text) ?? 0.0;
+        final q = row.qty.text.evalMath();
+        final p = row.price.text.evalMath();
         if (q > 0 && p > 0) {
-          row.taxable.text = (q * p).toStringAsFixed(2);
+          row.taxable.text = (q * p).toCurrency();
           VoucherCalculationService.recalculateTaxesFromTaxable(row, _isInterState);
         }
         _calculateAllTotals();
@@ -551,10 +553,10 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
 
       case 'price':
         _evaluateField(row.price);
-        final q = MathExpressionEvaluator.tryEvaluate(row.qty.text) ?? double.tryParse(row.qty.text) ?? 0.0;
-        final p = MathExpressionEvaluator.tryEvaluate(row.price.text) ?? double.tryParse(row.price.text) ?? 0.0;
+        final q = row.qty.text.evalMath();
+        final p = row.price.text.evalMath();
         if (q > 0 && p > 0) {
-          row.taxable.text = (q * p).toStringAsFixed(2);
+          row.taxable.text = (q * p).toCurrency();
           VoucherCalculationService.recalculateTaxesFromTaxable(row, _isInterState);
         }
         _calculateAllTotals();
@@ -562,10 +564,10 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
 
       case 'taxable':
         _evaluateField(row.taxable);
-        final t = MathExpressionEvaluator.tryEvaluate(row.taxable.text) ?? double.tryParse(row.taxable.text) ?? 0.0;
-        final q = MathExpressionEvaluator.tryEvaluate(row.qty.text) ?? double.tryParse(row.qty.text) ?? 0.0;
+        final t = row.taxable.text.evalMath();
+        final q = row.qty.text.evalMath();
         if (t > 0) {
-          if (q > 0) row.price.text = (t / q).toStringAsFixed(2);
+          if (q > 0) row.price.text = (t / q).toCurrency();
           VoucherCalculationService.recalculateTaxesFromTaxable(row, _isInterState);
         }
         _calculateAllTotals();
@@ -573,7 +575,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
 
       case 'amount':
         _evaluateField(row.amount);
-        final amt = MathExpressionEvaluator.tryEvaluate(row.amount.text) ?? double.tryParse(row.amount.text) ?? 0.0;
+        final amt = row.amount.text.evalMath();
         if (amt > 0) {
           VoucherCalculationService.recalculateFromInvoiceAmount(row, _isInterState);
         }
@@ -591,9 +593,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
       final matched = _itemCache[text.toLowerCase()];
       if (matched != null) {
         final index = _items.indexOf(row);
-        if (index != -1) {
-          _onItemMasterSelected(index, matched);
-        }
+        if (index != -1) _onItemMasterSelected(index, matched);
         return;
       }
 
@@ -628,14 +628,11 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
         return;
       }
 
-      final q = MathExpressionEvaluator.tryEvaluate(qText) ?? double.tryParse(qText);
-      final p = MathExpressionEvaluator.tryEvaluate(pText) ?? double.tryParse(pText);
+      final q = qText.evalMath();
+      final p = pText.evalMath();
 
-      // Do NOT overwrite row.price.text or row.qty.text while typing.
-      // Recalculate taxes only when both are valid positive values.
-      if (q != null && q > 0 && p != null && p > 0) {
-        final taxable = q * p;
-        row.taxable.text = taxable.toStringAsFixed(2);
+      if (q > 0 && p > 0) {
+        row.taxable.text = (q * p).toCurrency();
         VoucherCalculationService.recalculateTaxesFromTaxable(row, _isInterState);
       }
     }
@@ -644,33 +641,20 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
       if (row.qtyFocus.hasFocus) _scheduleRecalculation(recalculateFromQtyOrPrice);
     });
     row.price.addListener(() {
-      if (row.priceFocus.hasFocus) {
-        _scheduleRecalculation(recalculateFromQtyOrPrice);
-      }
+      if (row.priceFocus.hasFocus) _scheduleRecalculation(recalculateFromQtyOrPrice);
     });
 
     row.qtyFocus.addListener(() {
-      if (!row.qtyFocus.hasFocus) {
-        _evaluateAndRecalculateItemField(row, 'qty');
-      }
+      if (!row.qtyFocus.hasFocus) _evaluateAndRecalculateItemField(row, 'qty');
     });
-
     row.priceFocus.addListener(() {
-      if (!row.priceFocus.hasFocus) {
-        _evaluateAndRecalculateItemField(row, 'price');
-      }
+      if (!row.priceFocus.hasFocus) _evaluateAndRecalculateItemField(row, 'price');
     });
-
     row.taxableFocus.addListener(() {
-      if (!row.taxableFocus.hasFocus) {
-        _evaluateAndRecalculateItemField(row, 'taxable');
-      }
+      if (!row.taxableFocus.hasFocus) _evaluateAndRecalculateItemField(row, 'taxable');
     });
-
     row.amountFocus.addListener(() {
-      if (!row.amountFocus.hasFocus) {
-        _evaluateAndRecalculateItemField(row, 'amount');
-      }
+      if (!row.amountFocus.hasFocus) _evaluateAndRecalculateItemField(row, 'amount');
     });
 
     row.taxable.addListener(() {
@@ -682,15 +666,14 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
           return;
         }
 
-        final t = MathExpressionEvaluator.tryEvaluate(tText) ?? double.tryParse(tText);
-        final q = MathExpressionEvaluator.tryEvaluate(row.qty.text) ?? double.tryParse(row.qty.text) ?? 0.0;
+        final t = tText.evalMath();
+        final q = row.qty.text.evalMath();
 
-        if (t != null && t > 0) {
+        if (t > 0) {
           if (q > 0 && !row.priceFocus.hasFocus) {
-            row.price.text = (t / q).toStringAsFixed(2);
+            row.price.text = (t / q).toCurrency();
           }
-          VoucherCalculationService.recalculateTaxesFromTaxable(
-              row, _isInterState);
+          VoucherCalculationService.recalculateTaxesFromTaxable(row, _isInterState);
         }
       });
     });
@@ -701,12 +684,11 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
             row.sgstFocus.hasFocus ||
             row.igstFocus.hasFocus) {
           _scheduleRecalculation(() {
-            final t = MathExpressionEvaluator.tryEvaluate(row.taxable.text) ?? double.tryParse(row.taxable.text) ?? 0.0;
+            final t = row.taxable.text.evalMath();
             final tax = _isInterState
-                ? (double.tryParse(row.igst.text) ?? 0.0)
-                : ((double.tryParse(row.cgst.text) ?? 0.0) +
-                    (double.tryParse(row.sgst.text) ?? 0.0));
-            row.amount.text = (t + tax) == 0 ? '' : (t + tax).toStringAsFixed(2);
+                ? row.igst.text.toCleanDouble()
+                : (row.cgst.text.toCleanDouble() + row.sgst.text.toCleanDouble());
+            row.amount.text = (t + tax) == 0 ? '' : (t + tax).toCurrency();
           });
         }
       });
@@ -721,12 +703,11 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
           return;
         }
 
-        final amt = MathExpressionEvaluator.tryEvaluate(aText) ?? double.tryParse(aText);
-        if (amt != null && amt > 0) {
+        final amt = aText.evalMath();
+        if (amt > 0) {
           final originalText = row.amount.text;
-          row.amount.text = amt.toStringAsFixed(2);
-          VoucherCalculationService.recalculateFromInvoiceAmount(
-              row, _isInterState);
+          row.amount.text = amt.toCurrency();
+          VoucherCalculationService.recalculateFromInvoiceAmount(row, _isInterState);
           if (row.amountFocus.hasFocus && row.amount.text != originalText) {
             row.amount.value = TextEditingValue(
               text: originalText,
@@ -869,11 +850,9 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     }
 
     if (_allowDuplicateVchNo) return;
-    final folderPath = _currentCompany['folderPath']?.toString();
-    final fy = (_currentCompany['activeFinancialYear'] ??
-            AppDateUtils.defaultFinancialYear)
-        .toString();
-    if (folderPath == null) return;
+    final folderPath = _currentCompany.folderPath;
+    final fy = _currentCompany.activeFinancialYear;
+    if (folderPath.isEmpty) return;
 
     final existingVouchers = await StorageService.loadVouchers(
       folderPath: folderPath,
@@ -883,25 +862,19 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     );
     if (!mounted) return;
 
-    final currentId = _activeEditingVoucher?['id']?.toString() ??
-        widget.voucherToEdit?['id']?.toString();
-    final match = existingVouchers.where((v) {
-      final matchesNo = (v['voucherNumber'] ?? '')
-              .toString()
-              .trim()
-              .toLowerCase() ==
-          vchText.toLowerCase();
-      final isSelf = currentId != null && (v['id'] ?? '').toString() == currentId;
-      return matchesNo && !isSelf;
-    }).firstOrNull;
+    final currentId = _activeEditingVoucher?.id ?? widget.voucherToEdit?.id;
+    final match = existingVouchers
+        .map((e) => VoucherModel.fromJson(e))
+        .firstWhereOrNull((v) =>
+            v.voucherNumber.toLowerCase() == vchText.toLowerCase() &&
+            v.id != currentId);
 
     if (match != null && mounted) {
       _isHandlingDuplicateVchWarning = true;
-      final assignedParty =
-          GstPartyUtils.extractPartyName((match['party'] ?? '').toString());
+      final assignedParty = GstPartyUtils.extractPartyName(match.party);
       final displayName = assignedParty.isNotEmpty
           ? assignedParty
-          : (_currentCompany['companyName'] ?? 'Unknown Company');
+          : _currentCompany.companyName;
 
       VoucherDialogUtils.showDuplicateVchNoWarning(
         context: context,
@@ -933,7 +906,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     final isExplicitInterState = currentSaleType.startsWith('InterState');
     if (!isExplicitLocal && !isExplicitInterState) return;
 
-    final compState = _getCompanyStateCode();
+    final compState = _currentCompany.stateCode;
     final partyState = _extractPartyStateCode(_h.party.text);
 
     if (partyState.isNotEmpty) {
@@ -1029,9 +1002,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
 
   void _initializeNewVoucher() {
     if (!mounted) return;
-    final fy = _currentCompany['activeFinancialYear']?.toString() ??
-        AppDateUtils.defaultFinancialYear;
-    final bounds = AppDateUtils.parseFinancialYearBounds(fy);
+    final bounds = _currentCompany.fyBounds;
     _fyStartDate = bounds.startDate;
     _fyEndDate = bounds.endDate;
 
@@ -1073,21 +1044,6 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     }
   }
 
-  String _getCompanyStateCode() {
-    final rawGstin =
-        (_currentCompany['gstin'] ?? _currentCompany['gstNumber'] ?? '')
-            .toString()
-            .trim();
-    if (rawGstin.length >= 2 && int.tryParse(rawGstin.substring(0, 2)) != null) {
-      return rawGstin.substring(0, 2);
-    }
-    final rawState =
-        (_currentCompany['state'] ?? _currentCompany['stateName'] ?? '')
-            .toString()
-            .trim();
-    return GstConstants.getStateCodeByName(rawState) ?? '07';
-  }
-
   String _extractPartyStateCode(String partyText) {
     final gstin = GstPartyUtils.extractPartyGstin(partyText.trim());
     if (gstin.length >= 2 && int.tryParse(gstin.substring(0, 2)) != null) {
@@ -1100,7 +1056,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
   }
 
   void _checkGstMode({bool autoAdjustSaleType = false}) {
-    final compState = _getCompanyStateCode();
+    final compState = _currentCompany.stateCode;
     final partyState = _extractPartyStateCode(_h.party.text);
     _isInterState = partyState.isNotEmpty && compState != partyState;
     if (autoAdjustSaleType) {
@@ -1120,11 +1076,9 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
   void _refreshTaxesOnAllRows() {
     for (final row in _items) {
       if (row.taxable.text.isNotEmpty) {
-        VoucherCalculationService.recalculateTaxesFromTaxable(
-            row, _isInterState);
+        VoucherCalculationService.recalculateTaxesFromTaxable(row, _isInterState);
       } else if (row.amount.text.isNotEmpty) {
-        VoucherCalculationService.recalculateFromInvoiceAmount(
-            row, _isInterState);
+        VoucherCalculationService.recalculateFromInvoiceAmount(row, _isInterState);
       }
     }
     _calculateAllTotals();
@@ -1149,15 +1103,14 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
       double baseSum = totals.subTotal + totals.totalTax;
       for (final s in _sundries) {
         if (s != sundry) {
-          final a = double.tryParse(s.amount.text) ?? 0.0;
+          final a = s.amount.text.toCleanDouble();
           baseSum += (s.name.text.contains('-') || s.isNegative) ? -a : a;
         }
       }
       final remainder = baseSum % 1.0;
       final isAdd = sundry.name.text.contains('+');
-      final diff =
-          isAdd ? (remainder == 0 ? 0.0 : 1.0 - remainder) : remainder;
-      sundry.amount.text = diff > 0 ? diff.toStringAsFixed(2) : '';
+      final diff = isAdd ? (remainder == 0 ? 0.0 : 1.0 - remainder) : remainder;
+      sundry.amount.text = diff > 0 ? diff.toCurrency() : '';
       sundry.percent.clear();
       sundry.isNegative = !isAdd;
     } else if (sundry.percent.text.isNotEmpty) {
@@ -1175,19 +1128,18 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
         ? selectedItem.salesPrice
         : selectedItem.purchasePrice;
     if (defaultPrice > 0 && row.price.text.isEmpty) {
-      row.price.text = defaultPrice.toStringAsFixed(2);
+      row.price.text = defaultPrice.toCurrency();
     }
 
-    final q = MathExpressionEvaluator.tryEvaluate(row.qty.text) ?? double.tryParse(row.qty.text) ?? 0.0;
-    final p = MathExpressionEvaluator.tryEvaluate(row.price.text) ?? double.tryParse(row.price.text) ?? 0.0;
+    final q = row.qty.text.evalMath();
+    final p = row.price.text.evalMath();
     if (q > 0 && p > 0) {
-      row.taxable.text = (q * p).toStringAsFixed(2);
+      row.taxable.text = (q * p).toCurrency();
       VoucherCalculationService.recalculateTaxesFromTaxable(row, _isInterState);
     } else if (row.taxable.text.isNotEmpty) {
       VoucherCalculationService.recalculateTaxesFromTaxable(row, _isInterState);
     } else if (row.amount.text.isNotEmpty) {
-      VoucherCalculationService.recalculateFromInvoiceAmount(
-          row, _isInterState);
+      VoucherCalculationService.recalculateFromInvoiceAmount(row, _isInterState);
     }
     _calculateAllTotals();
   }
@@ -1212,8 +1164,8 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
       final itemData = await showDialog<Map<String, dynamic>>(
         context: context,
         builder: (_) => AddItemDialog(
-          company: _currentCompany,
-          folderPath: _currentCompany['folderPath'],
+          company: _currentCompany.toJson(),
+          folderPath: _currentCompany.folderPath,
           isEdit: existingItem != null,
           initialItem: existingItem,
         ),
@@ -1221,20 +1173,11 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
 
       if (itemData != null && mounted) {
         created = true;
-        final folderPath = _currentCompany['folderPath']?.toString();
-        if (folderPath != null) {
+        final folderPath = _currentCompany.folderPath;
+        if (folderPath.isNotEmpty) {
           await MasterRepository.upsertItem(
             folderPath: folderPath,
-            item: ItemMasterModel(
-              name: itemData['name']?.toString() ?? '',
-              hsn: itemData['hsn']?.toString() ?? '',
-              unit: itemData['unit']?.toString() ?? 'PCS',
-              taxCategory: itemData['taxCategory']?.toString() ?? 'GST 18%',
-              taxRate: (itemData['taxRate'] as num?)?.toDouble() ?? 18.0,
-              salesPrice: (itemData['salesPrice'] as num?)?.toDouble() ?? 0.0,
-              purchasePrice: (itemData['purchasePrice'] as num?)?.toDouble() ?? 0.0,
-              mrp: (itemData['mrp'] as num?)?.toDouble() ?? 0.0,
-            ),
+            item: ItemMasterModel.fromJson(itemData),
             oldName: existingItem?.name,
           );
         }
@@ -1245,8 +1188,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
           _rebuildFastLookupCaches();
           int targetIndex = index;
           if (targetIndex < 0) {
-            final emptyIdx =
-                _items.indexWhere((r) => r.item.text.trim().isEmpty);
+            final emptyIdx = _items.indexWhere((r) => r.item.text.trim().isEmpty);
             targetIndex = emptyIdx != -1 ? emptyIdx : _items.length;
           }
           while (targetIndex >= _items.length) {
@@ -1260,9 +1202,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
           if (matched != null) _onItemMasterSelected(targetIndex, matched);
         });
 
-        _notify(existingItem != null
-            ? 'Item updated!'
-            : 'Registered: ${itemData['name']}');
+        _notify(existingItem != null ? 'Item updated!' : 'Registered: ${itemData['name']}');
       }
     } finally {
       _isItemDialogOpen = false;
@@ -1274,7 +1214,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     if (_isPartyDialogOpen) return false;
     _isPartyDialogOpen = true;
     bool created = false;
-    final folderPath = _currentCompany['folderPath']?.toString();
+    final folderPath = _currentCompany.folderPath;
 
     try {
       final result = await showDialog<Map<String, dynamic>>(
@@ -1285,7 +1225,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
           initialParty: existingParty,
           onPartyCreated: (data) async {
             created = true;
-            if (folderPath != null && folderPath.isNotEmpty) {
+            if (folderPath.isNotEmpty) {
               await MasterRepository.upsertParty(
                 folderPath: folderPath,
                 party: PartyMasterModel.fromJson(data),
@@ -1308,9 +1248,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
           _refreshTaxesOnAllRows();
         });
 
-        _notify(existingParty != null
-            ? 'Party updated!'
-            : 'Registered: ${result['name']}');
+        _notify(existingParty != null ? 'Party updated!' : 'Registered: ${result['name']}');
       }
     } finally {
       _isPartyDialogOpen = false;
@@ -1336,8 +1274,8 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
                 Navigator.of(dialogContext).pop(true);
               }
               final name = data['name']?.toString() ?? 'Main';
-              final folderPath = _currentCompany['folderPath']?.toString();
-              if (folderPath != null) {
+              final folderPath = _currentCompany.folderPath;
+              if (folderPath.isNotEmpty) {
                 await MasterRepository.upsertSeries(
                   folderPath: folderPath,
                   seriesName: name,
@@ -1461,84 +1399,72 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     focus?.requestFocus();
   }
 
-  Map<String, dynamic> _buildCurrentVoucherPayload() {
-    final persistentId = _activeEditingVoucher?['id'] ??
-        widget.voucherToEdit?['id'] ??
-        'vch_${DateTime.now().millisecondsSinceEpoch}';
+  VoucherModel _buildCurrentVoucherPayload() {
     final totals = _totalsNotifier.value;
     final partyText = _h.party.text.trim();
     final partyState = _extractPartyStateCode(partyText);
     final partyGstin = GstPartyUtils.extractPartyGstin(partyText);
     final matchedParty = _findParty(partyText);
-    final cleanPartyName = matchedParty?.name ??
-        GstPartyUtils.extractPartyName(partyText).trim();
+    final cleanPartyName = matchedParty?.name ?? GstPartyUtils.extractPartyName(partyText).trim();
 
-    return {
-      'id': persistentId,
-      'voucherType': widget.voucherType,
-      'voucherNumber': _h.vchNo.text.trim(),
-      'date': _h.date.text,
-      'series': _h.series.text,
-      'saleType': _h.saleType.text,
-      'party': cleanPartyName.isNotEmpty ? cleanPartyName : partyText,
-      'partyGstin': partyGstin.isNotEmpty ? partyGstin : (matchedParty?.gstin ?? ''),
-      'partyStateCode': partyState,
-      'isInterState': _isInterState,
-      'materialCenter': _h.matCenter.text,
-      'narration': _h.narration.text,
-      'financialYear':
-          _currentCompany['activeFinancialYear'] ?? AppDateUtils.defaultFinancialYear,
-      'items': _items.where((i) => i.item.text.isNotEmpty).map((i) {
-        final q = MathExpressionEvaluator.tryEvaluate(i.qty.text) ?? double.tryParse(i.qty.text) ?? 0.0;
-        final p = MathExpressionEvaluator.tryEvaluate(i.price.text) ?? double.tryParse(i.price.text) ?? 0.0;
-        final t = MathExpressionEvaluator.tryEvaluate(i.taxable.text) ?? double.tryParse(i.taxable.text) ?? (q * p);
-        final a = MathExpressionEvaluator.tryEvaluate(i.amount.text) ?? double.tryParse(i.amount.text) ?? 0.0;
+    return VoucherModel(
+      id: _activeEditingVoucher?.id ?? widget.voucherToEdit?.id ?? 'vch_${DateTime.now().millisecondsSinceEpoch}',
+      voucherType: widget.voucherType,
+      voucherNumber: _h.vchNo.text.trim(),
+      date: _h.date.text,
+      series: _h.series.text,
+      saleType: _h.saleType.text,
+      party: cleanPartyName.isNotEmpty ? cleanPartyName : partyText,
+      partyGstin: partyGstin.isNotEmpty ? partyGstin : (matchedParty?.gstin ?? ''),
+      partyStateCode: partyState,
+      isInterState: _isInterState,
+      materialCenter: _h.matCenter.text,
+      narration: _h.narration.text,
+      financialYear: _currentCompany.activeFinancialYear,
+      items: _items.where((i) => i.item.text.isNotEmpty).map((i) {
+        final q = i.qty.text.evalMath();
+        final p = i.price.text.evalMath();
+        final t = i.taxable.text.evalMath(q * p);
+        final a = i.amount.text.evalMath();
 
-        return {
-          'item': i.item.text,
-          'hsn': i.hsn.isNotEmpty
-              ? i.hsn
-              : (_itemCache[i.item.text.toLowerCase().trim()]?.hsn ?? ''),
-          'qty': q % 1 == 0 ? q.toInt().toString() : q.toString(),
-          'unit': i.unit.text.isNotEmpty ? i.unit.text : 'PCS',
-          'price': p.toStringAsFixed(2),
-          'taxable': t.toStringAsFixed(2),
-          'cgst': i.cgst.text,
-          'sgst': i.sgst.text,
-          'igst': i.igst.text,
-          'amount': a.toStringAsFixed(2),
-          'gstRate': i.gstRate,
-        };
+        return VoucherItemModel(
+          item: i.item.text,
+          hsn: i.hsn.isNotEmpty ? i.hsn : (_itemCache[i.item.text.toLowerCase().trim()]?.hsn ?? ''),
+          qty: q,
+          unit: i.unit.text.isNotEmpty ? i.unit.text : 'PCS',
+          price: p,
+          taxable: t,
+          cgst: i.cgst.text.toCleanDouble(),
+          sgst: i.sgst.text.toCleanDouble(),
+          igst: i.igst.text.toCleanDouble(),
+          amount: a,
+          gstRate: i.gstRate,
+        );
       }).toList(),
-      'sundries': _sundries
-          .where((s) => s.amount.text.isNotEmpty && s.amount.text != '0.00')
-          .map((s) => {
-                'name': s.name.text,
-                'percent': s.percent.text,
-                'amount': s.amount.text,
-                'isNegative': s.isNegative,
-              })
-          .toList(),
-      'subTotal': totals.subTotal,
-      'cgst': totals.totalCgst,
-      'sgst': totals.totalSgst,
-      'igst': totals.totalIgst,
-      'totalTax': totals.totalTax,
-      'sundryTotal': totals.sundryTotal,
-      'roundOff': totals.roundOff,
-      'grandTotal': totals.grandTotal,
-      'createdAt': _activeEditingVoucher?['createdAt'] ??
-          widget.voucherToEdit?['createdAt'] ??
-          DateTime.now().toIso8601String(),
-    };
+      sundries: _sundries.where((s) => s.amount.text.isNotEmpty && s.amount.text != '0.00').map((s) => VoucherSundryModel(
+        name: s.name.text,
+        percent: s.percent.text,
+        amount: s.amount.text.toCleanDouble(),
+        isNegative: s.isNegative,
+      )).toList(),
+      subTotal: totals.subTotal,
+      cgst: totals.totalCgst,
+      sgst: totals.totalSgst,
+      igst: totals.totalIgst,
+      totalTax: totals.totalTax,
+      sundryTotal: totals.sundryTotal,
+      roundOff: totals.roundOff,
+      grandTotal: totals.grandTotal,
+      createdAt: _activeEditingVoucher?.createdAt ?? widget.voucherToEdit?.createdAt ?? DateTime.now().toIso8601String(),
+    );
   }
 
   void _openPrintPreview() {
     showDialog(
       context: context,
       builder: (_) => SalesInvoicePrintPreviewDialog(
-        company: _currentCompany,
-        voucherData: _buildCurrentVoucherPayload(),
+        company: _currentCompany.toJson(),
+        voucherData: _buildCurrentVoucherPayload().toJson(),
       ),
     );
   }
@@ -1568,8 +1494,8 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     final validItems = _items
         .where((i) =>
             i.item.text.trim().isNotEmpty &&
-            (double.tryParse(i.qty.text) ?? 0) > 0 &&
-            (double.tryParse(i.amount.text) ?? 0) > 0)
+            i.qty.text.toCleanDouble() > 0 &&
+            i.amount.text.toCleanDouble() > 0)
         .toList();
 
     if (validItems.isEmpty) {
@@ -1606,23 +1532,22 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
 
   Future<void> _executeVoucherPersistence() async {
     final payload = _buildCurrentVoucherPayload();
-    final folderPath = _currentCompany['folderPath']?.toString();
-    if (folderPath == null) return;
+    final folderPath = _currentCompany.folderPath;
+    if (folderPath.isEmpty) return;
 
-    final financialYear = _currentCompany['activeFinancialYear']?.toString() ??
-        AppDateUtils.defaultFinancialYear;
+    final financialYear = _currentCompany.activeFinancialYear;
 
     await StorageService.saveVoucher(
       folderPath: folderPath,
       financialYear: financialYear,
-      voucherData: payload,
+      voucherData: payload.toJson(),
     );
 
     final syncWorker = ref.read(syncWorkerProvider);
     if (syncWorker != null) {
       final db = AppDatabase.forCompany(folderPath);
       try {
-        await syncWorker.pushLocalMutation(db, payload);
+        await syncWorker.pushLocalMutation(db, payload.toJson());
       } catch (e) {
         debugPrint('SyncWorker pushLocalMutation error: $e');
       } finally {
@@ -1635,9 +1560,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
 
     if (!widget.isEdit) {
       final existingIdx = _sessionSavedVouchers.indexWhere(
-        (v) =>
-            (v['id'] ?? v['voucherNumber']) ==
-            (payload['id'] ?? payload['voucherNumber']),
+        (v) => v.id == payload.id || v.voucherNumber == payload.voucherNumber,
       );
       if (existingIdx != -1) {
         _sessionSavedVouchers[existingIdx] = payload;
@@ -1656,8 +1579,8 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
         await showDialog(
           context: context,
           builder: (_) => SalesInvoicePrintPreviewDialog(
-            company: _currentCompany,
-            voucherData: payload,
+            company: _currentCompany.toJson(),
+            voucherData: payload.toJson(),
           ),
         );
       }
@@ -1753,56 +1676,73 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
   }
 
   Future<void> _handleScanWithAiPro() async {
-    final source = await showModalBottomSheet<ImageSource?>(
+    _ScanDocumentSource? selectedSource;
+
+    await showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Wrap(
-          children: [
-            const ListTile(
-              title: Text('Scan with AI Pro',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text('Upload invoice image or PDF document'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.camera_alt_outlined),
-              title: const Text('Camera'),
-              onTap: () => Navigator.pop(ctx, ImageSource.camera),
-            ),
-            ListTile(
-              leading: const Icon(Icons.image_outlined),
-              title: const Text('Gallery (Image)'),
-              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
-            ),
-            ListTile(
-              leading: const Icon(Icons.picture_as_pdf_outlined),
-              title: const Text('PDF Document'),
-              onTap: () => Navigator.pop(ctx, null),
-            ),
-          ],
-        ),
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => AppActionBottomSheet(
+        title: 'Scan with AI Pro',
+        subtitle: 'Upload invoice image or PDF document to auto-extract details',
+        actions: [
+          AppActionItem(
+            title: 'Camera',
+            desc: 'Capture invoice directly using your camera',
+            icon: Icons.camera_alt_rounded,
+            color: AppColors.primary,
+            onTap: () {
+              selectedSource = _ScanDocumentSource.camera;
+              Navigator.pop(ctx);
+            },
+          ),
+          AppActionItem(
+            title: 'Gallery (Image)',
+            desc: 'Upload PNG or JPEG invoice from your device',
+            icon: Icons.image_rounded,
+            color: AppColors.purple,
+            onTap: () {
+              selectedSource = _ScanDocumentSource.gallery;
+              Navigator.pop(ctx);
+            },
+          ),
+          AppActionItem(
+            title: 'PDF Document',
+            desc: 'Import digital PDF invoice document',
+            icon: Icons.picture_as_pdf_rounded,
+            color: AppColors.error,
+            onTap: () {
+              selectedSource = _ScanDocumentSource.pdf;
+              Navigator.pop(ctx);
+            },
+          ),
+        ],
       ),
     );
 
-    if (source == null && !mounted) return;
+    if (selectedSource == null || !mounted) return;
 
     Uint8List? fileBytes;
     String fileName = 'invoice.pdf';
     String mediaType = 'application/pdf';
 
     try {
-      if (source != null) {
+      if (selectedSource == _ScanDocumentSource.camera ||
+          selectedSource == _ScanDocumentSource.gallery) {
         final picker = ImagePicker();
-        final picked = await picker.pickImage(source: source, imageQuality: 90);
+        final picked = await picker.pickImage(
+          source: selectedSource == _ScanDocumentSource.camera
+              ? ImageSource.camera
+              : ImageSource.gallery,
+          imageQuality: 90,
+        );
         if (picked == null) return;
         fileBytes = await picked.readAsBytes();
         fileName = picked.name;
         mediaType = picked.name.toLowerCase().endsWith('.png')
             ? 'image/png'
             : 'image/jpeg';
-      } else {
+      } else if (selectedSource == _ScanDocumentSource.pdf) {
         final result = await FilePicker.platform.pickFiles(
           type: FileType.custom,
           allowedExtensions: ['pdf'],
@@ -1818,7 +1758,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
       return;
     }
 
-    if (!mounted) return;
+    if (!mounted || fileBytes == null) return;
 
     ScannedVoucherData? scanned;
     await LoadingService.wrap(() async {
@@ -1835,13 +1775,12 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
 
     if (scanned == null || !mounted) return;
 
-    debugPrint('Scan result: party=${scanned!.partyName}, items=${scanned!.items.length}');
-
     if (scanned!.invoiceDate.isNotEmpty) {
       _h.date.text = scanned!.invoiceDate;
       _parseAndValidateDate();
     }
-    if (scanned!.invoiceNo.isNotEmpty && !scanned!.invoiceNo.toLowerCase().contains("invoice")) {
+    if (scanned!.invoiceNo.isNotEmpty &&
+        !scanned!.invoiceNo.toLowerCase().contains("invoice")) {
       _h.vchNo.text = scanned!.invoiceNo;
       _allowEmptyVchNo = false;
       _allowDuplicateVchNo = true;
@@ -1855,8 +1794,8 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
         currentParties: _currentParties,
         itemsMasterList: _itemsMasterList,
         itemCache: _itemCache,
-        company: _currentCompany,
-        folderPath: _currentCompany['folderPath']?.toString(),
+        company: _currentCompany.toJson(),
+        folderPath: _currentCompany.folderPath,
         voucherType: widget.voucherType,
         isSalesVoucher: _isSalesVoucher,
       ),
@@ -1882,7 +1821,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
       row.hsn = r.hsn;
       row.qty.text = r.qty % 1 == 0 ? r.qty.toInt().toString() : r.qty.toString();
       row.unit.text = r.unit;
-      row.price.text = r.rate.toStringAsFixed(2);
+      row.price.text = r.rate.toCurrency();
       row.gstRate = r.gstRate;
       VoucherCalculationService.recalculateTaxableAndTaxes(row, _isInterState);
     }
@@ -1898,7 +1837,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
         }
         final sRow = _sundries[i];
         sRow.name.text = sData.name;
-        sRow.amount.text = sData.amount.toStringAsFixed(2);
+        sRow.amount.text = sData.amount.toCurrency();
         sRow.isNegative = sData.isNegative;
       }
     }
@@ -1909,8 +1848,8 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<Map<String, dynamic>?>(activeCompanyProvider, (previous, next) {
-      if (next != null && !const DeepCollectionEquality().equals(previous, next)) {
+    ref.listen<CompanyModel?>(activeCompanyProvider, (previous, next) {
+      if (next != null && previous?.id != next.id) {
         _loadCompanyMastersOnly().then((_) {
           if (mounted) {
             setState(() {
@@ -1922,8 +1861,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
       }
     });
 
-    final fy = _currentCompany['activeFinancialYear']?.toString() ??
-        AppDateUtils.defaultFinancialYear;
+    final fy = _currentCompany.activeFinancialYear;
 
     return AutoScreenFocus(
       screen: FocusTargetScreen.voucherEntry,
@@ -2114,14 +2052,12 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.primary,
                 side: const BorderSide(color: AppColors.borderFocus),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              icon: const Icon(Icons.print_rounded,
-                  size: 15, color: AppColors.primary),
+              icon: const Icon(Icons.print_rounded, size: 15, color: AppColors.primary),
               label: const Text(
                 'Print (Ctrl+P)',
                 style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800),
@@ -2132,10 +2068,8 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
           _buildScanButton(),
           const SizedBox(width: 6),
           TextButton.icon(
-            onPressed: () =>
-                _openCalculatorForController(TextEditingController()),
-            icon: const Icon(Icons.calculate_outlined,
-                size: 16, color: AppColors.textSecondary),
+            onPressed: () => _openCalculatorForController(TextEditingController()),
+            icon: const Icon(Icons.calculate_outlined, size: 16, color: AppColors.textSecondary),
             label: const Text(
               'Calc (F4)',
               style: TextStyle(
@@ -2148,8 +2082,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
           const SizedBox(width: 6),
           TextButton.icon(
             onPressed: _showClearConfirmationDialog,
-            icon: const Icon(Icons.restart_alt_rounded,
-                size: 16, color: AppColors.textSecondary),
+            icon: const Icon(Icons.restart_alt_rounded, size: 16, color: AppColors.textSecondary),
             label: const Text(
               'Clear',
               style: TextStyle(
@@ -2161,8 +2094,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
           ),
           const SizedBox(width: 12),
           IconButton(
-            icon: const Icon(Icons.close_rounded,
-                size: 20, color: AppColors.textSecondary),
+            icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textSecondary),
             onPressed: _requestExit,
           ),
         ],
@@ -2270,11 +2202,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
           ],
           Text(
             text,
-            style: TextStyle(
-              fontSize: 10.5,
-              fontWeight: FontWeight.w700,
-              color: fg,
-            ),
+            style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: fg),
           ),
         ],
       ),
@@ -2305,8 +2233,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.auto_awesome_rounded,
-                    size: 14, color: AppColors.surface),
+                Icon(Icons.auto_awesome_rounded, size: 14, color: AppColors.surface),
                 SizedBox(width: 6),
                 Text(
                   'Scan with AI',
@@ -2327,8 +2254,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
                     ),
                   ),
                   child: Padding(
-                    padding:
-                        EdgeInsets.symmetric(horizontal: 4.5, vertical: 1.5),
+                    padding: EdgeInsets.symmetric(horizontal: 4.5, vertical: 1.5),
                     child: Text(
                       'PRO',
                       style: TextStyle(
