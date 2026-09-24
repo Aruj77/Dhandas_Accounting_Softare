@@ -1,32 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../constants/app_colors.dart';
+import '../provider/company_provider.dart';
 import '../services/focus_policy_service.dart';
 import '../services/keyboard_shortcut_service.dart';
 import '../services/loading_service.dart';
-import '../../../provider/company_provider.dart';
-import '../widgets/sidebar.dart';
-import '../widgets/top_bar.dart';
-import '../widgets/set_directory_dialog.dart';
+import '../services/notification_service.dart';
 import '../widgets/company/company_workspace_footer.dart';
-import '../widgets/home/home_header.dart';
 import '../widgets/home/company_action_card.dart';
+import '../widgets/home/create_company_dialog.dart';
 import '../widgets/home/data_action_card.dart';
 import '../widgets/home/data_directory_banner.dart';
-import '../widgets/home/recent_companies_panel.dart';
-import '../widgets/home/quick_tips_panel.dart';
-import '../widgets/home/create_company_dialog.dart';
+import '../widgets/home/home_header.dart';
 import '../widgets/home/open_company_dialog.dart';
-import 'settings_screen.dart';
-import 'company/transactions_dashboard.dart';
+import '../widgets/home/quick_tips_panel.dart';
+import '../widgets/home/recent_companies_panel.dart';
+import '../widgets/set_directory_dialog.dart';
+import '../widgets/sidebar.dart';
+import '../widgets/top_bar.dart';
 import 'company/administration_screen.dart';
+import 'company/gstr2b_reconciliation_screen.dart';
+import 'company/masters_dashboard_screen.dart';
 import 'company/reports_dashboard_screen.dart';
+import 'company/transactions_dashboard.dart';
 import 'company/voucher/voucher_entry_screen.dart';
 import 'company/voucher/voucher_list_screen.dart';
-import 'company/masters_dashboard_screen.dart';
-import 'company/gstr2b_reconciliation_screen.dart';
-import '../services/notification_service.dart';
+import 'settings_screen.dart';
 
 class _ListParams {
   final String voucherType;
@@ -165,7 +166,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           _activeListQuery = null;
         });
 
-        // Sync with Riverpod active company provider
         ref.read(activeCompanyProvider.notifier).state = selectedCompany;
 
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -246,7 +246,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       _activeListQuery = null;
     });
 
-    // Clear Riverpod active company provider
     ref.read(activeCompanyProvider.notifier).state = null;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -431,7 +430,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 onChangeFy: () => setState(() {
                   _activeVoucherType = null;
                   _activeListQuery = null;
-                  _selectedIndex = 4;
+                  _selectedIndex = 5;
                 }),
               ),
           ],

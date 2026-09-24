@@ -1,7 +1,6 @@
 // desktop/lib/database/app_database.dart
-import 'dart:io';
 import 'package:drift/drift.dart';
-import 'package:drift/native.dart';
+import 'database_manager.dart';
 
 part 'app_database.g.dart';
 
@@ -39,44 +38,9 @@ class VouchersTable extends Table {
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
-  /// Factory for single company root database (company.sqlite)
+  /// Delegates to [DatabaseManager] to ensure WAL mode, caching, and pragma optimization.
   factory AppDatabase.forCompany(String companyFolderPath) {
-    return AppDatabase(LazyDatabase(() async {
-      final file = File('$companyFolderPath${Platform.pathSeparator}company.sqlite');
-      return NativeDatabase.createInBackground(file);
-    }));
-  }
-
-  /// Factory that targets isolated series files: DHAN-001 / 2025-26 / sales_main.sqlite
-  factory AppDatabase.forSeriesFile({
-    required String companyFolderPath,
-    required String financialYear,
-    required String voucherType,
-    String? seriesName,
-  }) {
-    final fySlug = financialYear.replaceAll(' ', '_').replaceAll('/', '-');
-    final fyDir = Directory('$companyFolderPath${Platform.pathSeparator}$fySlug');
-
-    if (!fyDir.existsSync()) {
-      fyDir.createSync(recursive: true);
-    }
-
-    final vchBase = voucherType.toLowerCase().contains('sale')
-        ? 'sales'
-        : voucherType.toLowerCase().contains('purchase')
-            ? 'purchase'
-            : voucherType.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
-
-    final cleanSeries = (seriesName != null && seriesName.trim().isNotEmpty)
-        ? seriesName.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_')
-        : 'main';
-
-    final dbFilePath = '${fyDir.path}${Platform.pathSeparator}${vchBase}_$cleanSeries.sqlite';
-
-    return AppDatabase(LazyDatabase(() async {
-      final file = File(dbFilePath);
-      return NativeDatabase.createInBackground(file);
-    }));
+    return DatabaseManager.instance.getCompanyDatabase(companyFolderPath: companyFolderPath);
   }
 
   @override
@@ -89,7 +53,6 @@ class AppDatabase extends _$AppDatabase {
         },
         onUpgrade: (Migrator m, int from, int to) async {
           if (from < 2) {
-            // Add new HLC, soft-delete, and e-Invoice columns without wiping existing vouchers
             await m.addColumn(vouchersTable, vouchersTable.hlcTimestamp);
             await m.addColumn(vouchersTable, vouchersTable.originNodeId);
             await m.addColumn(vouchersTable, vouchersTable.isDeleted);

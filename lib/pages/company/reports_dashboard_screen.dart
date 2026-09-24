@@ -2,10 +2,10 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
 import '../../services/focus_policy_service.dart';
-import '../../services/storage_service.dart';
-import '../../utils/app_date_utils.dart';
 import '../../services/loading_service.dart';
 import '../../services/notification_service.dart';
+import '../../services/storage_service.dart';
+import '../../utils/app_date_utils.dart';
 
 class ReportsDashboardScreen extends StatefulWidget {
   final Map<String, dynamic> company;
@@ -30,7 +30,8 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
   double _totalTaxOutput = 0.0;
   double _totalTaxInput = 0.0;
 
-  num get estimatedEquity => _totalSales - _totalPurchases - _totalReceipts - _totalPayments - _totalTaxOutput + _totalTaxInput;
+  num get estimatedEquity =>
+      _totalSales - _totalPurchases - _totalReceipts - _totalPayments - _totalTaxOutput + _totalTaxInput;
 
   @override
   void initState() {
@@ -43,6 +44,8 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
     _periodDropdownFocusNode.dispose();
     super.dispose();
   }
+
+  double _parseDouble(dynamic val) => double.tryParse(val?.toString() ?? '0') ?? 0.0;
 
   Future<void> _loadFinancialData() async {
     await LoadingService.wrap(() async {
@@ -60,8 +63,8 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
 
         for (final v in vouchers) {
           final type = (v['voucherType'] ?? '').toString().toLowerCase();
-          final grandTotal = double.tryParse(v['grandTotal']?.toString() ?? '0') ?? 0.0;
-          final tax = double.tryParse(v['totalTax']?.toString() ?? '0') ?? 0.0;
+          final grandTotal = _parseDouble(v['grandTotal']);
+          final tax = _parseDouble(v['totalTax']);
 
           if (type.contains('sale')) {
             sales += grandTotal;

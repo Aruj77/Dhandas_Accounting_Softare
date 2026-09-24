@@ -2,18 +2,20 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
 import '../../constants/app_colors.dart';
 import '../../models/item_master_model.dart';
 import '../../models/party_master_model.dart';
+import '../../repositories/master_repository.dart';
 import '../../services/focus_policy_service.dart';
-import '../../services/storage_service.dart';
-import '../../widgets/common/app_confirm_dialog.dart';
+import '../../services/notification_service.dart';
 import '../../utils/app_action_bottom_sheet.dart';
+import '../../utils/app_date_utils.dart';
+import '../../utils/grid_keyboard_navigator.dart';
+import '../../widgets/common/app_confirm_dialog.dart';
+import '../../widgets/common/dashboard_action_chip.dart';
 import '../../widgets/voucher/popup/add_item_dialog.dart';
 import '../../widgets/voucher/popup/add_party_dialog.dart';
 import '../../widgets/voucher/popup/add_series_dialog.dart';
-import '../../services/notification_service.dart';
 
 enum MasterCategory { accounts, inventory, configuration }
 enum MasterAction { add, modify }
@@ -176,6 +178,8 @@ class MastersDashboardScreenState extends State<MastersDashboardScreen> {
     (title: 'Voucher Configuration & Taxes', desc: 'Voucher series numbering, sale types, sundries, and tax rates', icon: Icons.settings_suggest_rounded, color: AppColors.error, indices: [5, 6, 7, 8]),
   ];
 
+  static final List<List<int>> _gridSections = _sections.map((s) => s.indices).toList();
+
   late final List<FocusNode> _focusNodes = List.generate(_items.length, (_) => FocusNode());
   int? _focusedIndex;
   int? _hoveredIndex;
@@ -189,20 +193,6 @@ class MastersDashboardScreenState extends State<MastersDashboardScreen> {
   }
 
   void focusFirstTile() => _focusNodes.firstOrNull?.requestFocus();
-
-  void _handleGridNavigation(int currentIndex, LogicalKeyboardKey key, int cols) {
-    int target = currentIndex;
-    if (key == LogicalKeyboardKey.arrowRight || key == LogicalKeyboardKey.numpad6) {
-      target = (currentIndex + 1) % _items.length;
-    } else if (key == LogicalKeyboardKey.arrowLeft || key == LogicalKeyboardKey.numpad4) {
-      target = (currentIndex - 1 + _items.length) % _items.length;
-    } else if (key == LogicalKeyboardKey.arrowUp || key == LogicalKeyboardKey.numpad8) {
-      target = (currentIndex - cols + _items.length) % _items.length;
-    } else if (key == LogicalKeyboardKey.arrowDown || key == LogicalKeyboardKey.numpad2) {
-      target = (currentIndex + cols) % _items.length;
-    }
-    _focusNodes[target].requestFocus();
-  }
 
   Future<void> _handleAction(_MasterItem item, MasterAction action) async {
     if (widget.onMasterAction != null) {
@@ -228,6 +218,8 @@ class MastersDashboardScreenState extends State<MastersDashboardScreen> {
   }
 
   Future<void> _openAddMasterDialog(MasterType type, String? folderPath) async {
+    if (folderPath == null) return;
+
     switch (type) {
       case MasterType.party:
         await showDialog(
@@ -235,12 +227,10 @@ class MastersDashboardScreenState extends State<MastersDashboardScreen> {
           builder: (_) => AddPartyDialog(
             voucherType: 'Sales Invoice',
             onPartyCreated: (data) async {
-              if (folderPath != null) {
-                await _mutateCompanyMasters(folderPath, (raw) {
-                  final key = (data['group'] ?? '').toString().toLowerCase().contains('creditor') ? 'creditors' : 'debtors';
-                  (raw[key] ??= <dynamic>[]).add(data);
-                });
-              }
+              await MasterRepository.upsertParty(
+                folderPath: folderPath,
+                party: PartyMasterModel.fromJson(data),
+              );
               _onMasterAdded('Party "${data['name']}"');
             },
           ),
@@ -252,7 +242,21 @@ class MastersDashboardScreenState extends State<MastersDashboardScreen> {
           context: context,
           builder: (_) => AddItemDialog(
             company: widget.company,
-            onItemCreated: (data) {
+            folderPath: folderPath,
+            onItemCreated: (data) async {
+              await MasterRepository.upsertItem(
+                folderPath: folderPath,
+                item: ItemMasterModel(
+                  name: data['name']?.toString() ?? '',
+                  hsn: data['hsn']?.toString() ?? '',
+                  unit: data['unit']?.toString() ?? 'PCS',
+                  taxCategory: data['taxCategory']?.toString() ?? 'GST 18%',
+                  taxRate: (data['taxRate'] as num?)?.toDouble() ?? 18.0,
+                  salesPrice: (data['salesPrice'] as num?)?.toDouble() ?? 0.0,
+                  purchasePrice: (data['purchasePrice'] as num?)?.toDouble() ?? 0.0,
+                  mrp: (data['mrp'] as num?)?.toDouble() ?? 0.0,
+                ),
+              );
               _onMasterAdded('Item "${data['name']}"');
             },
           ),
@@ -264,16 +268,13 @@ class MastersDashboardScreenState extends State<MastersDashboardScreen> {
           context: context,
           builder: (_) => AddSeriesDialog(
             onSeriesCreated: (data) async {
-              if (folderPath != null) {
-                await _mutateCompanyMasters(folderPath, (raw) {
-                  final series = List<String>.from(raw['series'] ?? ['Main']);
-                  final name = data['name']?.toString() ?? 'Main';
-                  if (!series.contains(name)) series.add(name);
-                  raw['series'] = series;
-                  (raw['seriesSettings'] ??= <String, dynamic>{})[name] = data;
-                });
-              }
-              _onMasterAdded('Series "${data['name']}"');
+              final name = data['name']?.toString() ?? 'Main';
+              await MasterRepository.upsertSeries(
+                folderPath: folderPath,
+                seriesName: name,
+                seriesSettings: data,
+              );
+              _onMasterAdded('Series "$name"');
             },
           ),
         );
@@ -291,16 +292,14 @@ class MastersDashboardScreenState extends State<MastersDashboardScreen> {
 
   Future<void> _addSimpleStringMaster(String key, String title, String? folderPath) async {
     final controller = TextEditingController();
-    final name = await _showInputDialog('Add $title', 'Enter $title name', controller);
+    final name = await _showInputDialog(context, 'Add $title', 'Enter $title name', controller);
 
     if (name != null && name.isNotEmpty && folderPath != null) {
-      final success = await _mutateCompanyMasters(folderPath, (raw) {
-        final list = List<String>.from(raw[key] ?? []);
-        if (list.any((e) => e.toLowerCase() == name.toLowerCase())) return false;
-        list.add(name);
-        raw[key] = list;
-        return true;
-      });
+      final success = await MasterRepository.addSimpleMaster(
+        folderPath: folderPath,
+        key: key,
+        value: name,
+      );
 
       if (success) {
         _onMasterAdded('$title "$name"');
@@ -327,7 +326,7 @@ class MastersDashboardScreenState extends State<MastersDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final companyName = (widget.company['companyName'] ?? 'Workspace').toString();
-    final activeFy = (widget.company['activeFinancialYear'] ?? '2026-27').toString();
+    final activeFy = (widget.company['activeFinancialYear'] ?? AppDateUtils.defaultFinancialYear).toString();
 
     return AutoScreenFocus(
       screen: FocusTargetScreen.mastersDashboard,
@@ -484,24 +483,22 @@ class MastersDashboardScreenState extends State<MastersDashboardScreen> {
       },
       onKeyEvent: (_, event) {
         if (event is! KeyDownEvent) return KeyEventResult.ignored;
-        final k = event.logicalKey;
-        if (k == LogicalKeyboardKey.enter || k == LogicalKeyboardKey.space || k == LogicalKeyboardKey.numpadEnter) {
+
+        if (GridKeyboardNavigator.isActionKey(event.logicalKey)) {
           _showMasterActions(item);
           return KeyEventResult.handled;
         }
-        if ({
-          LogicalKeyboardKey.arrowUp,
-          LogicalKeyboardKey.arrowDown,
-          LogicalKeyboardKey.arrowLeft,
-          LogicalKeyboardKey.arrowRight,
-          LogicalKeyboardKey.numpad2,
-          LogicalKeyboardKey.numpad4,
-          LogicalKeyboardKey.numpad6,
-          LogicalKeyboardKey.numpad8,
-        }.contains(k)) {
-          _handleGridNavigation(index, k, cols);
+
+        if (GridKeyboardNavigator.handleKeyEvent(
+          currentIndex: index,
+          key: event.logicalKey,
+          cols: cols,
+          focusNodes: _focusNodes,
+          sections: _gridSections,
+        )) {
           return KeyEventResult.handled;
         }
+
         return KeyEventResult.ignored;
       },
       child: MouseRegion(
@@ -567,43 +564,26 @@ class MastersDashboardScreenState extends State<MastersDashboardScreen> {
                   Row(
                     children: [
                       if (!item.isReadOnly) ...[
-                        _cardActionButton('Add', Icons.add_rounded, AppColors.success, () => _handleAction(item, MasterAction.add)),
+                        DashboardActionChip(
+                          label: 'Add',
+                          icon: Icons.add_rounded,
+                          color: AppColors.success,
+                          height: 32,
+                          onTap: () => _handleAction(item, MasterAction.add),
+                        ),
                         const SizedBox(width: 8),
                       ],
-                      _cardActionButton(
-                        item.isReadOnly ? 'View List' : 'Modify',
-                        item.isReadOnly ? Icons.visibility_outlined : Icons.edit_note_rounded,
-                        AppColors.primaryAccent,
-                        () => _handleAction(item, MasterAction.modify),
+                      DashboardActionChip(
+                        label: item.isReadOnly ? 'View List' : 'Modify',
+                        icon: item.isReadOnly ? Icons.visibility_outlined : Icons.edit_note_rounded,
+                        color: AppColors.primaryAccent,
+                        height: 32,
+                        onTap: () => _handleAction(item, MasterAction.modify),
                       ),
                     ],
                   ),
                 ],
               ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _cardActionButton(String label, IconData icon, Color color, VoidCallback onTap) {
-    return Expanded(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(10),
-          child: Container(
-            height: 32,
-            decoration: BoxDecoration(color: color.withValues(alpha: .08), borderRadius: BorderRadius.circular(10)),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, size: 14, color: color),
-                const SizedBox(width: 6),
-                Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: color)),
-              ],
             ),
           ),
         ),
@@ -700,41 +680,44 @@ class _MasterModifyDialogState extends State<MasterModifyDialog> {
       return;
     }
 
-    final raw = await StorageService.loadCompanyMasters(folderPath: path);
+    final masters = await MasterRepository.loadMasters(folderPath: path);
     final List<Map<String, dynamic>> records = [];
 
     switch (widget.item.type) {
       case MasterType.party:
-        for (final group in ['debtors', 'creditors']) {
-          for (final p in (raw[group] as List? ?? [])) {
-            final gstin = p['gstin']?.toString();
-            records.add({
-              'title': p['name'] ?? '',
-              'badge': p['group'] ?? (group == 'debtors' ? 'Sundry Debtors' : 'Sundry Creditors'),
-              'detail': 'GSTIN: ${gstin == null || gstin.isEmpty ? "Unregistered" : gstin}',
-              'raw': p,
-            });
-          }
+        for (final p in [...masters.debtors, ...masters.creditors]) {
+          records.add({
+            'title': p.name,
+            'badge': p.group.isNotEmpty ? p.group : 'Sundry Debtors',
+            'detail': 'GSTIN: ${p.gstin.isEmpty ? "Unregistered" : p.gstin}',
+            'raw': p.toJson(),
+          });
         }
         break;
 
       case MasterType.item:
-        for (final i in (raw['items'] as List? ?? [])) {
+        for (final i in masters.items) {
           records.add({
-            'title': i['name'] ?? '',
-            'badge': '${i['taxRate'] ?? 18}% GST',
-            'detail': 'HSN: ${i['hsn'] ?? "-"} | Unit: ${i['unit'] ?? "PCS"} | Sales Price: ₹${i['salesPrice'] ?? 0.0}',
-            'raw': i,
+            'title': i.name,
+            'badge': '${i.taxRate}% GST',
+            'detail': 'HSN: ${i.hsn.isEmpty ? "-" : i.hsn} | Unit: ${i.unit} | Sales Price: ₹${i.salesPrice}',
+            'raw': {
+              'name': i.name,
+              'hsn': i.hsn,
+              'unit': i.unit,
+              'taxCategory': i.taxCategory,
+              'taxRate': i.taxRate,
+              'salesPrice': i.salesPrice,
+              'purchasePrice': i.purchasePrice,
+              'mrp': i.mrp,
+            },
           });
         }
         break;
 
       case MasterType.series:
-        final seriesList = (raw['series'] as List? ?? ['Main']);
-        final settings = (raw['seriesSettings'] as Map? ?? {});
-        for (final s in seriesList) {
-          final sName = s.toString();
-          final cfg = Map<String, dynamic>.from(settings[sName] ?? {'name': sName});
+        for (final sName in masters.series) {
+          final cfg = Map<String, dynamic>.from(masters.seriesSettings[sName] ?? {'name': sName});
           records.add({
             'title': sName,
             'badge': cfg['prefix']?.toString().isNotEmpty == true ? 'Prefix: ${cfg['prefix']}' : 'Standard',
@@ -747,8 +730,8 @@ class _MasterModifyDialogState extends State<MasterModifyDialog> {
       default:
         final key = _masterConfigs[widget.item.type]?.storageKey;
         if (key != null) {
-          for (final val in (raw[key] as List? ?? [])) {
-            final name = val.toString();
+          final list = masters.getSimpleList(key);
+          for (final name in list) {
             records.add({
               'title': name,
               'badge': _masterConfigs[widget.item.type]!.fallbackBadge,
@@ -782,7 +765,7 @@ class _MasterModifyDialogState extends State<MasterModifyDialog> {
   }
 
   Future<void> _editRecord(Map<String, dynamic> record) async {
-    if (_isReadOnly) return;
+    if (_isReadOnly || _folderPath == null) return;
     final title = record['title']?.toString().trim() ?? '';
     final raw = Map<String, dynamic>.from(record['raw'] as Map? ?? {});
 
@@ -793,17 +776,13 @@ class _MasterModifyDialogState extends State<MasterModifyDialog> {
           builder: (_) => AddPartyDialog(
             voucherType: 'Sales Invoice',
             isEdit: true,
-            initialParty: PartyMasterModel(
-              name: raw['name']?.toString() ?? title,
-              gstin: raw['gstin']?.toString() ?? '',
-              group: raw['group']?.toString() ?? record['badge']?.toString() ?? 'Sundry Debtors',
-            ),
+            initialParty: PartyMasterModel.fromJson(raw),
             onPartyCreated: (data) async {
-              await _mutateCompanyMasters(_folderPath!, (masters) {
-                _removeParty(masters, title);
-                final key = (data['group'] ?? '').toString().toLowerCase().contains('creditor') ? 'creditors' : 'debtors';
-                (masters[key] ??= <dynamic>[]).add(data);
-              });
+              await MasterRepository.upsertParty(
+                folderPath: _folderPath!,
+                party: PartyMasterModel.fromJson(data),
+                oldName: title,
+              );
               _onMutationSuccess('Updated "${data['name']}"');
             },
           ),
@@ -815,6 +794,7 @@ class _MasterModifyDialogState extends State<MasterModifyDialog> {
           context: context,
           builder: (_) => AddItemDialog(
             company: widget.company,
+            folderPath: _folderPath,
             isEdit: true,
             initialItem: ItemMasterModel(
               name: raw['name']?.toString() ?? title,
@@ -826,7 +806,21 @@ class _MasterModifyDialogState extends State<MasterModifyDialog> {
               purchasePrice: (raw['purchasePrice'] as num?)?.toDouble() ?? 0.0,
               mrp: (raw['mrp'] as num?)?.toDouble() ?? 0.0,
             ),
-            onItemCreated: (data) {
+            onItemCreated: (data) async {
+              await MasterRepository.upsertItem(
+                folderPath: _folderPath!,
+                item: ItemMasterModel(
+                  name: data['name']?.toString() ?? '',
+                  hsn: data['hsn']?.toString() ?? '',
+                  unit: data['unit']?.toString() ?? 'PCS',
+                  taxCategory: data['taxCategory']?.toString() ?? 'GST 18%',
+                  taxRate: (data['taxRate'] as num?)?.toDouble() ?? 18.0,
+                  salesPrice: (data['salesPrice'] as num?)?.toDouble() ?? 0.0,
+                  purchasePrice: (data['purchasePrice'] as num?)?.toDouble() ?? 0.0,
+                  mrp: (data['mrp'] as num?)?.toDouble() ?? 0.0,
+                ),
+                oldName: title,
+              );
               _onMutationSuccess('Updated "${data['name']}"');
             },
           ),
@@ -840,22 +834,14 @@ class _MasterModifyDialogState extends State<MasterModifyDialog> {
             isEdit: true,
             initialSeries: raw.isNotEmpty ? raw : {'name': title, 'numberingType': 'Automatic'},
             onSeriesCreated: (data) async {
-              await _mutateCompanyMasters(_folderPath!, (masters) {
-                final list = List<String>.from(masters['series'] ?? []);
-                final idx = list.indexWhere((s) => s.trim().toLowerCase() == title.toLowerCase());
-                final newName = data['name']?.toString() ?? 'Main';
-                if (idx != -1) {
-                  list[idx] = newName;
-                } else if (!list.contains(newName)) {
-                  list.add(newName);
-                }
-                masters['series'] = list;
-                final settings = Map<String, dynamic>.from(masters['seriesSettings'] ?? {});
-                settings.remove(title);
-                settings[newName] = data;
-                masters['seriesSettings'] = settings;
-              });
-              _onMutationSuccess('Updated series "${data['name']}"');
+              final newName = data['name']?.toString() ?? 'Main';
+              await MasterRepository.upsertSeries(
+                folderPath: _folderPath!,
+                seriesName: newName,
+                seriesSettings: data,
+                oldName: title,
+              );
+              _onMutationSuccess('Updated series "$newName"');
             },
           ),
         );
@@ -869,24 +855,22 @@ class _MasterModifyDialogState extends State<MasterModifyDialog> {
 
   Future<void> _editSimpleStringMaster(String oldVal, String key) async {
     final controller = TextEditingController(text: oldVal);
-    final updated = await _showInputDialog('Edit ${widget.item.title}', 'Name', controller);
-    if (updated == null || updated.isEmpty || updated == oldVal) return;
+    final updated = await _showInputDialog(context, 'Edit ${widget.item.title}', 'Name', controller);
+    if (updated == null || updated.isEmpty || updated == oldVal || _folderPath == null) return;
 
-    await _mutateCompanyMasters(_folderPath!, (masters) {
-      final list = List<String>.from(masters[key] ?? []);
-      final idx = list.indexWhere((e) => e.toLowerCase() == oldVal.toLowerCase());
-      if (idx != -1) {
-        list[idx] = updated;
-      } else {
-        list.add(updated);
-      }
-      masters[key] = list;
-    });
-    _onMutationSuccess('Updated "$updated"');
+    final success = await MasterRepository.updateSimpleMaster(
+      folderPath: _folderPath!,
+      key: key,
+      oldValue: oldVal,
+      newValue: updated,
+    );
+    if (success) {
+      _onMutationSuccess('Updated "$updated"');
+    }
   }
 
   Future<void> _deleteRecord(Map<String, dynamic> record) async {
-    if (_isReadOnly) return;
+    if (_isReadOnly || _folderPath == null) return;
     final title = record['title']?.toString() ?? '';
 
     if (widget.item.type == MasterType.series && title.toLowerCase() == 'main') {
@@ -902,35 +886,26 @@ class _MasterModifyDialogState extends State<MasterModifyDialog> {
       type: ConfirmDialogType.danger,
     );
 
-    if (!confirm || _folderPath == null) return;
+    if (!confirm) return;
 
-    await _mutateCompanyMasters(_folderPath!, (masters) {
-      switch (widget.item.type) {
-        case MasterType.party:
-          _removeParty(masters, title);
-          break;
-        case MasterType.item:
-          (masters['items'] as List?)?.removeWhere((i) => (i['name'] ?? '').toString().trim().toLowerCase() == title.toLowerCase());
-          break;
-        case MasterType.series:
-          (masters['series'] as List?)?.removeWhere((s) => s.toString().trim().toLowerCase() == title.toLowerCase());
-          (masters['seriesSettings'] as Map?)?.remove(title);
-          break;
-        default:
-          final key = _masterConfigs[widget.item.type]?.storageKey;
-          if (key != null) {
-            (masters[key] as List?)?.removeWhere((e) => e.toString().trim().toLowerCase() == title.toLowerCase());
-          }
-      }
-    });
+    switch (widget.item.type) {
+      case MasterType.party:
+        await MasterRepository.deleteParty(folderPath: _folderPath!, partyName: title);
+        break;
+      case MasterType.item:
+        await MasterRepository.deleteItem(folderPath: _folderPath!, itemName: title);
+        break;
+      case MasterType.series:
+        await MasterRepository.deleteSeries(folderPath: _folderPath!, seriesName: title);
+        break;
+      default:
+        final key = _masterConfigs[widget.item.type]?.storageKey;
+        if (key != null) {
+          await MasterRepository.deleteSimpleMaster(folderPath: _folderPath!, key: key, value: title);
+        }
+    }
 
     _onMutationSuccess('Deleted "$title"');
-  }
-
-  void _removeParty(Map<String, dynamic> masters, String title) {
-    final lower = title.toLowerCase();
-    (masters['debtors'] as List?)?.removeWhere((p) => (p['name'] ?? '').toString().trim().toLowerCase() == lower);
-    (masters['creditors'] as List?)?.removeWhere((p) => (p['name'] ?? '').toString().trim().toLowerCase() == lower);
   }
 
   void _onMutationSuccess(String msg) {
@@ -1099,17 +1074,9 @@ class _MasterModifyDialogState extends State<MasterModifyDialog> {
   }
 }
 
-Future<bool> _mutateCompanyMasters(String folderPath, dynamic Function(Map<String, dynamic> raw) mutator) async {
-  final raw = await StorageService.loadCompanyMasters(folderPath: folderPath);
-  final res = mutator(raw);
-  if (res == false) return false;
-  await StorageService.saveCompanyMasters(folderPath: folderPath, mastersData: raw);
-  return true;
-}
-
-Future<String?> _showInputDialog(String title, String hint, TextEditingController controller) {
+Future<String?> _showInputDialog(BuildContext context, String title, String hint, TextEditingController controller) {
   return showDialog<String>(
-    context: FocusManager.instance.primaryFocus?.context ?? navigatorKey.currentContext!,
+    context: context,
     builder: (ctx) => AlertDialog(
       backgroundColor: AppColors.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -1126,5 +1093,3 @@ Future<String?> _showInputDialog(String title, String hint, TextEditingControlle
     ),
   );
 }
-
-final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();

@@ -1,4 +1,3 @@
-// desktop/lib/services/storage_service.dart
 import 'dart:convert';
 import 'dart:io';
 import 'package:drift/drift.dart' hide Column;
@@ -6,6 +5,8 @@ import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../database/app_database.dart';
+import '../database/database_manager.dart';
+import '../utils/app_date_utils.dart';
 
 class StorageService {
   static const String _prefDirectoryKey = 'dhandas_data_directory_path';
@@ -89,32 +90,6 @@ class StorageService {
     return fy.replaceAll(' ', '_').replaceAll('/', '-');
   }
 
-  static String resolveVoucherFileName(String voucherType, [String? seriesName]) {
-    final vch = voucherType.toLowerCase().trim();
-    String base = 'sales';
-    if (vch.contains('sale')) {
-      base = 'sales';
-    } else if (vch.contains('purchase')) {
-      base = 'purchase';
-    } else if (vch.contains('payment')) {
-      base = 'payment';
-    } else if (vch.contains('receipt')) {
-      base = 'receipt';
-    } else if (vch.contains('journal')) {
-      base = 'journal';
-    } else if (vch.contains('contra')) {
-      base = 'contra';
-    } else {
-      base = vch.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
-    }
-
-    final cleanSeries = (seriesName != null && seriesName.trim().isNotEmpty)
-        ? seriesName.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_')
-        : 'main';
-
-    return '${base}_$cleanSeries.sqlite';
-  }
-
   static Future<String> getNextCompanyFolderId(String baseDirectoryPath) async {
     final baseDir = Directory(baseDirectoryPath);
     if (!await baseDir.exists()) {
@@ -149,14 +124,14 @@ class StorageService {
 
     final folderId = await getNextCompanyFolderId(directoryPath);
     final companyDir = Directory('${baseDir.path}${Platform.pathSeparator}$folderId');
-    
+
     if (await companyDir.exists()) {
       await companyDir.delete(recursive: true);
     }
     await companyDir.create(recursive: true);
 
-    final initialFys = ['2024-25', '2025-26', '2026-27'];
-    const defaultActiveFy = '2026-27';
+    final initialFys = ['2024-25', '2025-26', AppDateUtils.defaultFinancialYear];
+    final defaultActiveFy = AppDateUtils.defaultFinancialYear;
 
     final updatedData = Map<String, dynamic>.from(companyData)
       ..['id'] = folderId
@@ -195,8 +170,14 @@ class StorageService {
   static Future<void> deleteCompanyLocally({required Map<String, dynamic> companyData}) async {
     final folderPath = companyData['folderPath']?.toString();
     if (folderPath != null) {
+      _mastersMemoryCache.remove(folderPath);
+      // Close open SQLite database handles to avoid Windows file locks (OS Error 32)
+      await DatabaseManager.instance.disposeCompany(folderPath);
+
       final dir = Directory(folderPath);
-      if (await dir.exists()) await dir.delete(recursive: true);
+      if (await dir.exists()) {
+        await dir.delete(recursive: true);
+      }
     }
   }
 
@@ -240,6 +221,47 @@ class StorageService {
     debugPrint('StorageService: Successfully saved masters to ${file.path}');
   }
 
+  /// Maps generic voucher JSON payload to a type-safe Drift Companion record.
+  static VouchersTableCompanion _mapVoucherToCompanion(
+    Map<String, dynamic> vch, {
+    required String defaultVchType,
+    required String defaultSeries,
+  }) {
+    final id = vch['id']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString();
+    final series = (vch['series']?.toString().isNotEmpty == true)
+        ? vch['series'].toString()
+        : defaultSeries;
+    final type = (vch['voucherType']?.toString().isNotEmpty == true)
+        ? vch['voucherType'].toString()
+        : defaultVchType;
+
+    return VouchersTableCompanion(
+      id: Value(id),
+      hlcTimestamp: vch['hlcTimestamp'] != null
+          ? Value(vch['hlcTimestamp'].toString())
+          : const Value.absent(),
+      originNodeId: vch['originNodeId'] != null
+          ? Value(vch['originNodeId'].toString())
+          : const Value.absent(),
+      isDeleted: Value(vch['isDeleted'] == true),
+      voucherNumber: Value(vch['voucherNumber']?.toString() ?? ''),
+      voucherType: Value(type),
+      date: Value(vch['date']?.toString() ?? ''),
+      series: Value(series),
+      partyName: Value(vch['party']?.toString() ?? vch['partyName']?.toString() ?? ''),
+      grandTotal: Value(double.tryParse(vch['grandTotal']?.toString() ?? '0') ?? 0.0),
+      subTotal: Value(double.tryParse(vch['subTotal']?.toString() ?? '0') ?? 0.0),
+      totalTax: Value(double.tryParse(vch['totalTax']?.toString() ?? '0') ?? 0.0),
+      payloadJson: Value(jsonEncode(vch)),
+      irn: vch['irn'] != null ? Value(vch['irn'].toString()) : const Value.absent(),
+      ackNo: vch['ackNo'] != null ? Value(vch['ackNo'].toString()) : const Value.absent(),
+      signedQrCode: vch['signedQrCode'] != null
+          ? Value(vch['signedQrCode'].toString())
+          : const Value.absent(),
+      isSynced: Value(vch['isSynced'] == true),
+    );
+  }
+
   static Future<void> saveVoucher({
     required String folderPath,
     required String financialYear,
@@ -248,34 +270,20 @@ class StorageService {
     final vchType = voucherData['voucherType']?.toString() ?? 'Sales Invoice';
     final seriesName = voucherData['series']?.toString() ?? 'Main';
 
-    final db = AppDatabase.forSeriesFile(
+    final db = DatabaseManager.instance.getSeriesDatabase(
       companyFolderPath: folderPath,
       financialYear: financialYear,
       voucherType: vchType,
       seriesName: seriesName,
     );
 
-    final id = voucherData['id']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString();
+    final companion = _mapVoucherToCompanion(
+      voucherData,
+      defaultVchType: vchType,
+      defaultSeries: seriesName,
+    );
 
-    try {
-      await db.into(db.vouchersTable).insertOnConflictUpdate(
-            VouchersTableCompanion(
-              id: Value(id),
-              voucherNumber: Value(voucherData['voucherNumber']?.toString() ?? ''),
-              voucherType: Value(vchType),
-              date: Value(voucherData['date']?.toString() ?? ''),
-              series: Value(seriesName),
-              partyName: Value(voucherData['party']?.toString() ?? ''),
-              grandTotal: Value(double.tryParse(voucherData['grandTotal']?.toString() ?? '0') ?? 0.0),
-              subTotal: Value(double.tryParse(voucherData['subTotal']?.toString() ?? '0') ?? 0.0),
-              totalTax: Value(double.tryParse(voucherData['totalTax']?.toString() ?? '0') ?? 0.0),
-              payloadJson: Value(jsonEncode(voucherData)),
-              isSynced: const Value(false),
-            ),
-          );
-    } finally {
-      await db.close();
-    }
+    await db.into(db.vouchersTable).insertOnConflictUpdate(companion);
   }
 
   static Future<void> saveAllVouchers({
@@ -285,37 +293,28 @@ class StorageService {
     String? seriesName,
     required List<Map<String, dynamic>> vouchers,
   }) async {
-    final db = AppDatabase.forSeriesFile(
+    final targetSeries = seriesName ?? 'Main';
+    final db = DatabaseManager.instance.getSeriesDatabase(
       companyFolderPath: folderPath,
       financialYear: financialYear,
       voucherType: voucherType,
-      seriesName: seriesName ?? 'Main',
+      seriesName: targetSeries,
     );
 
-    try {
-      await db.transaction(() async {
-        for (final vch in vouchers) {
-          final id = vch['id']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString();
-          await db.into(db.vouchersTable).insertOnConflictUpdate(
-                VouchersTableCompanion(
-                  id: Value(id),
-                  voucherNumber: Value(vch['voucherNumber']?.toString() ?? ''),
-                  voucherType: Value(vch['voucherType']?.toString() ?? voucherType),
-                  date: Value(vch['date']?.toString() ?? ''),
-                  series: Value(vch['series']?.toString() ?? seriesName ?? 'Main'),
-                  partyName: Value(vch['party']?.toString() ?? ''),
-                  grandTotal: Value(double.tryParse(vch['grandTotal']?.toString() ?? '0') ?? 0.0),
-                  subTotal: Value(double.tryParse(vch['subTotal']?.toString() ?? '0') ?? 0.0),
-                  totalTax: Value(double.tryParse(vch['totalTax']?.toString() ?? '0') ?? 0.0),
-                  payloadJson: Value(jsonEncode(vch)),
-                  isSynced: const Value(false),
-                ),
-              );
-        }
-      });
-    } finally {
-      await db.close();
-    }
+    await db.batch((batch) {
+      for (final vch in vouchers) {
+        final companion = _mapVoucherToCompanion(
+          vch,
+          defaultVchType: voucherType,
+          defaultSeries: targetSeries,
+        );
+        batch.insert(
+          db.vouchersTable,
+          companion,
+          onConflict: DoUpdate((_) => companion),
+        );
+      }
+    });
   }
 
   static Future<List<Map<String, dynamic>>> loadVouchers({
@@ -328,47 +327,63 @@ class StorageService {
     final fyDir = Directory('$folderPath${Platform.pathSeparator}$fySlug');
     if (!await fyDir.exists()) return [];
 
-    final List<Map<String, dynamic>> allVouchers = [];
     if (voucherType != null && seriesName != null && seriesName.toLowerCase() != 'all') {
-      final fileName = resolveVoucherFileName(voucherType, seriesName);
-      final file = File('${fyDir.path}${Platform.pathSeparator}$fileName');
-      if (await file.exists()) {
-        return _fetchVouchersFromFile(file);
-      }
-      return [];
+      final db = DatabaseManager.instance.getSeriesDatabase(
+        companyFolderPath: folderPath,
+        financialYear: financialYear,
+        voucherType: voucherType,
+        seriesName: seriesName,
+      );
+      return _fetchVouchersFromDb(db);
     }
-    
+
+    final List<Map<String, dynamic>> allVouchers = [];
     await for (final entity in fyDir.list()) {
       if (entity is File && entity.path.endsWith('.sqlite')) {
         final fileName = entity.uri.pathSegments.last.toLowerCase();
-        
+
         if (voucherType != null && voucherType.toLowerCase() != 'all') {
-          final targetBase = resolveVoucherFileName(voucherType, seriesName).split('_').first;
+          final targetBase = voucherType.toLowerCase().contains('sale')
+              ? 'sales'
+              : voucherType.toLowerCase().contains('purchase')
+                  ? 'purchase'
+                  : voucherType.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
           if (!fileName.contains(targetBase)) continue;
         }
+
         if (seriesName != null && seriesName.toLowerCase() != 'all') {
-          final cleanSeries = seriesName.trim().toLowerCase();
+          final cleanSeries = seriesName.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
           if (!fileName.contains(cleanSeries)) continue;
         }
 
-        final vouchers = await _fetchVouchersFromFile(entity);
-        allVouchers.addAll(vouchers);
+        final db = AppDatabase(NativeDatabase.createInBackground(
+          entity,
+          setup: DatabaseManager.applyOptimizedPragmas,
+        ));
+        try {
+          final vouchers = await _fetchVouchersFromDb(db);
+          allVouchers.addAll(vouchers);
+        } finally {
+          await db.close();
+        }
       }
     }
     return allVouchers;
   }
 
-  static Future<List<Map<String, dynamic>>> _fetchVouchersFromFile(File file) async {
-    final db = AppDatabase(NativeDatabase(file));
+  static Future<List<Map<String, dynamic>>> _fetchVouchersFromDb(AppDatabase db) async {
     final List<Map<String, dynamic>> vouchers = [];
     try {
-      final rows = await db.select(db.vouchersTable).get();
+      final rows = await (db.select(db.vouchersTable)
+            ..where((t) => t.isDeleted.equals(false)))
+          .get();
       for (final r in rows) {
-        vouchers.add(jsonDecode(r.payloadJson) as Map<String, dynamic>);
+        try {
+          vouchers.add(jsonDecode(r.payloadJson) as Map<String, dynamic>);
+        } catch (_) {}
       }
-    } catch (_) {
-    } finally {
-      await db.close();
+    } catch (e) {
+      debugPrint('StorageService: Error loading vouchers: $e');
     }
     return vouchers;
   }

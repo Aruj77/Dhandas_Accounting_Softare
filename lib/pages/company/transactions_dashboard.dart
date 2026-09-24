@@ -1,12 +1,13 @@
-// lib/pages/company/transactions_dashboard.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
 import '../../constants/app_colors.dart';
 import '../../services/focus_policy_service.dart';
+import '../../utils/app_action_bottom_sheet.dart';
+import '../../utils/app_date_utils.dart';
+import '../../utils/grid_keyboard_navigator.dart';
+import '../../widgets/common/dashboard_action_chip.dart';
 import '../../widgets/company/date_range_dialog.dart';
 import '../../widgets/voucher/popup/voucher_modify_dialog.dart';
-import '../../utils/app_action_bottom_sheet.dart';
 
 enum TransactionAction { add, modify, list }
 
@@ -84,50 +85,6 @@ class TransactionsDashboardState extends State<TransactionsDashboard> {
     if (_focusNodes.isNotEmpty) _focusNodes.first.requestFocus();
   }
 
-  List<List<int>> _computeGrid(int cols) {
-    final List<List<int>> grid = [];
-    for (final section in _sections) {
-      for (int i = 0; i < section.length; i += cols) {
-        grid.add(section.sublist(i, (i + cols > section.length) ? section.length : i + cols));
-      }
-    }
-    return grid;
-  }
-
-  void _handleGridNavigation(int currentIndex, LogicalKeyboardKey key, int cols) {
-    if (key == LogicalKeyboardKey.arrowRight || key == LogicalKeyboardKey.numpad6) {
-      _focusNodes[(currentIndex + 1) % _items.length].requestFocus();
-      return;
-    }
-    if (key == LogicalKeyboardKey.arrowLeft || key == LogicalKeyboardKey.numpad4) {
-      _focusNodes[(currentIndex - 1 + _items.length) % _items.length].requestFocus();
-      return;
-    }
-
-    final grid = _computeGrid(cols);
-    int r = -1;
-    int c = -1;
-    for (int i = 0; i < grid.length; i++) {
-      final idx = grid[i].indexOf(currentIndex);
-      if (idx != -1) {
-        r = i;
-        c = idx;
-        break;
-      }
-    }
-    if (r == -1) return;
-
-    if (key == LogicalKeyboardKey.arrowUp || key == LogicalKeyboardKey.numpad8) {
-      final targetRow = r > 0 ? grid[r - 1] : grid.last;
-      final targetCol = c.clamp(0, targetRow.length - 1);
-      _focusNodes[targetRow[targetCol]].requestFocus();
-    } else if (key == LogicalKeyboardKey.arrowDown || key == LogicalKeyboardKey.numpad2) {
-      final targetRow = r < grid.length - 1 ? grid[r + 1] : grid.first;
-      final targetCol = c.clamp(0, targetRow.length - 1);
-      _focusNodes[targetRow[targetCol]].requestFocus();
-    }
-  }
-
   Future<void> _handleAction({
     required BuildContext context,
     required String voucherType,
@@ -148,7 +105,7 @@ class TransactionsDashboardState extends State<TransactionsDashboard> {
         );
         break;
       case TransactionAction.list:
-        final fy = (widget.company['activeFinancialYear'] ?? '2026-27').toString();
+        final fy = (widget.company['activeFinancialYear'] ?? AppDateUtils.defaultFinancialYear).toString();
         final result = await showDialog<Map<String, dynamic>>(
           context: context,
           builder: (_) => DateRangeDialog(
@@ -172,7 +129,7 @@ class TransactionsDashboardState extends State<TransactionsDashboard> {
   @override
   Widget build(BuildContext context) {
     final companyName = (widget.company['companyName'] ?? 'Workspace').toString();
-    final activeFy = (widget.company['activeFinancialYear'] ?? '2026-27').toString();
+    final activeFy = (widget.company['activeFinancialYear'] ?? AppDateUtils.defaultFinancialYear).toString();
 
     return AutoScreenFocus(
       screen: FocusTargetScreen.homeDashboard,
@@ -300,11 +257,6 @@ class TransactionsDashboardState extends State<TransactionsDashboard> {
                   ],
                 ),
               ),
-              TextButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.arrow_forward_rounded, size: 15),
-                label: const Text('View all'),
-              ),
             ],
           ),
           const SizedBox(height: 18),
@@ -357,24 +309,19 @@ class TransactionsDashboardState extends State<TransactionsDashboard> {
           },
           onKeyEvent: (node, event) {
             if (event is! KeyDownEvent) return KeyEventResult.ignored;
-            final k = event.logicalKey;
 
-            if (k == LogicalKeyboardKey.enter || k == LogicalKeyboardKey.space || k == LogicalKeyboardKey.numpadEnter) {
+            if (GridKeyboardNavigator.isActionKey(event.logicalKey)) {
               _showTransactionActions(context, item.title);
               return KeyEventResult.handled;
             }
 
-            if ({
-              LogicalKeyboardKey.arrowUp,
-              LogicalKeyboardKey.arrowDown,
-              LogicalKeyboardKey.arrowLeft,
-              LogicalKeyboardKey.arrowRight,
-              LogicalKeyboardKey.numpad2,
-              LogicalKeyboardKey.numpad4,
-              LogicalKeyboardKey.numpad6,
-              LogicalKeyboardKey.numpad8,
-            }.contains(k)) {
-              _handleGridNavigation(index, k, cols);
+            if (GridKeyboardNavigator.handleKeyEvent(
+              currentIndex: index,
+              key: event.logicalKey,
+              cols: cols,
+              focusNodes: _focusNodes,
+              sections: _sections,
+            )) {
               return KeyEventResult.handled;
             }
 
@@ -450,11 +397,26 @@ class TransactionsDashboardState extends State<TransactionsDashboard> {
                       const SizedBox(height: 18),
                       Row(
                         children: [
-                          _cardActionButton('Add', Icons.add_rounded, AppColors.success, () => _handleAction(context: context, voucherType: item.title, action: TransactionAction.add)),
+                          DashboardActionChip(
+                            label: 'Add',
+                            icon: Icons.add_rounded,
+                            color: AppColors.success,
+                            onTap: () => _handleAction(context: context, voucherType: item.title, action: TransactionAction.add),
+                          ),
                           const SizedBox(width: 7),
-                          _cardActionButton('Modify', Icons.edit_rounded, AppColors.primaryAccent, () => _handleAction(context: context, voucherType: item.title, action: TransactionAction.modify)),
+                          DashboardActionChip(
+                            label: 'Modify',
+                            icon: Icons.edit_rounded,
+                            color: AppColors.primaryAccent,
+                            onTap: () => _handleAction(context: context, voucherType: item.title, action: TransactionAction.modify),
+                          ),
                           const SizedBox(width: 7),
-                          _cardActionButton('List', Icons.list_alt_rounded, AppColors.purple, () => _handleAction(context: context, voucherType: item.title, action: TransactionAction.list)),
+                          DashboardActionChip(
+                            label: 'List',
+                            icon: Icons.list_alt_rounded,
+                            color: AppColors.purple,
+                            onTap: () => _handleAction(context: context, voucherType: item.title, action: TransactionAction.list),
+                          ),
                         ],
                       ),
                     ],
@@ -465,30 +427,6 @@ class TransactionsDashboardState extends State<TransactionsDashboard> {
           ),
         );
       },
-    );
-  }
-
-  Widget _cardActionButton(String label, IconData icon, Color color, VoidCallback onTap) {
-    return Expanded(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(10),
-          child: Container(
-            height: 34,
-            decoration: BoxDecoration(color: color.withValues(alpha: .07), borderRadius: BorderRadius.circular(10)),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, size: 14, color: color),
-                const SizedBox(width: 5),
-                Text(label, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: color)),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 

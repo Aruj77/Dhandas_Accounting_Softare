@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../constants/app_colors.dart';
 import '../../constants/app_decoration.dart';
 
@@ -12,6 +13,9 @@ class AppTextField extends StatelessWidget {
   final TextAlign textAlign;
   final TextInputType? keyboardType;
   final TextCapitalization textCapitalization;
+  final FocusNode? focusNode;
+  final List<TextInputFormatter>? inputFormatters;
+  final ValueChanged<String>? onChanged;
   final String? Function(String?)? validator;
   final VoidCallback? onSubmitted;
 
@@ -26,6 +30,9 @@ class AppTextField extends StatelessWidget {
     this.textAlign = TextAlign.left,
     this.keyboardType,
     this.textCapitalization = TextCapitalization.none,
+    this.focusNode,
+    this.inputFormatters,
+    this.onChanged,
     this.validator,
     this.onSubmitted,
   });
@@ -48,12 +55,15 @@ class AppTextField extends StatelessWidget {
           height: maxLines == 1 ? 38 : null,
           child: TextFormField(
             controller: controller,
+            focusNode: focusNode,
             readOnly: readOnly,
             autofocus: autofocus,
             maxLines: maxLines,
             textAlign: textAlign,
             keyboardType: keyboardType,
             textCapitalization: textCapitalization,
+            inputFormatters: inputFormatters,
+            onChanged: onChanged,
             validator: validator,
             onFieldSubmitted: (_) => onSubmitted?.call(),
             style: const TextStyle(

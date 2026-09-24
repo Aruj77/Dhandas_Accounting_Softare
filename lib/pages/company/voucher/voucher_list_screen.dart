@@ -1,4 +1,3 @@
-// desktop/lib/pages/company/voucher/voucher_list_screen.dart
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
@@ -7,39 +6,43 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
+
 import '../../../constants/app_colors.dart';
 import '../../../models/register_summary.dart';
 import '../../../provider/sync_provider.dart';
 import '../../../services/focus_policy_service.dart';
 import '../../../services/keyboard_shortcut_service.dart';
+import '../../../services/loading_service.dart';
+import '../../../services/notification_service.dart';
 import '../../../services/storage_service.dart';
+import '../../../services/sync_worker.dart';
 import '../../../services/voucher_excel_export_service.dart';
 import '../../../services/voucher_pdf_export_service.dart';
 import '../../../utils/app_date_utils.dart';
 import '../../../utils/export_dialog_utils.dart';
 import '../../../utils/gst_party_utils.dart';
-import '../../../widgets/common/data_table_cells.dart';
 import '../../../utils/register_header_bar.dart';
+import '../../../widgets/common/app_confirm_dialog.dart';
+import '../../../widgets/common/data_table_cells.dart';
 import 'voucher_entry_screen.dart';
-import '../../../services/loading_service.dart';
-import '../../../services/sync_worker.dart';
-import '../../../services/notification_service.dart';
 
 class VoucherListScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic> company;
   final String voucherType;
-  final DateTime fromDate;
-  final DateTime toDate;
+  final DateTime? fromDate;
+  final DateTime? toDate;
   final String initialSeries;
+  final bool initialManageMode;
   final VoidCallback onClose;
 
   const VoucherListScreen({
     super.key,
     required this.company,
     required this.voucherType,
-    required this.fromDate,
-    required this.toDate,
+    this.fromDate,
+    this.toDate,
     this.initialSeries = 'All',
+    this.initialManageMode = false,
     required this.onClose,
   });
 
@@ -52,15 +55,21 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
   final _searchFocusNode = FocusNode();
   final _horizontalHeaderCtrl = ScrollController();
   final _bodyHorizontalScrollCtrl = ScrollController();
+  final _bodyVerticalScrollCtrl = ScrollController();
   final _horizontalFooterCtrl = ScrollController();
 
   List<Map<String, dynamic>> _vouchers = [];
   List<Map<String, dynamic>> _filtered = [];
+  final Set<String> _selectedKeys = {};
   bool _isLoading = true;
+  late bool _isManageMode;
   int _focusedIndex = -1;
   List<FocusNode> _rowFocusNodes = [];
   late String _selectedSeries;
   List<String> _availableSeries = ['All', 'Main'];
+
+  late DateTime _effectiveFromDate;
+  late DateTime _effectiveToDate;
 
   SyncWorker? _cachedSyncWorker;
 
@@ -95,10 +104,20 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
         companyGstin: (widget.company['gstin'] ?? '').toString(),
       );
 
+  String _resolveKey(Map<String, dynamic> v, int i) =>
+      v['id']?.toString() ?? v['voucherNumber']?.toString() ?? 'idx_$i';
+
   @override
   void initState() {
     super.initState();
+    _isManageMode = widget.initialManageMode;
     _selectedSeries = widget.initialSeries.trim().isEmpty ? 'All' : widget.initialSeries.trim();
+
+    final fy = (widget.company['activeFinancialYear'] ?? AppDateUtils.defaultFinancialYear).toString();
+    final bounds = AppDateUtils.parseFinancialYearBounds(fy);
+    _effectiveFromDate = widget.fromDate ?? bounds.startDate;
+    _effectiveToDate = widget.toDate ?? bounds.endDate;
+
     _loadAvailableSeries();
     _loadVouchers();
     _searchCtrl.addListener(_onSearch);
@@ -148,6 +167,7 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
     _searchFocusNode.dispose();
     _horizontalHeaderCtrl.dispose();
     _bodyHorizontalScrollCtrl.dispose();
+    _bodyVerticalScrollCtrl.dispose();
     _horizontalFooterCtrl.dispose();
     for (final n in _rowFocusNodes) {
       n.dispose();
@@ -168,7 +188,11 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
       final fy = (widget.company['activeFinancialYear'] ?? AppDateUtils.defaultFinancialYear).toString();
 
       if (folderPath != null) {
-        final allVouchers = await StorageService.loadVouchers(folderPath: folderPath, financialYear: fy);
+        final allVouchers = await StorageService.loadVouchers(
+          folderPath: folderPath,
+          financialYear: fy,
+          voucherType: widget.voucherType,
+        );
         final targetType = widget.voucherType.toLowerCase().trim();
 
         for (final v in allVouchers) {
@@ -178,7 +202,10 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
 
         final matching = allVouchers.where((v) {
           final vchType = (v['voucherType'] ?? '').toString().toLowerCase().trim();
-          bool typeMatches = vchType.isEmpty || vchType == targetType || vchType.contains(targetType) || targetType.contains(vchType);
+          bool typeMatches = vchType.isEmpty ||
+              vchType == targetType ||
+              vchType.contains(targetType) ||
+              targetType.contains(vchType);
           if (!typeMatches) return false;
 
           if (_selectedSeries.toLowerCase() != 'all') {
@@ -190,16 +217,18 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
           final dt = AppDateUtils.parseDate(v['date']?.toString());
           if (dt == null) return true;
 
-          final start = DateTime(widget.fromDate.year, widget.fromDate.month, widget.fromDate.day);
-          final end = DateTime(widget.toDate.year, widget.toDate.month, widget.toDate.day, 23, 59, 59);
+          final start = DateTime(_effectiveFromDate.year, _effectiveFromDate.month, _effectiveFromDate.day);
+          final end = DateTime(_effectiveToDate.year, _effectiveToDate.month, _effectiveToDate.day, 23, 59, 59);
 
-          return (dt.isAtSameMomentAs(start) || dt.isAfter(start)) && (dt.isAtSameMomentAs(end) || dt.isBefore(end));
+          return (dt.isAtSameMomentAs(start) || dt.isAfter(start)) &&
+              (dt.isAtSameMomentAs(end) || dt.isBefore(end));
         }).toList();
 
         if (mounted) {
           setState(() {
             _vouchers = matching;
             _filtered = matching;
+            _selectedKeys.clear();
             _isLoading = false;
             _syncFocusNodes();
             _focusedIndex = matching.isNotEmpty ? 0 : -1;
@@ -230,7 +259,9 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
               return vch.contains(q) ||
                   party.contains(q) ||
                   gstin.contains(q) ||
-                  items.any((it) => (it['hsn'] ?? '').toString().toLowerCase().contains(q) || (it['item'] ?? '').toString().toLowerCase().contains(q));
+                  items.any((it) =>
+                      (it['hsn'] ?? '').toString().toLowerCase().contains(q) ||
+                      (it['item'] ?? '').toString().toLowerCase().contains(q));
             }).toList();
       _syncFocusNodes();
       _focusedIndex = _filtered.isNotEmpty ? 0 : -1;
@@ -271,11 +302,74 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
 
   double _calculateActiveMinWidth() {
     const weights = {
-      'sno': 45.0, 'party': 160.0, 'gstin': 130.0, 'pos': 140.0, 'vchNo': 95.0,
-      'date': 85.0, 'qty': 65.0, 'unit': 50.0, 'hsn': 75.0, 'invoiceVal': 105.0,
-      'taxable': 95.0, 'taxRate': 55.0, 'igst': 80.0, 'cgst': 80.0, 'sgst': 80.0, 'cess': 75.0
+      'sno': 45.0,
+      'party': 160.0,
+      'gstin': 130.0,
+      'pos': 140.0,
+      'vchNo': 95.0,
+      'date': 85.0,
+      'qty': 65.0,
+      'unit': 50.0,
+      'hsn': 75.0,
+      'invoiceVal': 105.0,
+      'taxable': 95.0,
+      'taxRate': 55.0,
+      'igst': 80.0,
+      'cgst': 80.0,
+      'sgst': 80.0,
+      'cess': 75.0,
     };
-    return _columnLabels.keys.where(_isColVisible).fold(0.0, (w, k) => w + (weights[k] ?? 80.0));
+    double total = _columnLabels.keys.where(_isColVisible).fold(0.0, (w, k) => w + (weights[k] ?? 80.0));
+    if (_isManageMode) {
+      total += 40.0; // Selection checkbox column
+      total += 90.0; // Inline Actions column
+    }
+    return total;
+  }
+
+  Future<void> _confirmAndDelete(List<Map<String, dynamic>> toDelete) async {
+    await LoadingService.wrap(() async {
+      if (toDelete.isEmpty) return;
+      final isPlural = toDelete.length > 1;
+
+      final shouldDelete = await AppConfirmDialog.show(
+        context: context,
+        title: 'Confirm Deletion',
+        message: isPlural
+            ? 'Permanently delete ${toDelete.length} selected vouchers?'
+            : 'Delete Voucher [${toDelete.first['voucherNumber']}]?',
+        confirmLabel: isPlural ? 'Delete All (${toDelete.length})' : 'Delete',
+        type: ConfirmDialogType.danger,
+      );
+
+      if (!shouldDelete || !mounted) return;
+
+      final keys = {for (int i = 0; i < toDelete.length; i++) _resolveKey(toDelete[i], i)};
+      setState(() {
+        _vouchers.removeWhere((v) => keys.contains(_resolveKey(v, _vouchers.indexOf(v))));
+        _filtered.removeWhere((v) => keys.contains(_resolveKey(v, _filtered.indexOf(v))));
+        _selectedKeys.removeAll(keys);
+        _syncFocusNodes();
+      });
+
+      final folderPath = widget.company['folderPath']?.toString();
+      final fy = (widget.company['activeFinancialYear'] ?? AppDateUtils.defaultFinancialYear).toString();
+      if (folderPath != null) {
+        await StorageService.saveAllVouchers(
+          folderPath: folderPath,
+          financialYear: fy,
+          voucherType: widget.voucherType,
+          vouchers: _vouchers,
+        );
+      }
+      if (mounted) {
+        NotificationService.show(
+          context,
+          message: isPlural ? '${toDelete.length} vouchers deleted.' : 'Voucher deleted.',
+          type: NotificationType.success,
+        );
+      }
+    }, message: 'Deleting Selected Vouchers...');
   }
 
   Future<void> _handleExcelExport() async {
@@ -284,8 +378,8 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
       final savedPath = await VoucherExcelExportService.exportToExcel(
         company: widget.company,
         voucherType: widget.voucherType,
-        fromDate: widget.fromDate,
-        toDate: widget.toDate,
+        fromDate: _effectiveFromDate,
+        toDate: _effectiveToDate,
         filteredVouchers: _filtered,
         activeKeys: activeKeys,
         columnLabels: _columnLabels,
@@ -334,7 +428,11 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
           'grandTotal': v['grandTotal'],
           'subTotal': v['subTotal'],
           'items': (v['items'] as List? ?? []).map((i) => {
-            'qty': i['qty'], 'unit': i['unit'], 'hsn': i['hsn'], 'taxable': i['taxable'], 'gstRate': i['gstRate']
+            'qty': i['qty'],
+            'unit': i['unit'],
+            'hsn': i['hsn'],
+            'taxable': i['taxable'],
+            'gstRate': i['gstRate'],
           }).toList(),
         }).toList();
 
@@ -427,7 +525,9 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
             TextButton(
               onPressed: () {
                 setDialogState(() {
-                  for (final k in _userSelectedColumns.keys) _userSelectedColumns[k] = true;
+                  for (final k in _userSelectedColumns.keys) {
+                    _userSelectedColumns[k] = true;
+                  }
                 });
                 setState(() {});
               },
@@ -466,7 +566,11 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(children: [Icon(icon, size: 14, color: AppColors.primary), const SizedBox(width: 6), Text(title, style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900, color: AppColors.textSecondary, letterSpacing: 0.5))]),
+                    Row(children: [
+                      Icon(icon, size: 14, color: AppColors.primary),
+                      const SizedBox(width: 6),
+                      Text(title, style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900, color: AppColors.textSecondary, letterSpacing: 0.5)),
+                    ]),
                     const SizedBox(height: 10),
                     ...children,
                   ],
@@ -486,14 +590,25 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
                   Container(
                     height: 54,
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    decoration: const BoxDecoration(color: AppColors.surface, border: Border(bottom: BorderSide(color: AppColors.border, width: 1.2))),
+                    decoration: const BoxDecoration(
+                      color: AppColors.surface,
+                      border: Border(bottom: BorderSide(color: AppColors.border, width: 1.2)),
+                    ),
                     child: Row(
                       children: [
-                        Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(8)), child: const Icon(Icons.print_rounded, size: 18, color: AppColors.primary)),
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(8)),
+                          child: const Icon(Icons.print_rounded, size: 18, color: AppColors.primary),
+                        ),
                         const SizedBox(width: 10),
                         Text('Print Studio — ${widget.voucherType} Register', style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
                         const SizedBox(width: 8),
-                        Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3), decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(6)), child: Text('${isLegal ? 'Legal' : 'A4'} • ${isLandscape ? 'Landscape' : 'Portrait'}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.primary))),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(6)),
+                          child: Text('${isLegal ? 'Legal' : 'A4'} • ${isLandscape ? 'Landscape' : 'Portrait'}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.primary)),
+                        ),
                         const Spacer(),
                         TextButton.icon(
                           onPressed: () => setPrintDialogState(() {
@@ -521,7 +636,10 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
                                 const Text('Orientation', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
                                 const SizedBox(height: 6),
                                 SegmentedButton<bool>(
-                                  segments: const [ButtonSegment(value: true, label: Text('Landscape', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))), ButtonSegment(value: false, label: Text('Portrait', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)))],
+                                  segments: const [
+                                    ButtonSegment(value: true, label: Text('Landscape', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+                                    ButtonSegment(value: false, label: Text('Portrait', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+                                  ],
                                   selected: {isLandscape},
                                   showSelectedIcon: false,
                                   style: SegmentedButton.styleFrom(selectedBackgroundColor: AppColors.primary, selectedForegroundColor: AppColors.surface),
@@ -531,7 +649,10 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
                                 const Text('Paper Size', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
                                 const SizedBox(height: 6),
                                 SegmentedButton<bool>(
-                                  segments: const [ButtonSegment(value: false, label: Text('A4', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))), ButtonSegment(value: true, label: Text('Legal', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)))],
+                                  segments: const [
+                                    ButtonSegment(value: false, label: Text('A4', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+                                    ButtonSegment(value: true, label: Text('Legal', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+                                  ],
                                   selected: {isLegal},
                                   showSelectedIcon: false,
                                   style: SegmentedButton.styleFrom(selectedBackgroundColor: AppColors.primary, selectedForegroundColor: AppColors.surface),
@@ -565,8 +686,8 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
                                   format: getActiveFormat(),
                                   company: widget.company,
                                   voucherType: widget.voucherType,
-                                  fromDate: widget.fromDate,
-                                  toDate: widget.toDate,
+                                  fromDate: _effectiveFromDate,
+                                  toDate: _effectiveToDate,
                                   filteredVouchers: _filtered,
                                   activeKeys: activeKeys,
                                   columnLabels: _columnLabels,
@@ -614,6 +735,8 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
   }
 
   Widget _buildRegisterRow({
+    required int index,
+    required Map<String, dynamic> voucher,
     required String sno,
     required String party,
     required String gstin,
@@ -633,12 +756,36 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
     required double rowWidth,
     bool isSubRow = false,
   }) {
+    final key = _resolveKey(voucher, index);
+    final isSelected = _selectedKeys.contains(key);
+
     return Container(
       width: rowWidth,
-      padding: const EdgeInsets.symmetric(vertical: 7),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       decoration: BoxDecoration(color: isSubRow ? AppColors.cardBg : Colors.transparent),
       child: Row(
         children: [
+          if (_isManageMode)
+            SizedBox(
+              width: 40,
+              child: isSubRow
+                  ? null
+                  : Center(
+                      child: Checkbox(
+                        value: isSelected,
+                        activeColor: AppColors.primary,
+                        onChanged: (val) {
+                          setState(() {
+                            if (val == true) {
+                              _selectedKeys.add(key);
+                            } else {
+                              _selectedKeys.remove(key);
+                            }
+                          });
+                        },
+                      ),
+                    ),
+            ),
           if (_isColVisible('sno')) RegisterDataCell(sno, width: 45, isMuted: true),
           if (_isColVisible('party')) Expanded(flex: 3, child: RegisterDataCell(party, width: double.infinity, isBold: true)),
           if (_isColVisible('gstin')) Expanded(flex: 2, child: RegisterDataCell(gstin, width: double.infinity, color: AppColors.successDark)),
@@ -655,6 +802,30 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
           if (_isColVisible('cgst')) RegisterDataCell(cgst != '0.00' ? cgst : '', width: 80, textAlign: TextAlign.right),
           if (_isColVisible('sgst')) RegisterDataCell(sgst != '0.00' ? sgst : '', width: 80, textAlign: TextAlign.right),
           if (_isColVisible('cess')) RegisterDataCell(cess != '0.00' && cess.isNotEmpty ? cess : '', width: 75, textAlign: TextAlign.right),
+          if (_isManageMode)
+            Container(
+              width: 90,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: isSubRow
+                  ? const SizedBox(width: 90)
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit_note_rounded, size: 20, color: AppColors.primary),
+                          onPressed: () => _openEdit(voucher),
+                          splashRadius: 18,
+                          tooltip: 'Edit Voucher',
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.error),
+                          onPressed: () => _confirmAndDelete([voucher]),
+                          splashRadius: 18,
+                          tooltip: 'Delete Voucher',
+                        ),
+                      ],
+                    ),
+            ),
         ],
       ),
     );
@@ -689,6 +860,9 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
   @override
   Widget build(BuildContext context) {
     final fy = widget.company['activeFinancialYear'] ?? AppDateUtils.defaultFinancialYear;
+    final allKeys = [for (int i = 0; i < _filtered.length; i++) _resolveKey(_filtered[i], i)];
+    final allSelected = allKeys.isNotEmpty && allKeys.every(_selectedKeys.contains);
+
     return AutoScreenFocus(
       screen: FocusTargetScreen.voucherList,
       nodeMap: {FocusFieldNode.searchField: _searchFocusNode},
@@ -716,10 +890,14 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.format_list_bulleted_rounded, size: 16, color: AppColors.surface),
+                          Icon(
+                            _isManageMode ? Icons.edit_calendar_rounded : Icons.format_list_bulleted_rounded,
+                            size: 16,
+                            color: AppColors.surface,
+                          ),
                           const SizedBox(width: 6),
                           Text(
-                            '${widget.voucherType.toUpperCase()} REGISTER',
+                            '${widget.voucherType.toUpperCase()} ${_isManageMode ? "MANAGEMENT" : "REGISTER"}',
                             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: AppColors.surface, letterSpacing: 0.5),
                           ),
                         ],
@@ -734,7 +912,7 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
                         border: Border.all(color: AppColors.borderFocus),
                       ),
                       child: Text(
-                        'F.Y. $fy (${AppDateUtils.formatDate(widget.fromDate)} to ${AppDateUtils.formatDate(widget.toDate)})',
+                        'F.Y. $fy (${AppDateUtils.formatDate(_effectiveFromDate)} to ${AppDateUtils.formatDate(_effectiveToDate)})',
                         style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
                       ),
                     ),
@@ -771,6 +949,45 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
                       ),
                     ),
                     const Spacer(),
+                    if (_isManageMode && _selectedKeys.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            final toDelete = _vouchers.asMap().entries
+                                .where((e) => _selectedKeys.contains(_resolveKey(e.value, e.key)))
+                                .map((e) => e.value)
+                                .toList();
+                            _confirmAndDelete(toDelete);
+                          },
+                          icon: const Icon(Icons.delete_forever_rounded, size: 16, color: AppColors.surface),
+                          label: Text('Delete Selected (${_selectedKeys.length})', style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.surface)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.error,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                        ),
+                      ),
+                    TextButton.icon(
+                      onPressed: () => setState(() {
+                        _isManageMode = !_isManageMode;
+                        _selectedKeys.clear();
+                      }),
+                      icon: Icon(
+                        _isManageMode ? Icons.visibility_rounded : Icons.edit_note_rounded,
+                        size: 16,
+                        color: _isManageMode ? AppColors.warning : AppColors.primary,
+                      ),
+                      label: Text(
+                        _isManageMode ? 'Register Mode' : 'Manage Mode',
+                        style: TextStyle(
+                          color: _isManageMode ? AppColors.warning : AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
                     TextButton.icon(
                       onPressed: _openColumnSettingsDialog,
                       icon: const Icon(Icons.view_column_rounded, size: 16, color: AppColors.info),
@@ -800,6 +1017,7 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
                 searchController: _searchCtrl,
                 searchFocusNode: _searchFocusNode,
                 summary: _summary,
+                isManageMode: _isManageMode,
                 onSubmitted: (_) {
                   if (_rowFocusNodes.isNotEmpty && _rowFocusNodes[0].canRequestFocus) {
                     _rowFocusNodes[0].requestFocus();
@@ -834,6 +1052,25 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
                                 ),
                                 child: Row(
                                   children: [
+                                    if (_isManageMode)
+                                      SizedBox(
+                                        width: 40,
+                                        child: Center(
+                                          child: Checkbox(
+                                            value: allSelected,
+                                            activeColor: AppColors.primary,
+                                            onChanged: (v) {
+                                              setState(() {
+                                                if (v == true) {
+                                                  _selectedKeys.addAll(allKeys);
+                                                } else {
+                                                  _selectedKeys.clear();
+                                                }
+                                              });
+                                            },
+                                          ),
+                                        ),
+                                      ),
                                     if (_isColVisible('sno')) const RegisterHeaderCell('S.No.', width: 45),
                                     if (_isColVisible('party')) const Expanded(flex: 3, child: RegisterHeaderCell('Party', width: double.infinity)),
                                     if (_isColVisible('gstin')) const Expanded(flex: 2, child: RegisterHeaderCell('GSTIN', width: double.infinity)),
@@ -850,6 +1087,7 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
                                     if (_isColVisible('cgst')) const RegisterHeaderCell('CGST', width: 80, textAlign: TextAlign.right),
                                     if (_isColVisible('sgst')) const RegisterHeaderCell('SGST', width: 80, textAlign: TextAlign.right),
                                     if (_isColVisible('cess')) const RegisterHeaderCell('Cess', width: 75, textAlign: TextAlign.right),
+                                    if (_isManageMode) const RegisterHeaderCell('Actions', width: 90, textAlign: TextAlign.center),
                                   ],
                                 ),
                               ),
@@ -859,114 +1097,131 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
                                   ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
                                   : _filtered.isEmpty
                                       ? const Center(child: Text('No matching vouchers found.'))
-                                      : SingleChildScrollView(
+                                      : Scrollbar(
                                           controller: _bodyHorizontalScrollCtrl,
-                                          scrollDirection: Axis.horizontal,
-                                          child: SizedBox(
-                                            width: dynamicWidth,
-                                            child: ListView.separated(
-                                              itemCount: _filtered.length,
-                                              separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.borderLight),
-                                              itemBuilder: (context, idx) {
-                                                final v = _filtered[idx];
-                                                final fullParty = (v['party'] ?? '').toString();
-                                                final gstin = GstPartyUtils.extractPartyGstin(fullParty);
-                                                final isInter = v['isInterState'] == true;
-                                                final items = v['items'] as List? ?? [];
-                                                final isFocused = _focusedIndex == idx;
-                                                if (_rowFocusNodes.length <= idx) _syncFocusNodes();
+                                          thumbVisibility: true,
+                                          child: SingleChildScrollView(
+                                            controller: _bodyHorizontalScrollCtrl,
+                                            scrollDirection: Axis.horizontal,
+                                            child: SizedBox(
+                                              width: dynamicWidth,
+                                              child: Scrollbar(
+                                                controller: _bodyVerticalScrollCtrl,
+                                                thumbVisibility: true,
+                                                child: ListView.separated(
+                                                  controller: _bodyVerticalScrollCtrl,
+                                                  itemCount: _filtered.length,
+                                                  separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.borderLight),
+                                                  itemBuilder: (context, idx) {
+                                                    final v = _filtered[idx];
+                                                    final fullParty = (v['party'] ?? '').toString();
+                                                    final gstin = GstPartyUtils.extractPartyGstin(fullParty);
+                                                    final isInter = v['isInterState'] == true;
+                                                    final items = v['items'] as List? ?? [];
+                                                    final isFocused = _focusedIndex == idx;
+                                                    if (_rowFocusNodes.length <= idx) _syncFocusNodes();
 
-                                                return Focus(
-                                                  focusNode: _rowFocusNodes[idx],
-                                                  onFocusChange: (f) {
-                                                    if (f) setState(() => _focusedIndex = idx);
-                                                  },
-                                                  onKeyEvent: (_, e) {
-                                                    if (e is KeyDownEvent) {
-                                                      if (KeyboardShortcutService.isConfirm(e.logicalKey)) {
-                                                        _openEdit(v);
-                                                        return KeyEventResult.handled;
-                                                      }
-                                                      if (KeyboardShortcutService.isDown(e.logicalKey)) {
-                                                        if (idx + 1 < _rowFocusNodes.length) {
-                                                          _rowFocusNodes[idx + 1].requestFocus();
-                                                        } else if (_rowFocusNodes.isNotEmpty) {
-                                                          _rowFocusNodes[0].requestFocus();
+                                                    return Focus(
+                                                      focusNode: _rowFocusNodes[idx],
+                                                      onFocusChange: (f) {
+                                                        if (f) setState(() => _focusedIndex = idx);
+                                                      },
+                                                      onKeyEvent: (_, e) {
+                                                        if (e is KeyDownEvent) {
+                                                          if (KeyboardShortcutService.isConfirm(e.logicalKey)) {
+                                                            _openEdit(v);
+                                                            return KeyEventResult.handled;
+                                                          }
+                                                          if (KeyboardShortcutService.isDown(e.logicalKey)) {
+                                                            if (idx + 1 < _rowFocusNodes.length) {
+                                                                _rowFocusNodes[idx + 1].requestFocus();
+                                                            } else if (_rowFocusNodes.isNotEmpty) {
+                                                                _rowFocusNodes[0].requestFocus();
+                                                            }
+                                                            return KeyEventResult.handled;
+                                                          }
+                                                          if (KeyboardShortcutService.isUp(e.logicalKey)) {
+                                                            if (idx - 1 >= 0) {
+                                                                _rowFocusNodes[idx - 1].requestFocus();
+                                                            } else {
+                                                                _searchFocusNode.requestFocus();
+                                                            }
+                                                            return KeyEventResult.handled;
+                                                          }
                                                         }
-                                                        return KeyEventResult.handled;
-                                                      }
-                                                      if (KeyboardShortcutService.isUp(e.logicalKey)) {
-                                                        if (idx - 1 >= 0) {
-                                                          _rowFocusNodes[idx - 1].requestFocus();
-                                                        } else {
-                                                          _searchFocusNode.requestFocus();
-                                                        }
-                                                        return KeyEventResult.handled;
-                                                      }
-                                                    }
-                                                    return KeyEventResult.ignored;
-                                                  },
-                                                  child: GestureDetector(
-                                                    onDoubleTap: () => _openEdit(v),
-                                                    onTap: () {
-                                                      setState(() => _focusedIndex = idx);
-                                                      _rowFocusNodes[idx].requestFocus();
-                                                    },
-                                                    child: Container(
-                                                      decoration: BoxDecoration(
-                                                        color: isFocused ? AppColors.primaryLight : Colors.transparent,
-                                                        border: isFocused ? Border.all(color: AppColors.primary, width: 1.5) : null,
-                                                        borderRadius: isFocused ? BorderRadius.circular(6) : null,
-                                                      ),
-                                                      child: items.isEmpty
-                                                          ? _buildRegisterRow(
-                                                              sno: '${idx + 1}',
-                                                              party: GstPartyUtils.extractPartyName(fullParty),
-                                                              gstin: gstin,
-                                                              pos: _getPos(gstin, isInter),
-                                                              vchNo: v['voucherNumber'] ?? '',
-                                                              date: v['date'] ?? '',
-                                                              qty: '0.00',
-                                                              unit: 'Pcs',
-                                                              hsn: '',
-                                                              invoiceValue: (double.tryParse(v['grandTotal']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
-                                                              taxable: '0.00',
-                                                              taxRate: '0%',
-                                                              igst: (double.tryParse(v['igst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
-                                                              cgst: (double.tryParse(v['cgst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
-                                                              sgst: (double.tryParse(v['sgst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
-                                                              cess: GstPartyUtils.extractCessAmount(v).toStringAsFixed(2),
-                                                              rowWidth: dynamicWidth,
-                                                            )
-                                                          : Column(
-                                                              children: List.generate(items.length, (iIdx) {
-                                                                final item = items[iIdx];
-                                                                return _buildRegisterRow(
-                                                                  sno: iIdx == 0 ? '${idx + 1}' : '',
-                                                                  party: iIdx == 0 ? GstPartyUtils.extractPartyName(fullParty) : '',
-                                                                  gstin: iIdx == 0 ? gstin : '',
-                                                                  pos: iIdx == 0 ? _getPos(gstin, isInter) : '',
-                                                                  vchNo: iIdx == 0 ? (v['voucherNumber'] ?? '') : '',
-                                                                  date: iIdx == 0 ? (v['date'] ?? '') : '',
-                                                                  qty: (double.tryParse(item['qty']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
-                                                                  unit: (item['unit'] ?? 'Pcs').toString(),
-                                                                  hsn: (item['hsn'] ?? '').toString(),
-                                                                  invoiceValue: iIdx == 0 ? (double.tryParse(v['grandTotal']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2) : '',
-                                                                  taxable: (double.tryParse(item['taxable']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
-                                                                  taxRate: '${item['gstRate'] ?? 0}%',
-                                                                  igst: (double.tryParse(item['igst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
-                                                                  cgst: (double.tryParse(item['cgst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
-                                                                  sgst: (double.tryParse(item['sgst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
-                                                                  cess: iIdx == 0 ? GstPartyUtils.extractCessAmount(v).toStringAsFixed(2) : '',
-                                                                  isSubRow: iIdx > 0,
+                                                        return KeyEventResult.ignored;
+                                                      },
+                                                      child: GestureDetector(
+                                                        onDoubleTap: () => _openEdit(v),
+                                                        onTap: () {
+                                                          setState(() => _focusedIndex = idx);
+                                                          _rowFocusNodes[idx].requestFocus();
+                                                        },
+                                                        child: Container(
+                                                          decoration: BoxDecoration(
+                                                            color: isFocused
+                                                                ? AppColors.primaryLight
+                                                                : (_selectedKeys.contains(_resolveKey(v, idx))
+                                                                    ? AppColors.primaryLight.withValues(alpha: 0.45)
+                                                                    : Colors.transparent),
+                                                            border: isFocused ? Border.all(color: AppColors.primary, width: 1.5) : null,
+                                                            borderRadius: isFocused ? BorderRadius.circular(6) : null,
+                                                          ),
+                                                          child: items.isEmpty
+                                                              ? _buildRegisterRow(
+                                                                  index: idx,
+                                                                  voucher: v,
+                                                                  sno: '${idx + 1}',
+                                                                  party: GstPartyUtils.extractPartyName(fullParty),
+                                                                  gstin: gstin,
+                                                                  pos: _getPos(gstin, isInter),
+                                                                  vchNo: v['voucherNumber'] ?? '',
+                                                                  date: v['date'] ?? '',
+                                                                  qty: '0.00',
+                                                                  unit: 'Pcs',
+                                                                  hsn: '',
+                                                                  invoiceValue: (double.tryParse(v['grandTotal']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
+                                                                  taxable: '0.00',
+                                                                  taxRate: '0%',
+                                                                  igst: (double.tryParse(v['igst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
+                                                                  cgst: (double.tryParse(v['cgst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
+                                                                  sgst: (double.tryParse(v['sgst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
+                                                                  cess: GstPartyUtils.extractCessAmount(v).toStringAsFixed(2),
                                                                   rowWidth: dynamicWidth,
-                                                                );
-                                                              }),
-                                                            ),
-                                                    ),
-                                                  ),
-                                                );
-                                              },
+                                                                )
+                                                              : Column(
+                                                                  children: List.generate(items.length, (iIdx) {
+                                                                    final item = items[iIdx];
+                                                                    return _buildRegisterRow(
+                                                                      index: idx,
+                                                                      voucher: v,
+                                                                      sno: iIdx == 0 ? '${idx + 1}' : '',
+                                                                      party: iIdx == 0 ? GstPartyUtils.extractPartyName(fullParty) : '',
+                                                                      gstin: iIdx == 0 ? gstin : '',
+                                                                      pos: iIdx == 0 ? _getPos(gstin, isInter) : '',
+                                                                      vchNo: iIdx == 0 ? (v['voucherNumber'] ?? '') : '',
+                                                                      date: iIdx == 0 ? (v['date'] ?? '') : '',
+                                                                      qty: (double.tryParse(item['qty']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
+                                                                      unit: (item['unit'] ?? 'Pcs').toString(),
+                                                                      hsn: (item['hsn'] ?? '').toString(),
+                                                                      invoiceValue: iIdx == 0 ? (double.tryParse(v['grandTotal']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2) : '',
+                                                                      taxable: (double.tryParse(item['taxable']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
+                                                                      taxRate: '${item['gstRate'] ?? 0}%',
+                                                                      igst: (double.tryParse(item['igst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
+                                                                      cgst: (double.tryParse(item['cgst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
+                                                                      sgst: (double.tryParse(item['sgst']?.toString() ?? '0') ?? 0.0).toStringAsFixed(2),
+                                                                      cess: iIdx == 0 ? GstPartyUtils.extractCessAmount(v).toStringAsFixed(2) : '',
+                                                                      isSubRow: iIdx > 0,
+                                                                      rowWidth: dynamicWidth,
+                                                                    );
+                                                                  }),
+                                                                ),
+                                                        ),
+                                                      ),
+                                                    );
+                                                  },
+                                                ),
+                                              ),
                                             ),
                                           ),
                                         ),
@@ -983,6 +1238,7 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
                                 ),
                                 child: Row(
                                   children: [
+                                    if (_isManageMode) const SizedBox(width: 40),
                                     if (_isColVisible('sno')) const RegisterFooterCell('', width: 45),
                                     if (_isColVisible('party')) const Expanded(flex: 3, child: RegisterFooterCell('TOTAL', width: double.infinity)),
                                     if (_isColVisible('gstin')) const Expanded(flex: 2, child: RegisterFooterCell('', width: double.infinity)),
@@ -999,6 +1255,7 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
                                     if (_isColVisible('cgst')) RegisterFooterCell(_summary.totalCgst.toStringAsFixed(2), width: 80, textAlign: TextAlign.right),
                                     if (_isColVisible('sgst')) RegisterFooterCell(_summary.totalSgst.toStringAsFixed(2), width: 80, textAlign: TextAlign.right),
                                     if (_isColVisible('cess')) RegisterFooterCell(_summary.totalCess.toStringAsFixed(2), width: 75, textAlign: TextAlign.right),
+                                    if (_isManageMode) const SizedBox(width: 90),
                                   ],
                                 ),
                               ),

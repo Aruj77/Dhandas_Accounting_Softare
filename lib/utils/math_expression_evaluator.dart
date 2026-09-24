@@ -1,14 +1,20 @@
 class MathExpressionEvaluator {
   static double? tryEvaluate(String input) {
-    final sanitized = input.replaceAll(' ', '').trim();
+    var sanitized = input.replaceAll(' ', '').trim();
     if (sanitized.isEmpty) return null;
 
-    // Fast check: if it's already a clean number, just parse it
     final simpleNum = double.tryParse(sanitized);
     if (simpleNum != null) return simpleNum;
 
-    // Only attempt if it contains basic math operators
-    if (!sanitized.contains(RegExp(r'[+\-*/()]'))) return null;
+    while (sanitized.isNotEmpty && RegExp(r'[+\-*/.(]$').hasMatch(sanitized)) {
+      sanitized = sanitized.substring(0, sanitized.length - 1);
+    }
+    if (sanitized.isEmpty) return null;
+
+    final trimmedNum = double.tryParse(sanitized);
+    if (trimmedNum != null) return trimmedNum;
+
+    if (!sanitized.contains(RegExp(r'[+\-*/()%]'))) return null;
 
     try {
       final parser = _Parser(sanitized);
@@ -42,7 +48,6 @@ class _Parser {
     return value;
   }
 
-  // Handles + and -
   double _parseExpression() {
     double value = _parseTerm();
     while (_pos < text.length) {
@@ -59,8 +64,6 @@ class _Parser {
     }
     return value;
   }
-
-  // Handles * and /
   double _parseTerm() {
     double value = _parseFactor();
     while (_pos < text.length) {
@@ -79,8 +82,6 @@ class _Parser {
     }
     return value;
   }
-
-  // Handles numbers, unary signs (+, -), and parentheses ( )
   double _parseFactor() {
     if (_pos < text.length && text[_pos] == '+') {
       _pos++;
@@ -90,27 +91,35 @@ class _Parser {
       _pos++;
       return -_parseFactor();
     }
+
+    double value;
     if (_pos < text.length && text[_pos] == '(') {
       _pos++;
-      final value = _parseExpression();
+      value = _parseExpression();
       if (_pos < text.length && text[_pos] == ')') {
         _pos++;
-        return value;
+      } else {
+        throw const FormatException('Missing closing parenthesis');
       }
-      throw const FormatException('Missing closing parenthesis');
-    }
+    } else {
+      final start = _pos;
+      while (_pos < text.length &&
+          ((text.codeUnitAt(_pos) >= 48 && text.codeUnitAt(_pos) <= 57) ||
+              text[_pos] == '.')) {
+        _pos++;
+      }
+      if (start == _pos) {
+        throw FormatException('Expected number at position $_pos');
+      }
 
-    final start = _pos;
-    while (_pos < text.length &&
-        ((text.codeUnitAt(_pos) >= 48 && text.codeUnitAt(_pos) <= 57) ||
-            text[_pos] == '.')) {
+      final numStr = text.substring(start, _pos);
+      value = double.parse(numStr);
+    }
+    if (_pos < text.length && text[_pos] == '%') {
       _pos++;
-    }
-    if (start == _pos) {
-      throw FormatException('Expected number at position $_pos');
+      value = value / 100.0;
     }
 
-    final numStr = text.substring(start, _pos);
-    return double.parse(numStr);
+    return value;
   }
 }

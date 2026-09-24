@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
 import '../../services/focus_policy_service.dart';
-import '../../services/storage_service.dart';
 import '../../services/loading_service.dart';
 import '../../services/notification_service.dart';
+import '../../services/storage_service.dart';
+import '../../utils/app_date_utils.dart';
 
 class AdministrationScreen extends StatefulWidget {
   final Map<String, dynamic> company;
@@ -27,8 +28,8 @@ class _AdministrationScreenState extends State<AdministrationScreen> {
   @override
   void initState() {
     super.initState();
-    _activeFy = (widget.company['activeFinancialYear'] ?? '2026-27').toString();
-    _allFys = List<String>.from(widget.company['financialYears'] ?? ['2024-25', '2025-26', '2026-27']);
+    _activeFy = (widget.company['activeFinancialYear'] ?? AppDateUtils.defaultFinancialYear).toString();
+    _allFys = List<String>.from(widget.company['financialYears'] ?? ['2024-25', '2025-26', AppDateUtils.defaultFinancialYear]);
   }
 
   @override
@@ -52,51 +53,49 @@ class _AdministrationScreenState extends State<AdministrationScreen> {
         );
       }
     }, message: 'Switching F.Y. to $newFy...');
-   }
+  }
 
-  void _showAddFyDialog() async {
-    await LoadingService.wrap(() async {
-      final controller = TextEditingController(text: '2027-28');
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          backgroundColor: AppColors.surface,
-          title: const Text('Add Financial Year', style: TextStyle(color: AppColors.textPrimary)),
-          content: TextField(
-            controller: controller,
-            decoration: const InputDecoration(
-              labelText: 'e.g. 2027-28',
-              border: OutlineInputBorder(),
-            ),
+  void _showAddFyDialog() {
+    final controller = TextEditingController(text: '2027-28');
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text('Add Financial Year', style: TextStyle(color: AppColors.textPrimary)),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: 'e.g. 2027-28',
+            border: OutlineInputBorder(),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final val = controller.text.trim();
-                if (val.isNotEmpty && !_allFys.contains(val)) {
-                  setState(() => _allFys.add(val));
-                  final updated = Map<String, dynamic>.from(widget.company)
-                    ..['financialYears'] = _allFys
-                    ..['activeFinancialYear'] = val;
-                  await StorageService.updateCompanyLocally(companyData: updated);
-                  widget.onCompanyUpdated(updated);
-                  if (ctx.mounted) Navigator.pop(ctx);
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.surface,
-              ),
-              child: const Text('Add & Activate'),
-            ),
-          ],
         ),
-      );
-    }, message: 'Adding Financial Year...');
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final val = controller.text.trim();
+              if (val.isNotEmpty && !_allFys.contains(val)) {
+                setState(() => _allFys.add(val));
+                final updated = Map<String, dynamic>.from(widget.company)
+                  ..['financialYears'] = _allFys
+                  ..['activeFinancialYear'] = val;
+                await StorageService.updateCompanyLocally(companyData: updated);
+                widget.onCompanyUpdated(updated);
+                if (ctx.mounted) Navigator.pop(ctx);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.surface,
+            ),
+            child: const Text('Add & Activate'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -123,7 +122,6 @@ class _AdministrationScreenState extends State<AdministrationScreen> {
             ),
             const SizedBox(height: 28),
 
-            // FINANCIAL YEAR MANAGEMENT
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(

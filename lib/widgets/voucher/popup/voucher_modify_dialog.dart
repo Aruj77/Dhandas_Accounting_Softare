@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../../constants/app_colors.dart';
+import '../../../pages/company/voucher/voucher_entry_screen.dart';
+import '../../../pages/company/voucher/voucher_list_screen.dart';
 import '../../../services/focus_policy_service.dart';
 import '../../../services/keyboard_shortcut_service.dart';
-import '../../../services/storage_service.dart';
-import '../../../pages/company/voucher/voucher_entry_screen.dart';
-import '../../../pages/company/voucher/voucher_manage_list_screen.dart';
 import '../../../services/loading_service.dart';
 import '../../../services/notification_service.dart';
+import '../../../services/storage_service.dart';
+import '../../../utils/app_date_utils.dart';
 
 class VoucherModifyDialog extends StatefulWidget {
   final Map<String, dynamic> company;
@@ -46,7 +47,7 @@ class _VoucherModifyDialogState extends State<VoucherModifyDialog> {
   Future<void> _loadVouchers() async {
     await LoadingService.wrap(() async {
       final folderPath = widget.company['folderPath']?.toString();
-      final fy = (widget.company['activeFinancialYear'] ?? '2026-27').toString();
+      final fy = (widget.company['activeFinancialYear'] ?? AppDateUtils.defaultFinancialYear).toString();
 
       if (folderPath != null) {
         final loaded = await StorageService.loadVouchers(
@@ -55,9 +56,9 @@ class _VoucherModifyDialogState extends State<VoucherModifyDialog> {
           voucherType: widget.voucherType,
         );
 
+        final target = widget.voucherType.toLowerCase();
         final matching = loaded.where((v) {
-          return (v['voucherType'] ?? '').toString().toLowerCase() ==
-              widget.voucherType.toLowerCase();
+          return (v['voucherType'] ?? '').toString().toLowerCase() == target;
         }).toList();
 
         if (mounted) {
@@ -122,9 +123,10 @@ class _VoucherModifyDialogState extends State<VoucherModifyDialog> {
 
     navigator.push(
       MaterialPageRoute(
-        builder: (ctx) => VoucherManageListScreen(
+        builder: (ctx) => VoucherListScreen(
           company: widget.company,
           voucherType: widget.voucherType,
+          initialManageMode: true,
           onClose: () {
             Navigator.of(ctx).pop();
             onUpdatedCallback();
