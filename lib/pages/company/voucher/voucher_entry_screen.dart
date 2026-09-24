@@ -24,7 +24,7 @@ import '../../../services/voucher_calculation_service.dart';
 import '../../../services/voucher_numbering_service.dart';
 import '../../../utils/app_date_utils.dart';
 import '../../../utils/gst_party_utils.dart';
-import '../../../utils/master_matcher.dart';
+import '../../../utils/math_expression_evaluator.dart';
 import '../../../utils/voucher_master_actions.dart';
 import '../../../widgets/voucher/popup/add_item_dialog.dart';
 import '../../../widgets/voucher/popup/add_party_dialog.dart';
@@ -555,6 +555,75 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     }, message: '');
   }
 
+  bool _evaluateField(TextEditingController controller, {bool isQty = false}) {
+    final text = controller.text.trim();
+    if (text.isEmpty) return false;
+
+    final evaluated = MathExpressionEvaluator.tryEvaluate(text);
+    if (evaluated != null) {
+      final formatted = MathExpressionEvaluator.formatResult(evaluated, isQty: isQty);
+      if (controller.text != formatted) {
+        controller.text = formatted;
+        controller.selection = TextSelection.collapsed(offset: formatted.length);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  void _evaluateAndRecalculateItemField(VoucherItemRow row, String field) {
+    bool changed = false;
+    switch (field) {
+      case 'qty':
+        changed = _evaluateField(row.qty, isQty: true);
+        if (changed) {
+          final q = double.tryParse(row.qty.text) ?? 0.0;
+          final p = double.tryParse(row.price.text) ?? 0.0;
+          if (q > 0 && p > 0) {
+            VoucherCalculationService.recalculateTaxableAndTaxes(row, _isInterState);
+          }
+          _calculateAllTotals();
+        }
+        break;
+
+      case 'price':
+        changed = _evaluateField(row.price);
+        if (changed) {
+          final q = double.tryParse(row.qty.text) ?? 0.0;
+          final p = double.tryParse(row.price.text) ?? 0.0;
+          if (q > 0 && p > 0) {
+            VoucherCalculationService.recalculateTaxableAndTaxes(row, _isInterState);
+          }
+          _calculateAllTotals();
+        }
+        break;
+
+      case 'taxable':
+        changed = _evaluateField(row.taxable);
+        if (changed) {
+          final t = double.tryParse(row.taxable.text) ?? 0.0;
+          final q = double.tryParse(row.qty.text) ?? 0.0;
+          if (t > 0) {
+            if (q > 0) row.price.text = (t / q).toStringAsFixed(2);
+            VoucherCalculationService.recalculateTaxesFromTaxable(row, _isInterState);
+          }
+          _calculateAllTotals();
+        }
+        break;
+
+      case 'amount':
+        changed = _evaluateField(row.amount);
+        if (changed) {
+          final amt = double.tryParse(row.amount.text) ?? 0.0;
+          if (amt > 0) {
+            VoucherCalculationService.recalculateFromInvoiceAmount(row, _isInterState);
+          }
+          _calculateAllTotals();
+        }
+        break;
+    }
+  }
+
   void _attachItemRowListeners(VoucherItemRow row) {
     row.itemFocus.addListener(() {
       if (row.itemFocus.hasFocus || _isHandlingMasterNotFound) return;
@@ -616,6 +685,30 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     row.price.addListener(() {
       if (row.priceFocus.hasFocus) {
         _scheduleRecalculation(recalculateFromQtyOrPrice);
+      }
+    });
+
+    row.qtyFocus.addListener(() {
+      if (!row.qtyFocus.hasFocus) {
+        _evaluateAndRecalculateItemField(row, 'qty');
+      }
+    });
+
+    row.priceFocus.addListener(() {
+      if (!row.priceFocus.hasFocus) {
+        _evaluateAndRecalculateItemField(row, 'price');
+      }
+    });
+
+    row.taxableFocus.addListener(() {
+      if (!row.taxableFocus.hasFocus) {
+        _evaluateAndRecalculateItemField(row, 'taxable');
+      }
+    });
+
+    row.amountFocus.addListener(() {
+      if (!row.amountFocus.hasFocus) {
+        _evaluateAndRecalculateItemField(row, 'amount');
       }
     });
 
@@ -1648,6 +1741,8 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
 
   void _handleItemRowEnter(int index, String field) {
     final r = _items[index];
+    _evaluateAndRecalculateItemField(r, field);
+
     switch (field) {
       case 'item':
         r.qtyFocus.requestFocus();
@@ -1812,7 +1907,6 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
 
     debugPrint('Scan result: party=${scanned!.partyName}, items=${scanned!.items.length}');
 
-    // Header info
     if (scanned!.invoiceDate.isNotEmpty) {
       _h.date.text = scanned!.invoiceDate;
       _parseAndValidateDate();
@@ -1823,8 +1917,6 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
       _allowDuplicateVchNo = true;
     }
 
-    // 1 & 2. Single consolidated review dialog (Party tab + Items table) —
-    // replaces the old one-popup-per-item flow entirely.
     final reviewed = await showDialog<ScanReviewResult>(
       context: context,
       barrierDismissible: false,
@@ -1868,7 +1960,6 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
       _addItemRow();
     }
 
-    // 3. Resolve Bill Sundries (Discount, Freight, etc.)
     if (scanned!.sundries.isNotEmpty) {
       for (int i = 0; i < scanned!.sundries.length; i++) {
         final sData = scanned!.sundries[i];
@@ -1882,11 +1973,9 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
       }
     }
 
-    // 4. Update all calculations and totals
     _calculateAllTotals();
     _notify('Invoice scanned & populated successfully!', bg: AppColors.success);
   }
-
 
   @override
   Widget build(BuildContext context) {

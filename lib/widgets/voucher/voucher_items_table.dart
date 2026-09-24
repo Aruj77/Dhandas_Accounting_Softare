@@ -282,7 +282,7 @@ class VoucherItemsTable extends StatelessWidget {
             textAlign: textAlign,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+              FilteringTextInputFormatter.allow(RegExp(r'[0-9.+\-*/() ]')),
             ],
             textInputAction: TextInputAction.next,
             onSubmitted: (_) => onSubmitted?.call(),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../constants/app_colors.dart';
 import '../../../services/focus_policy_service.dart';
+import '../../../utils/math_expression_evaluator.dart';
 import '../voucher_item_row.dart';
 
 class ItemTaxDetailsDialog extends StatefulWidget {
@@ -27,6 +28,9 @@ class _ItemTaxDetailsDialogState extends State<ItemTaxDetailsDialog> {
   late TextEditingController _taxableCtrl;
 
   final FocusNode _taxableFocusNode = FocusNode();
+  final FocusNode _cgstFocusNode = FocusNode();
+  final FocusNode _sgstFocusNode = FocusNode();
+  final FocusNode _igstFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -35,9 +39,43 @@ class _ItemTaxDetailsDialogState extends State<ItemTaxDetailsDialog> {
     _cgstCtrl = TextEditingController(text: widget.row.cgst.text);
     _sgstCtrl = TextEditingController(text: widget.row.sgst.text);
     _igstCtrl = TextEditingController(text: widget.row.igst.text);
+
+    _taxableFocusNode.addListener(() {
+      if (!_taxableFocusNode.hasFocus) _evaluateField(_taxableCtrl);
+    });
+    _cgstFocusNode.addListener(() {
+      if (!_cgstFocusNode.hasFocus) _evaluateField(_cgstCtrl);
+    });
+    _sgstFocusNode.addListener(() {
+      if (!_sgstFocusNode.hasFocus) _evaluateField(_sgstCtrl);
+    });
+    _igstFocusNode.addListener(() {
+      if (!_igstFocusNode.hasFocus) _evaluateField(_igstCtrl);
+    });
+  }
+
+  bool _evaluateField(TextEditingController controller) {
+    final text = controller.text.trim();
+    if (text.isEmpty) return false;
+
+    final evaluated = MathExpressionEvaluator.tryEvaluate(text);
+    if (evaluated != null) {
+      final formatted = MathExpressionEvaluator.formatResult(evaluated);
+      if (controller.text != formatted) {
+        controller.text = formatted;
+        controller.selection = TextSelection.collapsed(offset: formatted.length);
+        return true;
+      }
+    }
+    return false;
   }
 
   void _applyChanges() {
+    _evaluateField(_taxableCtrl);
+    _evaluateField(_cgstCtrl);
+    _evaluateField(_sgstCtrl);
+    _evaluateField(_igstCtrl);
+
     widget.row.taxable.text = _taxableCtrl.text.trim();
     widget.row.cgst.text = _cgstCtrl.text.trim();
     widget.row.sgst.text = _sgstCtrl.text.trim();
@@ -60,8 +98,11 @@ class _ItemTaxDetailsDialogState extends State<ItemTaxDetailsDialog> {
     _taxableCtrl.dispose();
     _taxableFocusNode.dispose();
     _cgstCtrl.dispose();
+    _cgstFocusNode.dispose();
     _sgstCtrl.dispose();
+    _sgstFocusNode.dispose();
     _igstCtrl.dispose();
+    _igstFocusNode.dispose();
     super.dispose();
   }
 
@@ -124,22 +165,45 @@ class _ItemTaxDetailsDialogState extends State<ItemTaxDetailsDialog> {
                 label: 'Taxable Value (₹)',
                 controller: _taxableCtrl,
                 focusNode: _taxableFocusNode,
+                onSubmitted: () {
+                  _evaluateField(_taxableCtrl);
+                  if (widget.isInterState) {
+                    _igstFocusNode.requestFocus();
+                  } else {
+                    _cgstFocusNode.requestFocus();
+                  }
+                },
               ),
               const SizedBox(height: 10),
               if (!widget.isInterState) ...[
                 _buildTaxInput(
                   label: 'Central GST (CGST ₹)',
                   controller: _cgstCtrl,
+                  focusNode: _cgstFocusNode,
+                  onSubmitted: () {
+                    _evaluateField(_cgstCtrl);
+                    _sgstFocusNode.requestFocus();
+                  },
                 ),
                 const SizedBox(height: 10),
                 _buildTaxInput(
                   label: 'State GST (SGST ₹)',
                   controller: _sgstCtrl,
+                  focusNode: _sgstFocusNode,
+                  onSubmitted: () {
+                    _evaluateField(_sgstCtrl);
+                    _applyChanges();
+                  },
                 ),
               ] else ...[
                 _buildTaxInput(
                   label: 'Integrated GST (IGST ₹)',
                   controller: _igstCtrl,
+                  focusNode: _igstFocusNode,
+                  onSubmitted: () {
+                    _evaluateField(_igstCtrl);
+                    _applyChanges();
+                  },
                 ),
               ],
               const SizedBox(height: 20),
@@ -176,6 +240,7 @@ class _ItemTaxDetailsDialogState extends State<ItemTaxDetailsDialog> {
     required String label,
     required TextEditingController controller,
     FocusNode? focusNode,
+    VoidCallback? onSubmitted,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -190,8 +255,9 @@ class _ItemTaxDetailsDialogState extends State<ItemTaxDetailsDialog> {
             textAlign: TextAlign.right,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+              FilteringTextInputFormatter.allow(RegExp(r'[0-9.+\-*/() ]')),
             ],
+            onSubmitted: (_) => onSubmitted?.call(),
             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
             decoration: InputDecoration(
               contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
