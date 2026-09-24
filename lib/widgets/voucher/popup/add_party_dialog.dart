@@ -12,6 +12,10 @@ class AddPartyDialog extends StatefulWidget {
   final Function(Map<String, dynamic> partyData) onPartyCreated;
   final PartyMasterModel? initialParty;
   final bool isEdit;
+  final String? initialName;
+  final String? initialGstin;
+  final String? initialState;
+  final String? initialAddress;
 
   const AddPartyDialog({
     super.key,
@@ -19,6 +23,10 @@ class AddPartyDialog extends StatefulWidget {
     required this.onPartyCreated,
     this.initialParty,
     this.isEdit = false,
+    this.initialName,
+    this.initialGstin,
+    this.initialState,
+    this.initialAddress,
   });
 
   @override
@@ -97,6 +105,24 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
       final isSales = widget.voucherType.toLowerCase().contains('sale');
       _c['group']!.text = isSales ? 'Sundry Debtors' : 'Sundry Creditors';
       _c['country']!.text = 'India';
+
+      if (widget.initialName != null && widget.initialName!.isNotEmpty) {
+        _c['name']!.text = widget.initialName!;
+      }
+      if (widget.initialGstin != null && widget.initialGstin!.isNotEmpty) {
+        _c['gstin']!.text = widget.initialGstin!;
+        _c['pan']!.text = GstinService.extractPan(widget.initialGstin!) ?? '';
+      }
+      if (widget.initialState != null && widget.initialState!.isNotEmpty) {
+        _c['state']!.text = widget.initialState!;
+      }
+      if (widget.initialAddress != null && widget.initialAddress!.isNotEmpty) {
+        _c['address']!.text = widget.initialAddress!;
+      }
+
+      if (_c['gstin']!.text.isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _validateGstin());
+      }
     }
 
     _c['gstin']!.addListener(_onGstinChanged);
@@ -155,7 +181,9 @@ class _AddPartyDialogState extends State<AddPartyDialog> {
     }
 
     widget.onPartyCreated(party);
-    Navigator.of(context).pop(party);
+    if (mounted && Navigator.of(context).canPop()) {
+      Navigator.of(context).pop(party);
+    }
   }
 
   @override

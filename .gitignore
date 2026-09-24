@@ -1,4 +1,7 @@
 # Miscellaneous
+.env
+.env.*
+!.env.example
 *.class
 *.log
 *.pyc
@@ -7,6 +10,7 @@
 .atom/
 .build/
 .buildlog/
+.venv/
 .history
 .svn/
 .swiftpm/
