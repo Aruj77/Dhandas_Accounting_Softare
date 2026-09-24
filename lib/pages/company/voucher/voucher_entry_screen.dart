@@ -42,6 +42,7 @@ import '../../../widgets/voucher/voucher_items_table.dart';
 import '../../../widgets/voucher/voucher_summary_card.dart';
 import '../../../widgets/voucher/voucher_sundry_card.dart';
 import '../../../widgets/voucher/voucher_sundry_row.dart';
+import '../../../services/notification_service.dart';
 
 class VoucherEntryScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic> company;
@@ -312,25 +313,12 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
 
   void _notify(String msg, {Color bg = AppColors.success, IconData? icon}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            if (icon != null) ...[
-              Icon(icon, color: AppColors.surface, size: 18),
-              const SizedBox(width: 8),
-            ],
-            Expanded(
-              child: Text(
-                msg,
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: bg,
-        behavior: SnackBarBehavior.floating,
-      ),
+    final type = bg == AppColors.error ? NotificationType.error : NotificationType.success;
+    NotificationService.show(
+      context,
+      message: msg,
+      type: type,
+      icon: icon,
     );
   }
 
@@ -1888,7 +1876,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
       return;
     }
 
-    if (fileBytes == null || !mounted) return;
+    if (!mounted) return;
 
     ScannedVoucherData? scanned;
     await LoadingService.wrap(() async {

@@ -4,6 +4,7 @@ import '../../constants/app_colors.dart';
 import '../../constants/gst_constants.dart';
 import '../../provider/company_provider.dart';
 import '../../services/loading_service.dart';
+import '../../services/notification_service.dart';
 
 class CreateCompanyDialog extends ConsumerStatefulWidget {
   final String? currentDirectory;
@@ -106,11 +107,10 @@ class _CreateCompanyDialogState extends ConsumerState<CreateCompanyDialog> {
       if (!(_formKey.currentState?.validate() ?? false)) return;
 
       if (widget.currentDirectory == null || widget.currentDirectory!.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please select a Data Directory first before creating a company.'),
-            backgroundColor: AppColors.error,
-          ),
+        NotificationService.show(
+          context,
+          message: 'Please select a Data Directory first before creating a company.',
+          type: NotificationType.error,
         );
         return;
       }
@@ -142,11 +142,10 @@ class _CreateCompanyDialogState extends ConsumerState<CreateCompanyDialog> {
       } catch (e) {
         setState(() => _isSaving = false);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error saving company: $e'),
-              backgroundColor: AppColors.error,
-            ),
+          NotificationService.show(
+            context,
+            message: 'Error saving company: $e',
+            type: NotificationType.error,
           );
         }
       }

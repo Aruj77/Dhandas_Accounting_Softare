@@ -3,6 +3,7 @@ import '../../constants/app_colors.dart';
 import '../../services/focus_policy_service.dart';
 import '../../services/storage_service.dart';
 import '../../services/loading_service.dart';
+import '../../services/notification_service.dart';
 
 class AdministrationScreen extends StatefulWidget {
   final Map<String, dynamic> company;
@@ -44,11 +45,10 @@ class _AdministrationScreenState extends State<AdministrationScreen> {
       widget.onCompanyUpdated(updated);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Switched Active Financial Year to F.Y. $newFy'),
-            backgroundColor: AppColors.successDark,
-          ),
+        NotificationService.show(
+          context,
+          message: 'Switched Active Financial Year to F.Y. $newFy',
+          type: NotificationType.success,
         );
       }
     }, message: 'Switching F.Y. to $newFy...');

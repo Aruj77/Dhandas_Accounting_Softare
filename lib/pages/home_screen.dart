@@ -26,6 +26,7 @@ import 'company/voucher/voucher_entry_screen.dart';
 import 'company/voucher/voucher_list_screen.dart';
 import 'company/masters_dashboard_screen.dart';
 import 'company/gstr2b_reconciliation_screen.dart';
+import '../services/notification_service.dart';
 
 class _ListParams {
   final String voucherType;
@@ -171,11 +172,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           _sidebarKey.currentState?.focusActiveItem();
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Opened workspace for: ${selectedCompany['companyName']}'),
-            backgroundColor: AppColors.primary,
-          ),
+        NotificationService.show(
+          context,
+          message: 'Opened workspace for: ${selectedCompany['companyName']}',
+          type: NotificationType.success,
         );
       }
     });
@@ -208,26 +208,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     ).then((saved) async {
       if (saved == true && mounted) {
         ref.invalidate(companiesProvider);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Company database created and saved successfully!'),
-            backgroundColor: AppColors.success,
-          ),
+        NotificationService.show(
+          context,
+          message: 'Company database created and saved successfully!',
+          type: NotificationType.success,
         );
       }
     });
   }
 
   void _promptSetDirectoryFirst() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Please configure a Data Directory first.'),
-        backgroundColor: AppColors.warning,
-        action: SnackBarAction(
-          label: 'Set Now',
-          textColor: AppColors.surface,
-          onPressed: _showSetDirectoryModal,
-        ),
+    NotificationService.show(
+      context,
+      message: 'Please configure a Data Directory first.',
+      type: NotificationType.warning,
+      action: SnackBarAction(
+        label: 'Set Now',
+        textColor: AppColors.surface,
+        onPressed: _showSetDirectoryModal,
       ),
     );
   }
@@ -551,19 +549,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   onMoveRight: () => _dataDirBannerFocus.requestFocus(),
                   onMoveDown: () => _dataDirBannerFocus.requestFocus(),
                   onBackup: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Starting automated database backup...'),
-                        backgroundColor: AppColors.purple,
-                      ),
+                    NotificationService.show(
+                      context,
+                      message: 'Starting automated database backup...',
+                      type: NotificationType.info,
                     );
                   },
                   onRestore: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Open restore snapshot chooser...'),
-                        backgroundColor: AppColors.purple,
-                      ),
+                    NotificationService.show(
+                      context,
+                      message: 'Open restore snapshot chooser...',
+                      type: NotificationType.info,
                     );
                   },
                 ),

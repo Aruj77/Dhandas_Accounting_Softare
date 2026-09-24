@@ -1,3 +1,4 @@
+// lib/pages/company/transactions_dashboard.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -5,6 +6,7 @@ import '../../constants/app_colors.dart';
 import '../../services/focus_policy_service.dart';
 import '../../widgets/company/date_range_dialog.dart';
 import '../../widgets/voucher/popup/voucher_modify_dialog.dart';
+import '../../utils/app_action_bottom_sheet.dart';
 
 enum TransactionAction { add, modify, list }
 
@@ -495,199 +497,41 @@ class TransactionsDashboardState extends State<TransactionsDashboard> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (ctx) => _TransactionActionsSheet(
-        voucherType: voucherType,
-        onSelect: (action) {
-          Navigator.pop(ctx);
-          _handleAction(context: context, voucherType: voucherType, action: action);
-        },
-      ),
-    );
-  }
-}
-
-class _TransactionActionsSheet extends StatefulWidget {
-  final String voucherType;
-  final ValueChanged<TransactionAction> onSelect;
-
-  const _TransactionActionsSheet({
-    required this.voucherType,
-    required this.onSelect,
-  });
-
-  @override
-  State<_TransactionActionsSheet> createState() => _TransactionActionsSheetState();
-}
-
-class _TransactionActionsSheetState extends State<_TransactionActionsSheet> {
-  static const _actions = [
-    (
-      action: TransactionAction.add,
-      title: 'Add New',
-      desc: 'Create a new transaction',
-      icon: Icons.add_circle_outline_rounded,
-      color: AppColors.success,
-    ),
-    (
-      action: TransactionAction.modify,
-      title: 'Modify',
-      desc: 'Edit an existing transaction',
-      icon: Icons.edit_note_rounded,
-      color: AppColors.primaryAccent,
-    ),
-    (
-      action: TransactionAction.list,
-      title: 'List',
-      desc: 'View transaction register',
-      icon: Icons.list_alt_rounded,
-      color: AppColors.purple,
-    ),
-  ];
-
-  late final List<FocusNode> _sheetFocusNodes = List.generate(_actions.length, (_) => FocusNode());
-  int? _focusedIdx = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _sheetFocusNodes[0].requestFocus();
-    });
-  }
-
-  @override
-  void dispose() {
-    for (final node in _sheetFocusNodes) {
-      node.dispose();
-    }
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(22, 14, 22, 28),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      child: SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 42,
-              height: 4,
-              decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(20)),
-            ),
-            const SizedBox(height: 20),
-            Text(widget.voucherType, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
-            const SizedBox(height: 4),
-            const Text('Choose an action', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-            const SizedBox(height: 20),
-            ...List.generate(_actions.length, (i) {
-              final item = _actions[i];
-              final isFocused = _focusedIdx == i;
-
-              return Padding(
-                padding: EdgeInsets.only(bottom: i < _actions.length - 1 ? 10 : 0),
-                child: Focus(
-                  focusNode: _sheetFocusNodes[i],
-                  autofocus: i == 0,
-                  onFocusChange: (has) {
-                    if (has) setState(() => _focusedIdx = i);
-                  },
-                  onKeyEvent: (node, event) {
-                    if (event is! KeyDownEvent) return KeyEventResult.ignored;
-                    final k = event.logicalKey;
-
-                    if (k == LogicalKeyboardKey.enter || k == LogicalKeyboardKey.space || k == LogicalKeyboardKey.numpadEnter) {
-                      widget.onSelect(item.action);
-                      return KeyEventResult.handled;
-                    }
-
-                    if (k == LogicalKeyboardKey.arrowDown) {
-                      final next = (i + 1) % _actions.length;
-                      _sheetFocusNodes[next].requestFocus();
-                      return KeyEventResult.handled;
-                    }
-
-                    if (k == LogicalKeyboardKey.arrowUp) {
-                      final prev = (i - 1 + _actions.length) % _actions.length;
-                      _sheetFocusNodes[prev].requestFocus();
-                      return KeyEventResult.handled;
-                    }
-
-                    return KeyEventResult.ignored;
-                  },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 140),
-                    curve: Curves.easeOut,
-                    decoration: BoxDecoration(
-                      color: isFocused ? item.color.withValues(alpha: .03) : AppColors.cardBg,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: isFocused ? item.color : AppColors.border,
-                        width: isFocused ? 2 : 1,
-                      ),
-                      boxShadow: isFocused
-                          ? [
-                              BoxShadow(
-                                color: item.color.withValues(alpha: .18),
-                                blurRadius: 10,
-                                spreadRadius: 1,
-                                offset: const Offset(0, 2),
-                              ),
-                            ]
-                          : null,
-                    ),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(16),
-                        onTap: () {
-                          _sheetFocusNodes[i].requestFocus();
-                          widget.onSelect(item.action);
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.all(14),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 42,
-                                height: 42,
-                                decoration: BoxDecoration(
-                                  color: item.color.withValues(alpha: .09),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Icon(item.icon, color: item.color, size: 20),
-                              ),
-                              const SizedBox(width: 13),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(item.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
-                                    const SizedBox(height: 3),
-                                    Text(item.desc, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                                  ],
-                                ),
-                              ),
-                              Icon(
-                                Icons.chevron_right_rounded,
-                                color: isFocused ? item.color : AppColors.textMuted,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }),
-          ],
-        ),
+      builder: (ctx) => AppActionBottomSheet(
+        title: voucherType,
+        subtitle: 'Choose an action',
+        actions: [
+          AppActionItem(
+            title: 'Add New',
+            desc: 'Create a new transaction',
+            icon: Icons.add_circle_outline_rounded,
+            color: AppColors.success,
+            onTap: () {
+              Navigator.pop(ctx);
+              _handleAction(context: context, voucherType: voucherType, action: TransactionAction.add);
+            },
+          ),
+          AppActionItem(
+            title: 'Modify',
+            desc: 'Edit an existing transaction',
+            icon: Icons.edit_note_rounded,
+            color: AppColors.primaryAccent,
+            onTap: () {
+              Navigator.pop(ctx);
+              _handleAction(context: context, voucherType: voucherType, action: TransactionAction.modify);
+            },
+          ),
+          AppActionItem(
+            title: 'List',
+            desc: 'View transaction register',
+            icon: Icons.list_alt_rounded,
+            color: AppColors.purple,
+            onTap: () {
+              Navigator.pop(ctx);
+              _handleAction(context: context, voucherType: voucherType, action: TransactionAction.list);
+            },
+          ),
+        ],
       ),
     );
   }

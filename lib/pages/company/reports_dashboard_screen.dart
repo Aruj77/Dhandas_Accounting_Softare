@@ -5,6 +5,7 @@ import '../../services/focus_policy_service.dart';
 import '../../services/storage_service.dart';
 import '../../utils/app_date_utils.dart';
 import '../../services/loading_service.dart';
+import '../../services/notification_service.dart';
 
 class ReportsDashboardScreen extends StatefulWidget {
   final Map<String, dynamic> company;
@@ -92,12 +93,10 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
   }
 
   void _showExportSnack(String type) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Preparing $type report export...'),
-        backgroundColor: AppColors.primary,
-        behavior: SnackBarBehavior.floating,
-      ),
+    NotificationService.show(
+      context,
+      message: 'Preparing $type report export...',
+      type: NotificationType.info,
     );
   }
 

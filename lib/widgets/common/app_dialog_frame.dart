@@ -49,6 +49,7 @@ class AppDialogFrame extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // Header Banner
                 Container(
                   padding: const EdgeInsets.fromLTRB(24, 18, 16, 18),
                   decoration: const BoxDecoration(
@@ -99,12 +100,16 @@ class AppDialogFrame extends StatelessWidget {
                     ],
                   ),
                 ),
+                
+                // Content Body
                 Flexible(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(24),
                     child: content,
                   ),
                 ),
+                
+                // Actions Footer
                 if (actions != null && actions!.isNotEmpty) ...[
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),

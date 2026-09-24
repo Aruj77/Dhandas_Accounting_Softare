@@ -3,6 +3,7 @@ import '../constants/app_colors.dart';
 import '../services/focus_policy_service.dart';
 import '../services/keyboard_shortcut_service.dart';
 import '../services/loading_service.dart';
+import '../services/notification_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   final String? currentDirectory;
@@ -64,22 +65,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _lastCheckedTime = 'Today at $formattedTime';
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.check_circle_rounded, color: AppColors.surface, size: 20),
-                SizedBox(width: 10),
-                Text(
-                  'Dhandas is up to date! (v1.0.0 is the latest build)',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
-            backgroundColor: AppColors.success,
-            behavior: SnackBarBehavior.floating,
-            duration: Duration(seconds: 3),
-          ),
+        NotificationService.show(
+          context,
+          message: 'Dhandas is up to date! (v1.0.0 is the latest build)',
+          type: NotificationType.success,
         );
       }
     }, message: 'Checking for updates...');

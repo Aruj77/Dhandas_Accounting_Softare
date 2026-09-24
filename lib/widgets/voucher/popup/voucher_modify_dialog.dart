@@ -6,6 +6,7 @@ import '../../../services/storage_service.dart';
 import '../../../pages/company/voucher/voucher_entry_screen.dart';
 import '../../../pages/company/voucher/voucher_manage_list_screen.dart';
 import '../../../services/loading_service.dart';
+import '../../../services/notification_service.dart';
 
 class VoucherModifyDialog extends StatefulWidget {
   final Map<String, dynamic> company;
@@ -83,12 +84,10 @@ class _VoucherModifyDialogState extends State<VoucherModifyDialog> {
     }).firstOrNull;
 
     if (match == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Voucher "$vchNo" not found.'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
+      NotificationService.show(
+        context,
+        message: 'Voucher "$vchNo" not found.',
+        type: NotificationType.error,
       );
       return;
     }

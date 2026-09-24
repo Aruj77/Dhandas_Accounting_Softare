@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../../constants/app_colors.dart';
 import '../../../models/item_master_model.dart';
 import '../../../models/party_master_model.dart';
 import '../../../services/storage_service.dart';
 import '../../../utils/gst_party_utils.dart';
+import '../../../services/notification_service.dart';
 import './../widgets/voucher/popup/add_item_dialog.dart';
 import './../widgets/voucher/popup/add_party_dialog.dart';
 import './../widgets/voucher/voucher_item_row.dart';
@@ -90,12 +90,10 @@ class VoucherMasterActions {
               await onSyncMasters();
 
               if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Party Master "${updated.displayName}" updated and saved permanently.'),
-                    backgroundColor: AppColors.success,
-                    behavior: SnackBarBehavior.floating,
-                  ),
+                NotificationService.show(
+                  context,
+                  message: 'Party Master "${updated.displayName}" updated and saved permanently.',
+                  type: NotificationType.success,
                 );
               }
             },
@@ -146,12 +144,10 @@ class VoucherMasterActions {
                 await onSyncMasters();
 
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Item Master "${updated.name}" updated and saved permanently.'),
-                      backgroundColor: AppColors.success,
-                      behavior: SnackBarBehavior.floating,
-                    ),
+                  NotificationService.show(
+                    context,
+                    message: 'Item Master "${updated.name}" updated and saved permanently.',
+                    type: NotificationType.success,
                   );
                 }
               },

@@ -11,10 +11,11 @@ import '../../../services/storage_service.dart';
 import '../../../utils/app_date_utils.dart';
 import '../../../utils/gst_party_utils.dart';
 import '../../../widgets/common/data_table_cells.dart';
-import '../../../widgets/common/quick_metric_badge.dart';
+import '../../../utils/register_header_bar.dart';
 import 'voucher_entry_screen.dart';
 import '../../../widgets/common/app_confirm_dialog.dart';
 import '../../../services/loading_service.dart';
+import '../../../services/notification_service.dart';
 
 class VoucherManageListScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic> company;
@@ -70,9 +71,7 @@ class _VoucherManageListScreenState extends ConsumerState<VoucherManageListScree
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final syncWorker = ref.read(syncWorkerProvider);
       syncWorker?.onRemoteMutationReceived = () {
-        if (mounted) {
-          _loadVouchers();
-        }
+        if (mounted) _loadVouchers();
       };
     });
   }
@@ -83,7 +82,6 @@ class _VoucherManageListScreenState extends ConsumerState<VoucherManageListScree
     if (syncWorker?.onRemoteMutationReceived != null) {
       syncWorker?.onRemoteMutationReceived = null;
     }
-
     _searchCtrl.dispose();
     _searchFocusNode.dispose();
     _headerScrollCtrl.dispose();
@@ -158,15 +156,11 @@ class _VoucherManageListScreenState extends ConsumerState<VoucherManageListScree
           voucherToEdit: voucher,
           isEdit: true,
           keyboardSettings: KeyboardShortcutSettings.defaults(),
-          onClose: () {
-            Navigator.of(context).pop();
-          },
+          onClose: () => Navigator.of(context).pop(),
         ),
       ),
     );
-    if (mounted) {
-      await _loadVouchers();
-    }
+    if (mounted) await _loadVouchers();
   }
 
   Future<void> _confirmAndDelete(List<Map<String, dynamic>> toDelete) async {
@@ -205,12 +199,10 @@ class _VoucherManageListScreenState extends ConsumerState<VoucherManageListScree
         );
       }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(isPlural ? '${toDelete.length} vouchers deleted.' : 'Voucher deleted.'),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-          ),
+        NotificationService.show(
+          context,
+          message: isPlural ? '${toDelete.length} vouchers deleted.' : 'Voucher deleted.',
+          type: NotificationType.success,
         );
       }
     }, message: 'Deleting Selected Vouchers...');
@@ -223,9 +215,7 @@ class _VoucherManageListScreenState extends ConsumerState<VoucherManageListScree
 
     return AutoScreenFocus(
       screen: FocusTargetScreen.voucherManageList,
-      nodeMap: {
-        FocusFieldNode.searchField: _searchFocusNode,
-      },
+      nodeMap: {FocusFieldNode.searchField: _searchFocusNode},
       child: Focus(
         autofocus: true,
         onKeyEvent: (_, e) {
@@ -257,39 +247,12 @@ class _VoucherManageListScreenState extends ConsumerState<VoucherManageListScree
           ),
           body: Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 10),
-                child: Row(
-                  children: [
-                    Expanded(
-                      flex: 5,
-                      child: SizedBox(
-                        height: 38,
-                        child: TextField(
-                          controller: _searchCtrl,
-                          focusNode: _searchFocusNode,
-                          decoration: InputDecoration(
-                            hintText: 'Search voucher, party, GSTIN...',
-                            prefixIcon: const Icon(Icons.search_rounded, size: 17, color: AppColors.primary),
-                            filled: true,
-                            fillColor: AppColors.surface,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.border)),
-                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.primary, width: 1.3)),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    QuickMetricBadge(label: 'Vouchers', value: '${_filtered.length}', color: AppColors.primaryDark),
-                    const SizedBox(width: 8),
-                    QuickMetricBadge(label: 'Total Qty', value: _summary.totalQuantity.toStringAsFixed(2), color: AppColors.info),
-                    const SizedBox(width: 8),
-                    QuickMetricBadge(label: 'Taxable Val', value: '₹${_summary.totalTaxable.toStringAsFixed(2)}', color: AppColors.purple),
-                    const SizedBox(width: 8),
-                    QuickMetricBadge(label: 'Invoice Total', value: '₹${_summary.totalInvoiceValue.toStringAsFixed(2)}', color: AppColors.primary),
-                  ],
-                ),
+              RegisterHeaderBar(
+                searchController: _searchCtrl,
+                searchFocusNode: _searchFocusNode,
+                summary: _summary,
+                hintText: 'Search voucher, party, GSTIN...',
+                isManageMode: true,
               ),
               Expanded(
                 child: Container(

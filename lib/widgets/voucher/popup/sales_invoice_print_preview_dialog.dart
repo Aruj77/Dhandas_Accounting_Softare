@@ -7,6 +7,7 @@ import 'package:printing/printing.dart';
 import '../../../constants/app_colors.dart';
 import '../../../services/storage_service.dart';
 import '../../../services/loading_service.dart';
+import '../../../services/notification_service.dart';
 
 class SalesInvoicePrintPreviewDialog extends StatefulWidget {
   final Map<String, dynamic> company;
@@ -116,22 +117,18 @@ class _SalesInvoicePrintPreviewDialogState
         widget.company['ifsc'] = updatedCompany['ifsc'];
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Bank details saved to Company profile (company.json)'),
-              backgroundColor: AppColors.success,
-              behavior: SnackBarBehavior.floating,
-            ),
+          NotificationService.show(
+            context,
+            message: 'Bank details saved to Company profile (company.json)',
+            type: NotificationType.success,
           );
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to save bank details: $e'),
-              backgroundColor: AppColors.error,
-              behavior: SnackBarBehavior.floating,
-            ),
+          NotificationService.show(
+            context,
+            message: 'Failed to save bank details: $e',
+            type: NotificationType.error,
           );
         }
       } finally {

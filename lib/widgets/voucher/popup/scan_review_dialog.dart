@@ -8,6 +8,7 @@ import '../../../services/storage_service.dart';
 import '../../../utils/master_matcher.dart';
 import 'add_item_dialog.dart';
 import 'add_party_dialog.dart';
+import '../../../services/notification_service.dart';
 
 class ScanRow {
   String name, hsn, unit;
@@ -315,11 +316,10 @@ class _ScanReviewDialogState extends State<ScanReviewDialog>
         _selectedParty = newParty;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Party "${newParty.name}" created and mapped!'),
-          backgroundColor: const Color(0xFF16A34A),
-        ),
+      NotificationService.show(
+        context,
+        message: 'Party "${newParty.name}" created and mapped!',
+        type: NotificationType.success,
       );
     }
   }
@@ -340,13 +340,13 @@ class _ScanReviewDialogState extends State<ScanReviewDialog>
     if (!mounted) return;
     setState(() => _validatingHsn = false);
 
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(bad == 0
+    NotificationService.show(
+      context,
+      message: bad == 0
           ? 'All HSN codes validated successfully.'
-          : '$bad of ${_rows.length} HSN code(s) could not be verified.'),
-      backgroundColor:
-          bad == 0 ? const Color(0xFF16A34A) : const Color(0xFFEA580C),
-    ));
+          : '$bad of ${_rows.length} HSN code(s) could not be verified.',
+      type: bad == 0 ? NotificationType.success : NotificationType.error,
+    );
   }
 
   Future<void> _editRow(int i) async {
@@ -1542,11 +1542,10 @@ class _ScanReviewDialogState extends State<ScanReviewDialog>
         children: [
           OutlinedButton.icon(
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Document preview opened.'),
-                  duration: Duration(seconds: 1),
-                ),
+              NotificationService.show(
+                context,
+                message: 'Document preview opened.',
+                type: NotificationType.success,
               );
             },
             icon: const Icon(Icons.visibility_outlined, size: 16),

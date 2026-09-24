@@ -9,9 +9,11 @@ import '../../models/party_master_model.dart';
 import '../../services/focus_policy_service.dart';
 import '../../services/storage_service.dart';
 import '../../widgets/common/app_confirm_dialog.dart';
+import '../../utils/app_action_bottom_sheet.dart';
 import '../../widgets/voucher/popup/add_item_dialog.dart';
 import '../../widgets/voucher/popup/add_party_dialog.dart';
 import '../../widgets/voucher/popup/add_series_dialog.dart';
+import '../../services/notification_service.dart';
 
 enum MasterCategory { accounts, inventory, configuration }
 enum MasterAction { add, modify }
@@ -315,13 +317,10 @@ class MastersDashboardScreenState extends State<MastersDashboardScreen> {
 
   void _showToast(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg, style: const TextStyle(fontWeight: FontWeight.w600)),
-        backgroundColor: AppColors.primary,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(milliseconds: 1800),
-      ),
+    NotificationService.show(
+      context,
+      message: msg,
+      type: NotificationType.success,
     );
   }
 
@@ -622,249 +621,31 @@ class MastersDashboardScreenState extends State<MastersDashboardScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (ctx) => _MasterActionsSheet(
-        item: item,
-        onSelect: (action) {
-          Navigator.pop(ctx);
-          _handleAction(item, action);
-        },
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Bottom Sheet Action Chooser with Reliable Focus on Modify
-// ---------------------------------------------------------------------------
-class _MasterActionsSheet extends StatefulWidget {
-  final _MasterItem item;
-  final ValueChanged<MasterAction> onSelect;
-
-  const _MasterActionsSheet({required this.item, required this.onSelect});
-
-  @override
-  State<_MasterActionsSheet> createState() => _MasterActionsSheetState();
-}
-
-class _MasterActionsSheetState extends State<_MasterActionsSheet> {
-  final FocusNode _addNode = FocusNode();
-  final FocusNode _modifyNode = FocusNode();
-  Animation<double>? _routeAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    // Safety fallback timer to request focus in case animation callbacks are skipped
-    Timer(const Duration(milliseconds: 100), () {
-      if (mounted && !_modifyNode.hasFocus) {
-        _modifyNode.requestFocus();
-      }
-    });
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Attach listener to bottom sheet modal transition to trigger focus ring on completion
-    final animation = ModalRoute.of(context)?.animation;
-    if (_routeAnimation != animation) {
-      _routeAnimation?.removeStatusListener(_onAnimationStatusChanged);
-      _routeAnimation = animation;
-      _routeAnimation?.addStatusListener(_onAnimationStatusChanged);
-    }
-  }
-
-  void _onAnimationStatusChanged(AnimationStatus status) {
-    if (status == AnimationStatus.completed && mounted) {
-      _modifyNode.requestFocus();
-      setState(() {});
-    }
-  }
-
-  @override
-  void dispose() {
-    _routeAnimation?.removeStatusListener(_onAnimationStatusChanged);
-    _addNode.dispose();
-    _modifyNode.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(22, 14, 22, 28),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      child: SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(20)),
-            ),
-            const SizedBox(height: 18),
-            Text(
-              widget.item.title,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.textPrimary),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              widget.item.subtitle,
-              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 18),
-
-            // Action 1: Add New (Primary Action)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _buildActionTile(
-                focusNode: _addNode,
-                autofocus: false,
-                title: 'Add New',
-                desc: 'Create and configure a new master record',
-                icon: Icons.add_circle_outline_rounded,
-                color: AppColors.success,
-                onTap: () => widget.onSelect(MasterAction.add),
-                onDown: () => _modifyNode.requestFocus(),
-                onUp: () => _modifyNode.requestFocus(),
-              ),
-            ),
-
-            // Action 2: Modify (Default focused with active ring)
-            _buildActionTile(
-              focusNode: _modifyNode,
-              autofocus: true,
-              title: 'Modify',
-              desc: 'View, edit, or delete existing records',
-              icon: Icons.edit_note_rounded,
-              color: AppColors.primaryAccent,
-              onTap: () => widget.onSelect(MasterAction.modify),
-              onDown: () => _addNode.requestFocus(),
-              onUp: () => _addNode.requestFocus(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionTile({
-    required FocusNode focusNode,
-    required bool autofocus,
-    required String title,
-    required String desc,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-    required VoidCallback onDown,
-    required VoidCallback onUp,
-  }) {
-    return Focus(
-      focusNode: focusNode,
-      autofocus: autofocus,
-      onFocusChange: (_) => setState(() {}),
-      onKeyEvent: (node, event) {
-        if (event is! KeyDownEvent) return KeyEventResult.ignored;
-
-        if (event.logicalKey == LogicalKeyboardKey.enter ||
-            event.logicalKey == LogicalKeyboardKey.space ||
-            event.logicalKey == LogicalKeyboardKey.numpadEnter) {
-          onTap();
-          return KeyEventResult.handled;
-        }
-
-        if (event.logicalKey == LogicalKeyboardKey.arrowDown ||
-            event.logicalKey == LogicalKeyboardKey.numpad2) {
-          onDown();
-          return KeyEventResult.handled;
-        }
-
-        if (event.logicalKey == LogicalKeyboardKey.arrowUp ||
-            event.logicalKey == LogicalKeyboardKey.numpad8) {
-          onUp();
-          return KeyEventResult.handled;
-        }
-
-        return KeyEventResult.ignored;
-      },
-      child: Builder(
-        builder: (ctx) {
-          final isFocused = Focus.of(ctx).hasFocus;
-
-          return AnimatedContainer(
-            duration: const Duration(milliseconds: 140),
-            decoration: BoxDecoration(
-              color: isFocused ? color.withValues(alpha: .06) : AppColors.cardBg,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: isFocused ? color : AppColors.border,
-                width: isFocused ? 2.5 : 1.0,
-              ),
-              boxShadow: isFocused
-                  ? [
-                      BoxShadow(
-                        color: color.withValues(alpha: .25),
-                        blurRadius: 10,
-                        spreadRadius: 1,
-                        offset: const Offset(0, 2),
-                      ),
-                    ]
-                  : null,
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(16),
-                onTap: onTap,
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: color.withValues(alpha: .1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(icon, color: color, size: 20),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              title,
-                              style: const TextStyle(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              desc,
-                              style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        color: isFocused ? color : AppColors.textMuted,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
+      builder: (ctx) => AppActionBottomSheet(
+        title: item.title,
+        subtitle: item.subtitle,
+        actions: [
+          AppActionItem(
+            title: 'Add New',
+            desc: 'Create and configure a new master record',
+            icon: Icons.add_circle_outline_rounded,
+            color: AppColors.success,
+            onTap: () {
+              Navigator.pop(ctx);
+              _handleAction(item, MasterAction.add);
+            },
+          ),
+          AppActionItem(
+            title: 'Modify',
+            desc: 'View, edit, or delete existing records',
+            icon: Icons.edit_note_rounded,
+            color: AppColors.primaryAccent,
+            onTap: () {
+              Navigator.pop(ctx);
+              _handleAction(item, MasterAction.modify);
+            },
+          ),
+        ],
       ),
     );
   }
@@ -1160,8 +941,10 @@ class _MasterModifyDialogState extends State<MasterModifyDialog> {
 
   void _showToast(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg, style: const TextStyle(fontWeight: FontWeight.w600)), backgroundColor: AppColors.primary),
+    NotificationService.show(
+      context,
+      message: msg,
+      type: NotificationType.success,
     );
   }
 

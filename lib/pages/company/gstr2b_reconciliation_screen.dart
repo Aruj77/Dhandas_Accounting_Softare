@@ -7,6 +7,7 @@ import '../../provider/company_provider.dart';
 import '../../services/gstr2b_reconciliation_service.dart';
 import '../../services/storage_service.dart';
 import '../../utils/extensions.dart';
+import '../../services/notification_service.dart';
 
 class Gstr2bReconciliationScreen extends ConsumerStatefulWidget {
   const Gstr2bReconciliationScreen({super.key});
@@ -70,11 +71,10 @@ class _Gstr2bReconciliationScreenState
     } catch (e) {
       if (mounted) {
         setState(() => _isAnalyzing = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Reconciliation failed: $e'),
-            backgroundColor: AppColors.error,
-          ),
+        NotificationService.show(
+          context,
+          message: 'Reconciliation failed: $e',
+          type: NotificationType.error,
         );
       }
     }

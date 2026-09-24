@@ -19,10 +19,11 @@ import '../../../utils/app_date_utils.dart';
 import '../../../utils/export_dialog_utils.dart';
 import '../../../utils/gst_party_utils.dart';
 import '../../../widgets/common/data_table_cells.dart';
-import '../../../widgets/common/quick_metric_badge.dart';
+import '../../../utils/register_header_bar.dart';
 import 'voucher_entry_screen.dart';
 import '../../../services/loading_service.dart';
 import '../../../services/sync_worker.dart';
+import '../../../services/notification_service.dart';
 
 class VoucherListScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic> company;
@@ -113,9 +114,7 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
       if (!mounted) return;
       _cachedSyncWorker = ref.read(syncWorkerProvider);
       _cachedSyncWorker?.onRemoteMutationReceived = () {
-        if (mounted) {
-          _loadVouchers();
-        }
+        if (mounted) _loadVouchers();
       };
     });
   }
@@ -124,9 +123,7 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
     await LoadingService.wrap(() async {
       final folderPath = widget.company['folderPath']?.toString();
       final seriesSet = <String>{'All', 'Main'};
-      if (_selectedSeries != 'All') {
-        seriesSet.add(_selectedSeries);
-      }
+      if (_selectedSeries != 'All') seriesSet.add(_selectedSeries);
       if (folderPath != null) {
         try {
           final rawMasters = await StorageService.loadCompanyMasters(folderPath: folderPath);
@@ -138,21 +135,15 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
           }
         } catch (_) {}
       }
-      if (mounted) {
-        setState(() {
-          _availableSeries = seriesSet.toList();
-        });
-      }
+      if (mounted) setState(() => _availableSeries = seriesSet.toList());
     }, message: '');
   }
 
   @override
   void dispose() {
-    // Safe cleanup using cached worker reference instead of calling ref.read() post-disposal
     if (_cachedSyncWorker?.onRemoteMutationReceived != null) {
       _cachedSyncWorker?.onRemoteMutationReceived = null;
     }
-
     _searchCtrl.dispose();
     _searchFocusNode.dispose();
     _horizontalHeaderCtrl.dispose();
@@ -177,34 +168,23 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
       final fy = (widget.company['activeFinancialYear'] ?? AppDateUtils.defaultFinancialYear).toString();
 
       if (folderPath != null) {
-        final allVouchers = await StorageService.loadVouchers(
-          folderPath: folderPath,
-          financialYear: fy,
-        );
-
+        final allVouchers = await StorageService.loadVouchers(folderPath: folderPath, financialYear: fy);
         final targetType = widget.voucherType.toLowerCase().trim();
 
         for (final v in allVouchers) {
           final s = (v['series'] ?? v['seriesName'] ?? '').toString().trim();
-          if (s.isNotEmpty && !_availableSeries.contains(s)) {
-            _availableSeries.add(s);
-          }
+          if (s.isNotEmpty && !_availableSeries.contains(s)) _availableSeries.add(s);
         }
 
         final matching = allVouchers.where((v) {
           final vchType = (v['voucherType'] ?? '').toString().toLowerCase().trim();
-          bool typeMatches = vchType.isEmpty ||
-              vchType == targetType ||
-              vchType.contains(targetType) ||
-              targetType.contains(vchType);
+          bool typeMatches = vchType.isEmpty || vchType == targetType || vchType.contains(targetType) || targetType.contains(vchType);
           if (!typeMatches) return false;
 
           if (_selectedSeries.toLowerCase() != 'all') {
             final rawSeries = (v['series'] ?? v['seriesName'] ?? '').toString().trim();
             final voucherSeries = rawSeries.isEmpty ? 'Main' : rawSeries;
-            if (voucherSeries.toLowerCase() != _selectedSeries.toLowerCase()) {
-              return false;
-            }
+            if (voucherSeries.toLowerCase() != _selectedSeries.toLowerCase()) return false;
           }
 
           final dt = AppDateUtils.parseDate(v['date']?.toString());
@@ -213,8 +193,7 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
           final start = DateTime(widget.fromDate.year, widget.fromDate.month, widget.fromDate.day);
           final end = DateTime(widget.toDate.year, widget.toDate.month, widget.toDate.day, 23, 59, 59);
 
-          return (dt.isAtSameMomentAs(start) || dt.isAfter(start)) &&
-              (dt.isAtSameMomentAs(end) || dt.isBefore(end));
+          return (dt.isAtSameMomentAs(start) || dt.isAfter(start)) && (dt.isAtSameMomentAs(end) || dt.isBefore(end));
         }).toList();
 
         if (mounted) {
@@ -251,9 +230,7 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
               return vch.contains(q) ||
                   party.contains(q) ||
                   gstin.contains(q) ||
-                  items.any((it) =>
-                      (it['hsn'] ?? '').toString().toLowerCase().contains(q) ||
-                      (it['item'] ?? '').toString().toLowerCase().contains(q));
+                  items.any((it) => (it['hsn'] ?? '').toString().toLowerCase().contains(q) || (it['item'] ?? '').toString().toLowerCase().contains(q));
             }).toList();
       _syncFocusNodes();
       _focusedIndex = _filtered.isNotEmpty ? 0 : -1;
@@ -270,7 +247,6 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
 
   bool _hasEntries(String colKey) {
     if (_filtered.isEmpty) return true;
-
     switch (colKey) {
       case 'gstin':
         return _filtered.any((v) => GstPartyUtils.extractPartyGstin(v['party']?.toString() ?? '').isNotEmpty);
@@ -291,9 +267,7 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
     }
   }
 
-  bool _isColVisible(String k) {
-    return (_userSelectedColumns[k] ?? true) && _hasEntries(k);
-  }
+  bool _isColVisible(String k) => (_userSelectedColumns[k] ?? true) && _hasEntries(k);
 
   double _calculateActiveMinWidth() {
     const weights = {
@@ -307,7 +281,6 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
   Future<void> _handleExcelExport() async {
     try {
       final activeKeys = _columnLabels.keys.where(_isColVisible).toList();
-
       final savedPath = await VoucherExcelExportService.exportToExcel(
         company: widget.company,
         voucherType: widget.voucherType,
@@ -335,8 +308,10 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Export failed: $e'), backgroundColor: AppColors.error),
+        NotificationService.show(
+          context,
+          message: 'Export failed: $e',
+          type: NotificationType.error,
         );
       }
     }
@@ -367,8 +342,10 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
         if (mounted) ExportDialogUtils.showSuccessDialog(context, file.path, 'JSON');
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Export failed: $e'), backgroundColor: AppColors.error),
+          NotificationService.show(
+            context,
+            message: 'Export failed: $e',
+            type: NotificationType.error,
           );
         }
       }
@@ -388,9 +365,7 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
         ),
       ),
     );
-    if (mounted) {
-      await _loadVouchers();
-    }
+    if (mounted) await _loadVouchers();
   }
 
   void _openColumnSettingsDialog() {
@@ -433,10 +408,7 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
                           const SizedBox(width: 6),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                            decoration: BoxDecoration(
-                              color: AppColors.background,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
+                            decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(4)),
                             child: const Text('No entries', style: TextStyle(fontSize: 9.5, color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
                           ),
                         ],
@@ -455,9 +427,7 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
             TextButton(
               onPressed: () {
                 setDialogState(() {
-                  for (final k in _userSelectedColumns.keys) {
-                    _userSelectedColumns[k] = true;
-                  }
+                  for (final k in _userSelectedColumns.keys) _userSelectedColumns[k] = true;
                 });
                 setState(() {});
               },
@@ -697,27 +667,22 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
       widget.onClose();
       return KeyEventResult.handled;
     }
-
     if (KeyboardShortcutService.isPrint(event)) {
       _triggerPrint();
       return KeyEventResult.handled;
     }
-
     if (KeyboardShortcutService.isExportExcel(event)) {
       _handleExcelExport();
       return KeyEventResult.handled;
     }
-
     if (KeyboardShortcutService.isExportJson(event)) {
       _exportToJson();
       return KeyEventResult.handled;
     }
-
     if (KeyboardShortcutService.isColumnsDialog(event)) {
       _openColumnSettingsDialog();
       return KeyEventResult.handled;
     }
-
     return KeyEventResult.ignored;
   }
 
@@ -726,9 +691,7 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
     final fy = widget.company['activeFinancialYear'] ?? AppDateUtils.defaultFinancialYear;
     return AutoScreenFocus(
       screen: FocusTargetScreen.voucherList,
-      nodeMap: {
-        FocusFieldNode.searchField: _searchFocusNode,
-      },
+      nodeMap: {FocusFieldNode.searchField: _searchFocusNode},
       child: Focus(
         autofocus: true,
         onKeyEvent: _handleGlobalKeyEvent,
@@ -757,12 +720,7 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
                           const SizedBox(width: 6),
                           Text(
                             '${widget.voucherType.toUpperCase()} REGISTER',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w900,
-                              color: AppColors.surface,
-                              letterSpacing: 0.5,
-                            ),
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: AppColors.surface, letterSpacing: 0.5),
                           ),
                         ],
                       ),
@@ -834,52 +792,20 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
                       label: const Text('Print (Ctrl+P)', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
                     ),
                     const SizedBox(width: 8),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textSecondary),
-                      onPressed: widget.onClose,
-                    ),
+                    IconButton(icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textSecondary), onPressed: widget.onClose),
                   ],
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
-                child: Row(
-                  children: [
-                    Expanded(
-                      flex: 5,
-                      child: SizedBox(
-                        height: 38,
-                        child: TextField(
-                          controller: _searchCtrl,
-                          focusNode: _searchFocusNode,
-                          onSubmitted: (_) {
-                            if (_rowFocusNodes.isNotEmpty && _rowFocusNodes[0].canRequestFocus) {
-                              _rowFocusNodes[0].requestFocus();
-                              setState(() => _focusedIndex = 0);
-                            }
-                          },
-                          decoration: InputDecoration(
-                            hintText: 'Search by Voucher, Party, GSTIN, HSN...',
-                            prefixIcon: const Icon(Icons.search_rounded, size: 17, color: AppColors.primary),
-                            filled: true,
-                            fillColor: AppColors.surface,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.border)),
-                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.primary, width: 1.3)),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    QuickMetricBadge(label: 'Total Invoices', value: '${_summary.totalInvoices}', color: AppColors.primaryDark),
-                    const SizedBox(width: 8),
-                    QuickMetricBadge(label: 'Total Qty', value: _summary.totalQuantity.toStringAsFixed(2), color: AppColors.info),
-                    const SizedBox(width: 8),
-                    QuickMetricBadge(label: 'Taxable Val', value: '₹${_summary.totalTaxable.toStringAsFixed(2)}', color: AppColors.purple),
-                    const SizedBox(width: 8),
-                    QuickMetricBadge(label: 'Invoice Total', value: '₹${_summary.totalInvoiceValue.toStringAsFixed(2)}', color: AppColors.primary),
-                  ],
-                ),
+              RegisterHeaderBar(
+                searchController: _searchCtrl,
+                searchFocusNode: _searchFocusNode,
+                summary: _summary,
+                onSubmitted: (_) {
+                  if (_rowFocusNodes.isNotEmpty && _rowFocusNodes[0].canRequestFocus) {
+                    _rowFocusNodes[0].requestFocus();
+                    setState(() => _focusedIndex = 0);
+                  }
+                },
               ),
               Expanded(
                 child: Container(
