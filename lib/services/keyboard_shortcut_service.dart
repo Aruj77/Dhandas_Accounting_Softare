@@ -1,3 +1,4 @@
+// desktop/lib/services/keyboard_shortcut_service.dart
 import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -109,13 +110,13 @@ class KeyboardShortcutService {
   static const String saveVoucherAction = 'saveVoucher';
 
   // --- Fixed Hardware Action Identifiers ---
-  static const String quickAddMasterAction = 'quickAddMaster';       // Alt + C
-  static const String modifyMasterAction = 'modifyMaster';           // Alt + E
-  static const String previousVoucherAction = 'previousVoucher';     // Alt + P
-  static const String nextVoucherAction = 'nextVoucher';             // Alt + N
+  static const String quickAddMasterAction = 'quickAddMaster';       // Ctrl + C
+  static const String modifyMasterAction = 'modifyMaster';           // Ctrl + E
+  static const String previousVoucherAction = 'previousVoucher';     // Ctrl + B
+  static const String nextVoucherAction = 'nextVoucher';             // Ctrl + N
   static const String printInvoiceAction = 'printInvoice';           // Ctrl/Cmd + P
   static const String calculatorAction = 'calculator';               // F4
-  static const String exportExcelAction = 'exportExcel';             // Ctrl + E
+  static const String exportExcelAction = 'exportExcel';             // Ctrl + Shift + E
   static const String exportJsonAction = 'exportJson';               // Ctrl + J
   static const String columnsDialogAction = 'columnsDialog';         // Ctrl + Q
 
@@ -164,94 +165,64 @@ class KeyboardShortcutService {
   static bool isExit(LogicalKeyboardKey key) =>
       key == LogicalKeyboardKey.escape;
 
-  // --- Universal Event-Level Matching Helpers ---
+  // --- Universal Event-Level Matching Helpers (Ctrl & Cmd Focused) ---
 
-  /// Alt + C: Quick add an item, party, or master ledger
-  static bool isQuickAdd(KeyEvent event) {
-    return event is KeyDownEvent &&
-        HardwareKeyboard.instance.isAltPressed &&
-        event.logicalKey == LogicalKeyboardKey.keyC;
-  }
-
-  /// Alt + E: Edit active master or open line-level tax details
-  static bool isModifyOrTaxDetails(KeyEvent event) {
-    return event is KeyDownEvent &&
-        HardwareKeyboard.instance.isAltPressed &&
-        event.logicalKey == LogicalKeyboardKey.keyE;
-  }
-
-  /// Alt + P: Navigate to previous voucher in the active session
-  static bool isPreviousVoucher(KeyEvent event) {
-    return event is KeyDownEvent &&
-        HardwareKeyboard.instance.isAltPressed &&
-        event.logicalKey == LogicalKeyboardKey.keyP;
-  }
-
-  /// Alt + N: Navigate to next voucher in the active session
-  static bool isNextVoucher(KeyEvent event) {
-    return event is KeyDownEvent &&
-        HardwareKeyboard.instance.isAltPressed &&
-        event.logicalKey == LogicalKeyboardKey.keyN;
-  }
-
-  /// Ctrl + P / Cmd + P: Print Preview Studio
-  static bool isPrint(KeyEvent event) {
+  /// General Ctrl/Cmd key matching helper
+  static bool isControlKey(KeyEvent event, LogicalKeyboardKey key) {
     if (event is! KeyDownEvent) return false;
     final hw = HardwareKeyboard.instance;
-    return (hw.isControlPressed || hw.isMetaPressed) &&
-        event.logicalKey == LogicalKeyboardKey.keyP;
+    return (hw.isControlPressed || hw.isMetaPressed) && event.logicalKey == key;
   }
 
-  /// Ctrl + E / Cmd + E: Export to Excel Workbook
+  /// Ctrl + C / Cmd + C: Quick add master
+  static bool isQuickAdd(KeyEvent event) =>
+      isControlKey(event, LogicalKeyboardKey.keyC);
+
+  /// Ctrl + E / Cmd + E: Edit active master or tax details
+  static bool isModifyOrTaxDetails(KeyEvent event) =>
+      isControlKey(event, LogicalKeyboardKey.keyE);
+
+  /// Ctrl + B / Cmd + B: Previous voucher
+  static bool isPreviousVoucher(KeyEvent event) =>
+      isControlKey(event, LogicalKeyboardKey.keyB);
+
+  /// Ctrl + N / Cmd + N: Next voucher
+  static bool isNextVoucher(KeyEvent event) =>
+      isControlKey(event, LogicalKeyboardKey.keyN);
+
+  /// Ctrl + P / Cmd + P: Print Preview Studio
+  static bool isPrint(KeyEvent event) =>
+      isControlKey(event, LogicalKeyboardKey.keyP);
+
+  /// Ctrl + Shift + E / Cmd + Shift + E: Export to Excel
   static bool isExportExcel(KeyEvent event) {
     if (event is! KeyDownEvent) return false;
     final hw = HardwareKeyboard.instance;
     return (hw.isControlPressed || hw.isMetaPressed) &&
+        hw.isShiftPressed &&
         event.logicalKey == LogicalKeyboardKey.keyE;
   }
 
   /// Ctrl + J / Cmd + J: Export to JSON
-  static bool isExportJson(KeyEvent event) {
-    if (event is! KeyDownEvent) return false;
-    final hw = HardwareKeyboard.instance;
-    return (hw.isControlPressed || hw.isMetaPressed) &&
-        event.logicalKey == LogicalKeyboardKey.keyJ;
-  }
+  static bool isExportJson(KeyEvent event) =>
+      isControlKey(event, LogicalKeyboardKey.keyJ);
 
   /// Ctrl + Q / Cmd + Q: Customize Columns Dialog
-  static bool isColumnsDialog(KeyEvent event) {
-    if (event is! KeyDownEvent) return false;
-    final hw = HardwareKeyboard.instance;
-    return (hw.isControlPressed || hw.isMetaPressed) &&
-        event.logicalKey == LogicalKeyboardKey.keyQ;
-  }
+  static bool isColumnsDialog(KeyEvent event) =>
+      isControlKey(event, LogicalKeyboardKey.keyQ);
 
   /// F4: Quick Calculator
   static bool isCalculator(KeyEvent event) {
     return event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.f4;
   }
 
-  /// F2 or Ctrl + S: Standard Save
+  /// F2 or Ctrl + S / Cmd + S: Save
   static bool isSave(KeyEvent event) {
     if (event is! KeyDownEvent) return false;
     final hw = HardwareKeyboard.instance;
     final isCtrlS = (hw.isControlPressed || hw.isMetaPressed) &&
         event.logicalKey == LogicalKeyboardKey.keyS;
     return event.logicalKey == LogicalKeyboardKey.f2 || isCtrlS;
-  }
-
-  /// Check any Alt + [Key] combination
-  static bool isAltKey(KeyEvent event, LogicalKeyboardKey key) {
-    return event is KeyDownEvent &&
-        HardwareKeyboard.instance.isAltPressed &&
-        event.logicalKey == key;
-  }
-
-  /// Check any Ctrl / Cmd + [Key] combination
-  static bool isControlKey(KeyEvent event, LogicalKeyboardKey key) {
-    if (event is! KeyDownEvent) return false;
-    final hw = HardwareKeyboard.instance;
-    return (hw.isControlPressed || hw.isMetaPressed) && event.logicalKey == key;
   }
 
   // --- Defaults & Settings ---

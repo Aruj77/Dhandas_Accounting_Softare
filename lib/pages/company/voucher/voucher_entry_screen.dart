@@ -275,13 +275,70 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
   bool _isAnySundryCellFocused() => _sundries.any(
       (s) => [s.nameFocus, s.percentFocus, s.amountFocus].any((f) => f.hasFocus));
 
+  bool _handleSmartCtrlC() {
+    try {
+      final primaryFocus = FocusManager.instance.primaryFocus;
+      final context = primaryFocus?.context;
+
+      if (context != null) {
+        final editableState =
+            context.findAncestorStateOfType<EditableTextState>();
+        if (editableState != null) {
+          final sel = editableState.textEditingValue.selection;
+          if (!sel.isCollapsed && sel.start != sel.end) {
+            return false; // User selected text, execute native clipboard copy
+          }
+        }
+      }
+    } catch (_) {}
+
+    return _handleQuickAddShortcut();
+  }
+
   bool _handleGlobalHardwareKey(KeyEvent event) {
-    if (!mounted || ModalRoute.of(context)?.isCurrent != true || event is! KeyDownEvent) {
+    if (!mounted || event is! KeyDownEvent) {
       return false;
     }
 
-    if (event.logicalKey == LogicalKeyboardKey.tab &&
-        !HardwareKeyboard.instance.isShiftPressed) {
+    // Safe route verification: only skip if route exists and is NOT active
+    final route = ModalRoute.of(context);
+    if (route != null && !route.isCurrent) {
+      return false;
+    }
+
+    final hw = HardwareKeyboard.instance;
+    final isModifierPressed = hw.isControlPressed || hw.isMetaPressed;
+
+    // 1. Ctrl + C: Smart Quick Add Master
+    if (isModifierPressed && event.logicalKey == LogicalKeyboardKey.keyC) {
+      if (_handleSmartCtrlC()) return true;
+    }
+
+    // 2. Ctrl + E: Modify Master / Tax Details
+    if (isModifierPressed && event.logicalKey == LogicalKeyboardKey.keyE) {
+      if (_handleCtrlE()) return true;
+    }
+
+    // 3. Ctrl + B: Previous Voucher
+    if (isModifierPressed && event.logicalKey == LogicalKeyboardKey.keyB) {
+      _navigateToPreviousVoucher();
+      return true;
+    }
+
+    // 4. Ctrl + N: Next Voucher
+    if (isModifierPressed && event.logicalKey == LogicalKeyboardKey.keyN) {
+      _navigateToNextVoucher();
+      return true;
+    }
+
+    // 5. Ctrl + S: Save Voucher
+    if (isModifierPressed && event.logicalKey == LogicalKeyboardKey.keyS) {
+      _saveVoucher();
+      return true;
+    }
+
+    // 6. Tab Key Navigation between Rows and Sundries
+    if (event.logicalKey == LogicalKeyboardKey.tab && !hw.isShiftPressed) {
       if (_isAnyItemCellFocused()) {
         _sundries.firstOrNull?.nameFocus.requestFocus();
         return true;
@@ -292,6 +349,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
       }
     }
 
+    // 7. Escape (Go Back / Exit)
     if (KeyboardShortcutService.matchesAction(
       widget.keyboardSettings,
       KeyboardShortcutService.goBackAction,
@@ -1382,23 +1440,29 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
   }
 
   bool _handleQuickAddShortcut() {
+    // 1. If Party field has focus
     if (_h.partyFocus.hasFocus) {
-      _openAddPartyDialog();
+      unawaited(_openAddPartyDialog());
       return true;
     }
+    // 2. If Series has focus
     if (_h.seriesFocus.hasFocus) {
       _openQuickAddDialog('Series');
       return true;
     }
+    // 3. If Sale Type has focus
     if (_h.saleTypeFocus.hasFocus) {
       _openQuickAddDialog('Sale Type');
       return true;
     }
+    // 4. If Material Center has focus
     if (_h.matCenterFocus.hasFocus) {
       _openQuickAddDialog('Material Centre');
       return true;
     }
-    final idx = _items.indexWhere((i) => [
+
+    // 5. If any Item field has focus
+    final focusedItemIdx = _items.indexWhere((i) => [
           i.itemFocus,
           i.qtyFocus,
           i.unitFocus,
@@ -1409,25 +1473,32 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
           i.igstFocus,
           i.amountFocus,
         ].any((f) => f.hasFocus));
-    if (idx != -1) {
-      _openAddItemDialog(idx);
+
+    if (focusedItemIdx != -1) {
+      unawaited(_openAddItemDialog(focusedItemIdx));
       return true;
     }
-    return false;
+
+    // 6. Safe Default Fallback (if user presses Ctrl+C without focusing a specific row)
+    if (_h.party.text.trim().isEmpty) {
+      unawaited(_openAddPartyDialog());
+    } else {
+      final emptyItemIdx = _items.indexWhere((i) => i.item.text.trim().isEmpty);
+      unawaited(_openAddItemDialog(emptyItemIdx != -1 ? emptyItemIdx : 0));
+    }
+    return true;
   }
 
-  bool _handleAltE() {
+  bool _handleCtrlE() {
+    // 1. Party field focused
     if (_h.partyFocus.hasFocus) {
       final partyText = _h.party.text.trim();
-      if (partyText.isNotEmpty) {
-        final party = _findParty(partyText);
-        if (party != null) {
-          _openAddPartyDialog(party);
-          return true;
-        }
-      }
+      final party = _findParty(partyText);
+      unawaited(_openAddPartyDialog(party));
+      return true;
     }
 
+    // 2. Line item focused
     for (int i = 0; i < _items.length; i++) {
       final r = _items[i];
       final isItemRowFocused = [
@@ -1443,16 +1514,12 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
 
       if (isItemRowFocused) {
         final itemName = r.item.text.trim().toLowerCase();
-        if (itemName.isNotEmpty) {
-          final item = _itemCache[itemName] ??
-              _itemsMasterList.firstWhereOrNull(
-                (it) => it.name.trim().toLowerCase() == itemName,
-              );
-          if (item != null) {
-            _openAddItemDialog(i, item);
-            return true;
-          }
-        }
+        final item = _itemCache[itemName] ??
+            _itemsMasterList.firstWhereOrNull(
+              (it) => it.name.trim().toLowerCase() == itemName,
+            );
+        unawaited(_openAddItemDialog(i, item));
+        return true;
       }
 
       if (r.amountFocus.hasFocus) {
@@ -1461,51 +1528,23 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
       }
     }
 
-    final cleanPartyName = GstPartyUtils.extractPartyName(_h.party.text).trim();
-    final sanitizedPartyController = TextEditingController(
-      text: cleanPartyName.isNotEmpty ? cleanPartyName : _h.party.text.trim(),
-    );
-
-    try {
-      return VoucherMasterActions.handleAltE(
-        context: context,
-        company: _currentCompany,
-        partyFocus: _h.partyFocus,
-        partyController: sanitizedPartyController,
-        availableParties: _currentParties,
-        voucherType: widget.voucherType,
-        items: _items,
-        itemsMasterList: _itemsMasterList,
-        onPartyUpdated: (updated) async {
-          await _loadCompanyMastersOnly();
-          if (!mounted) return;
-          setState(() {
-            _h.party.text = _formatPartyDisplay(updated.name, updated.gstin);
-            _checkGstMode(autoAdjustSaleType: true);
-            _refreshTaxesOnAllRows();
-          });
-        },
-        onItemUpdated: (i, updated) async {
-          await _loadCompanyMastersOnly();
-          if (!mounted) return;
-          setState(() {
-            for (final r in _items.where((r) {
-              final n = r.item.text.trim().toLowerCase();
-              return n == updated.name.trim().toLowerCase();
-            })) {
-              r.item.text = updated.name;
-              r.hsn = updated.hsn;
-              r.unit.text = updated.unit;
-              r.gstRate = updated.taxRate;
-            }
-            _onItemMasterSelected(i, updated);
-          });
-        },
-        onSyncMasters: () async => await _loadCompanyMastersOnly(),
-      );
-    } finally {
-      sanitizedPartyController.dispose();
+    // 3. Fallback: edit party if present
+    if (_h.party.text.trim().isNotEmpty) {
+      final party = _findParty(_h.party.text.trim());
+      unawaited(_openAddPartyDialog(party));
+      return true;
     }
+
+    // 4. Fallback: edit first item if present
+    final firstFilledItem = _items.firstWhereOrNull((i) => i.item.text.trim().isNotEmpty);
+    if (firstFilledItem != null) {
+      final idx = _items.indexOf(firstFilledItem);
+      final item = _itemCache[firstFilledItem.item.text.trim().toLowerCase()];
+      unawaited(_openAddItemDialog(idx, item));
+      return true;
+    }
+
+    return false;
   }
 
   void _showValidationError(String msg, FocusNode? focus) {
@@ -1764,22 +1803,11 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
   KeyEventResult _onGlobalKeyAction(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
 
-    if (KeyboardShortcutService.isPreviousVoucher(event)) {
-      _navigateToPreviousVoucher();
-      return KeyEventResult.handled;
-    }
-    if (KeyboardShortcutService.isNextVoucher(event)) {
-      _navigateToNextVoucher();
-      return KeyEventResult.handled;
-    }
     if (KeyboardShortcutService.isPrint(event)) {
       _openPrintPreview();
       return KeyEventResult.handled;
     }
-    if (KeyboardShortcutService.isModifyOrTaxDetails(event)) {
-      if (_handleAltE()) return KeyEventResult.handled;
-      return KeyEventResult.ignored;
-    }
+
     if (KeyboardShortcutService.isCalculator(event)) {
       for (final r in _items) {
         final targets = [
@@ -1796,17 +1824,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
         }
       }
     }
-    if (KeyboardShortcutService.isQuickAdd(event)) {
-      if (_handleQuickAddShortcut()) return KeyEventResult.handled;
-    }
-    if (KeyboardShortcutService.matchesAction(
-      widget.keyboardSettings,
-      KeyboardShortcutService.saveVoucherAction,
-      event,
-    )) {
-      _saveVoucher();
-      return KeyEventResult.handled;
-    }
+
     return KeyEventResult.ignored;
   }
 
@@ -2282,13 +2300,13 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
               color: AppColors.textSecondary,
             ),
           ),
-          _buildShortcutHint('[F2] Save'),
-          _buildShortcutHint('[Alt+P] Prev Vch'),
-          _buildShortcutHint('[Alt+N] Next Vch'),
+          _buildShortcutHint('[F2 / Ctrl+S] Save'),
+          _buildShortcutHint('[Ctrl+B] Prev Vch'),
+          _buildShortcutHint('[Ctrl+N] Next Vch'),
           if (_isEditingExisting) _buildShortcutHint('[Ctrl+P] Print'),
           _buildShortcutHint('[F4] Calculator'),
-          _buildShortcutHint('[Alt+C] Quick Add Master'),
-          _buildShortcutHint('[Alt+E] Edit Master / Tax Details'),
+          _buildShortcutHint('[Ctrl+C] Quick Add Master'),
+          _buildShortcutHint('[Ctrl+E] Edit Master / Tax Details'),
           _buildShortcutHint('[Tab / Enter] Next Field'),
           _buildShortcutHint('[Esc] Exit'),
           const Spacer(),
