@@ -67,20 +67,27 @@ class ScanReviewDialog extends StatefulWidget {
 class _ScanReviewDialogState extends State<ScanReviewDialog>
     with SingleTickerProviderStateMixin {
   late final TabController _tab = TabController(length: 2, vsync: this);
+  static const _brand = Color(0xFF3D5AFE);
 
   // Party tab state.
   PartyMasterModel? _matchedParty;
   bool _editParty = false;
+  bool _showOnlyMatching = true;
+  final _pSearch = TextEditingController();
   final _pName = TextEditingController();
   final _pGstin = TextEditingController();
   final _pGroup = TextEditingController();
   final _pState = TextEditingController();
   final _pAddress = TextEditingController();
   final _pPincode = TextEditingController();
+  String _scannedName = '', _scannedGstin = '';
 
   // Items tab state.
   final List<ScanRow> _rows = [];
   bool _validating = false;
+
+  double get _totalAmount =>
+      _rows.fold(0.0, (a, r) => a + r.qty * r.rate * (1 + r.gstRate / 100));
 
   @override
   void initState() {
@@ -108,15 +115,35 @@ class _ScanReviewDialogState extends State<ScanReviewDialog>
       }
     }
 
+    _scannedName = cleanName;
+    _scannedGstin = s.partyGstin.trim();
+    _applyParty(_matchedParty, fallbackName: cleanName);
+  }
+
+  void _applyParty(PartyMasterModel? p, {String fallbackName = ''}) {
     final isSales = widget.voucherType.toLowerCase().contains('sale');
-    final p = _matchedParty;
-    _pName.text = p?.name ?? cleanName;
-    _pGstin.text = (p?.gstin.isNotEmpty ?? false) ? p!.gstin : s.partyGstin;
+    _matchedParty = p;
+    _pName.text = p?.name ?? fallbackName;
+    _pGstin.text = (p?.gstin.isNotEmpty ?? false) ? p!.gstin : _scannedGstin;
     _pGroup.text = p?.group ?? (isSales ? 'Sundry Debtors' : 'Sundry Creditors');
     _pState.text = p?.state ?? '';
     _pAddress.text = p?.address ?? '';
     _pPincode.text = p?.pincode ?? '';
     _editParty = p == null; // new party -> editable straight away
+  }
+
+  List<PartyMasterModel> get _filteredParties {
+    final q = _pSearch.text.trim().toLowerCase();
+    return widget.currentParties.where((p) {
+      if (_showOnlyMatching && _scannedGstin.isNotEmpty &&
+          p.gstin.trim().toLowerCase() != _scannedGstin.toLowerCase()) {
+        return false;
+      }
+      if (q.isEmpty) return true;
+      return p.name.toLowerCase().contains(q) ||
+          p.gstin.toLowerCase().contains(q) ||
+          p.mobile.toLowerCase().contains(q);
+    }).toList();
   }
 
   void _initItems() {
@@ -300,7 +327,7 @@ class _ScanReviewDialogState extends State<ScanReviewDialog>
   @override
   void dispose() {
     _tab.dispose();
-    for (final c in [_pName, _pGstin, _pGroup, _pState, _pAddress, _pPincode]) {
+    for (final c in [_pSearch, _pName, _pGstin, _pGroup, _pState, _pAddress, _pPincode]) {
       c.dispose();
     }
     super.dispose();
@@ -308,26 +335,18 @@ class _ScanReviewDialogState extends State<ScanReviewDialog>
 
   @override
   Widget build(BuildContext context) {
+    final s = widget.scanned;
     return Dialog(
       insetPadding: const EdgeInsets.all(24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: SizedBox(
-        width: 720,
-        height: 620,
+        width: 860,
+        height: 660,
         child: Column(children: [
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
-            child: Row(children: [
-              const Icon(Icons.document_scanner_outlined),
-              const SizedBox(width: 8),
-              const Expanded(
-                  child: Text('Review Scanned Invoice',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
-              IconButton(
-                  icon: const Icon(Icons.close), onPressed: () => Navigator.of(context).pop()),
-            ]),
-          ),
-          TabBar(controller: _tab, tabs: const [
-            Tab(icon: Icon(Icons.person_outline), text: 'Party'),
+          _buildHeader(s),
+          _buildSummaryStrip(s),
+          TabBar(controller: _tab, labelColor: _brand, indicatorColor: _brand, tabs: const [
+            Tab(icon: Icon(Icons.groups_outlined), text: 'Party'),
             Tab(icon: Icon(Icons.inventory_2_outlined), text: 'Items'),
           ]),
           const Divider(height: 1),
@@ -341,9 +360,18 @@ class _ScanReviewDialogState extends State<ScanReviewDialog>
           Padding(
             padding: const EdgeInsets.all(12),
             child: Row(children: [
-              TextButton(
-                  onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+              TextButton.icon(
+                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('Original document preview is not attached to this scan.'))),
+                icon: const Icon(Icons.visibility_outlined, size: 18),
+                label: const Text('View Scanned Document'),
+              ),
               const Spacer(),
+              OutlinedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancel'),
+              ),
+              const SizedBox(width: 8),
               OutlinedButton.icon(
                 onPressed: _validating ? null : _validateAllHsn,
                 icon: _validating
@@ -354,9 +382,10 @@ class _ScanReviewDialogState extends State<ScanReviewDialog>
               ),
               const SizedBox(width: 8),
               FilledButton.icon(
+                style: FilledButton.styleFrom(backgroundColor: _brand),
                 onPressed: _onSave,
-                icon: const Icon(Icons.save_outlined, size: 18),
-                label: const Text('Save to Voucher'),
+                icon: const Icon(Icons.check, size: 18),
+                label: const Text('Save Mapping'),
               ),
             ]),
           ),
@@ -365,23 +394,132 @@ class _ScanReviewDialogState extends State<ScanReviewDialog>
     );
   }
 
+  Widget _buildHeader(ScannedVoucherData s) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 16, 12, 12),
+      child: Row(children: [
+        Container(
+          width: 44, height: 44,
+          decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [_brand, Color(0xFF7C4DFF)]),
+              borderRadius: BorderRadius.circular(12)),
+          child: const Icon(Icons.document_scanner_outlined, color: Colors.white),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              const Text('Scan AI — Voucher Summary',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                    color: Colors.green[50], borderRadius: BorderRadius.circular(20)),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.check_circle, size: 13, color: Colors.green[700]),
+                  const SizedBox(width: 4),
+                  Text('Detected Successfully',
+                      style: TextStyle(fontSize: 11, color: Colors.green[800], fontWeight: FontWeight.w600)),
+                ]),
+              ),
+            ]),
+            const Text("We've extracted the key information. Review and map as needed.",
+                style: TextStyle(fontSize: 12, color: Colors.black54)),
+          ]),
+        ),
+        IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.of(context).pop()),
+      ]),
+    );
+  }
+
+  Widget _buildSummaryStrip(ScannedVoucherData s) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade200),
+          borderRadius: BorderRadius.circular(10)),
+      child: Row(children: [
+        _metric(Icons.description_outlined, 'Voucher Type', widget.voucherType, Colors.blue),
+        _metric(Icons.calendar_today_outlined, 'Date',
+            s.invoiceDate.isEmpty ? '—' : s.invoiceDate, Colors.blue),
+        _metric(Icons.tag, 'Voucher No.', s.invoiceNo.isEmpty ? '—' : s.invoiceNo, Colors.purple),
+        _metric(Icons.currency_rupee, 'Total Amount', '₹${_totalAmount.toStringAsFixed(2)}', Colors.green),
+        _metric(Icons.inventory_2_outlined, 'Total Items', '${_rows.length} Items', Colors.indigo),
+      ]),
+    );
+  }
+
+  Widget _metric(IconData icon, String label, String value, MaterialColor color) {
+    return Expanded(
+      child: Row(children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(color: color[50], borderRadius: BorderRadius.circular(8)),
+          child: Icon(icon, size: 16, color: color[700]),
+        ),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+            Text(label, style: const TextStyle(fontSize: 10.5, color: Colors.black54)),
+            Text(value,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+          ]),
+        ),
+      ]),
+    );
+  }
+
   Widget _buildPartyTab() {
     final isNew = _matchedParty == null;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Expanded(
+            child: Text('Party Mapping',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          ),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Create New Party'),
+            onPressed: () => setState(() => _applyParty(null, fallbackName: _scannedName)),
+          ),
+        ]),
+        const SizedBox(height: 10),
+        // Scanned party details card.
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+              color: Colors.blue[50]?.withOpacity(0.5),
+              border: Border.all(color: Colors.blue.shade100),
+              borderRadius: BorderRadius.circular(10)),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('Scanned Party Details',
+                style: TextStyle(fontSize: 11, color: _brand, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 4),
+            Text(_scannedName.isEmpty ? '(No name detected)' : _scannedName,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            if (_scannedGstin.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text('GSTIN: $_scannedGstin', style: const TextStyle(fontSize: 12)),
+              ),
+          ]),
+        ),
+        const SizedBox(height: 16),
         if (!isNew)
           Container(
             padding: const EdgeInsets.all(12),
             margin: const EdgeInsets.only(bottom: 14),
-            decoration: BoxDecoration(
-                color: Colors.blue[50], borderRadius: BorderRadius.circular(8)),
+            decoration: BoxDecoration(color: Colors.amber[50], borderRadius: BorderRadius.circular(8)),
             child: Row(children: [
-              const Icon(Icons.info_outline, color: Colors.blue, size: 20),
+              const Icon(Icons.info_outline, color: Colors.orange, size: 20),
               const SizedBox(width: 8),
-              Expanded(
-                  child: Text('This party "${_matchedParty!.name}" already exists. Edit details?')),
-              const SizedBox(width: 8),
+              Expanded(child: Text('Party "${_matchedParty!.name}" already exists. Edit details?')),
               ChoiceChip(
                   label: const Text('Yes'),
                   selected: _editParty,
@@ -392,13 +530,36 @@ class _ScanReviewDialogState extends State<ScanReviewDialog>
                   selected: !_editParty,
                   onSelected: (v) => setState(() => _editParty = false)),
             ]),
-          ),
-        if (isNew)
+          )
+        else
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
-            child: Text('New party — details prefilled from the scan.',
-                style: TextStyle(color: Colors.orange[800], fontWeight: FontWeight.w500)),
+            child: Text('New party — details prefilled from the scan. Edit below or pick a match.',
+                style: TextStyle(color: Colors.orange[800], fontWeight: FontWeight.w500, fontSize: 12.5)),
           ),
+        const Text('Map to Existing Party', style: TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        Row(children: [
+          Expanded(
+            child: TextField(
+              controller: _pSearch,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                isDense: true,
+                prefixIcon: const Icon(Icons.search, size: 18),
+                hintText: 'Search party by name, GSTIN or phone…',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Switch(value: _showOnlyMatching, activeTrackColor: _brand,
+              onChanged: (v) => setState(() => _showOnlyMatching = v)),
+          const Text('Show only matching', style: TextStyle(fontSize: 12.5)),
+        ]),
+        const SizedBox(height: 10),
+        _partyResultsTable(),
+        const SizedBox(height: 16),
         AbsorbPointer(
           absorbing: !isNew && !_editParty,
           child: Opacity(
@@ -435,6 +596,70 @@ class _ScanReviewDialogState extends State<ScanReviewDialog>
             ]),
           ),
         ),
+      ]),
+    );
+  }
+
+  Widget _partyResultsTable() {
+    final results = _filteredParties;
+    if (results.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(8)),
+        child: const Text('No matching party found. Use "Create New Party" above.',
+            style: TextStyle(color: Colors.black54)),
+      );
+    }
+    return Container(
+      decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade200), borderRadius: BorderRadius.circular(8)),
+      child: Column(children: [
+        Container(
+          color: Colors.grey[50],
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          child: const Row(children: [
+            SizedBox(width: 30),
+            Expanded(flex: 3, child: Text('Party Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+            Expanded(flex: 2, child: Text('GSTIN', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+            Expanded(flex: 2, child: Text('Phone', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+            Expanded(flex: 3, child: Text('Address', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+            SizedBox(width: 70),
+          ]),
+        ),
+        ...results.take(6).map((p) {
+          final selected = _matchedParty?.name == p.name;
+          return Container(
+            color: selected ? _brand.withOpacity(0.06) : null,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            child: Row(children: [
+              SizedBox(
+                width: 30,
+                child: Radio<String>(
+                  value: p.name,
+                  groupValue: _matchedParty?.name,
+                  onChanged: (_) => setState(() => _applyParty(p)),
+                ),
+              ),
+              Expanded(flex: 3, child: Text(p.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
+              Expanded(flex: 2, child: Text(p.gstin.isEmpty ? '—' : p.gstin, style: const TextStyle(fontSize: 12))),
+              Expanded(flex: 2, child: Text(p.mobile.isEmpty ? '—' : p.mobile, style: const TextStyle(fontSize: 12))),
+              Expanded(flex: 3, child: Text(p.address.isEmpty ? '—' : p.address,
+                  overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12))),
+              SizedBox(
+                width: 70,
+                child: selected
+                    ? const Icon(Icons.check_circle, color: _brand, size: 18)
+                    : OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 6), minimumSize: const Size(0, 30)),
+                        onPressed: () => setState(() => _applyParty(p)),
+                        child: const Text('Select', style: TextStyle(fontSize: 11)),
+                      ),
+              ),
+            ]),
+          );
+        }),
       ]),
     );
   }
@@ -484,6 +709,15 @@ class _ScanReviewDialogState extends State<ScanReviewDialog>
             );
           },
         ),
+      ),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(color: Colors.grey[50], border: Border(top: BorderSide(color: Colors.grey.shade200))),
+        child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+          const Text('Total (incl. GST): ', style: TextStyle(fontWeight: FontWeight.w600)),
+          Text('₹${_totalAmount.toStringAsFixed(2)}',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: _brand)),
+        ]),
       ),
     ]);
   }

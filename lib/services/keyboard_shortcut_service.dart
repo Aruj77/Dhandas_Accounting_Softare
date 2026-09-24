@@ -166,34 +166,33 @@ class KeyboardShortcutService {
 
   // --- Universal Event-Level Matching Helpers ---
 
-  /// Alt + C: Quick add an item, party, or master ledger
+/// Ctrl + C: Quick add an item, party, or master ledger
   static bool isQuickAdd(KeyEvent event) {
     return event is KeyDownEvent &&
-        HardwareKeyboard.instance.isAltPressed &&
+        HardwareKeyboard.instance.isControlPressed &&
         event.logicalKey == LogicalKeyboardKey.keyC;
   }
 
-  /// Alt + E: Edit active master or open line-level tax details
+  /// Ctrl + E: Edit active master or open line-level tax details
   static bool isModifyOrTaxDetails(KeyEvent event) {
     return event is KeyDownEvent &&
-        HardwareKeyboard.instance.isAltPressed &&
+        HardwareKeyboard.instance.isControlPressed &&
         event.logicalKey == LogicalKeyboardKey.keyE;
   }
 
-  /// Alt + P: Navigate to previous voucher in the active session
+  /// Ctrl + B: Navigate to previous voucher in the active session
   static bool isPreviousVoucher(KeyEvent event) {
     return event is KeyDownEvent &&
-        HardwareKeyboard.instance.isAltPressed &&
-        event.logicalKey == LogicalKeyboardKey.keyP;
+        HardwareKeyboard.instance.isControlPressed &&
+        event.logicalKey == LogicalKeyboardKey.keyB;
   }
 
-  /// Alt + N: Navigate to next voucher in the active session
+  /// Ctrl + N: Navigate to next voucher in the active session
   static bool isNextVoucher(KeyEvent event) {
     return event is KeyDownEvent &&
-        HardwareKeyboard.instance.isAltPressed &&
+        HardwareKeyboard.instance.isControlPressed &&
         event.logicalKey == LogicalKeyboardKey.keyN;
   }
-
   /// Ctrl + P / Cmd + P: Print Preview Studio
   static bool isPrint(KeyEvent event) {
     if (event is! KeyDownEvent) return false;
