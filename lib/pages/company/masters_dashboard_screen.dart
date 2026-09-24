@@ -104,7 +104,7 @@ class MastersDashboardScreenState extends State<MastersDashboardScreen> {
     _MasterItem(
       type: MasterType.accountGroup,
       title: 'Account Groups',
-      subtitle: 'Ledger chart classifications',
+      subtitle: 'Ledger chart classifications with Major Heads',
       description: 'Primary, Capital, Direct & Indirect expense/income ledger hierarchies',
       icon: Icons.account_tree_rounded,
       color: AppColors.primary,
@@ -269,6 +269,10 @@ class MastersDashboardScreenState extends State<MastersDashboardScreen> {
         );
         break;
 
+      case MasterType.accountGroup:
+        await _openAddAccountGroupDialog(folderPath);
+        break;
+
       default:
         final key = _masterConfigs[type]?.storageKey;
         if (key != null) {
@@ -276,6 +280,78 @@ class MastersDashboardScreenState extends State<MastersDashboardScreen> {
         } else {
           _showToast('Standard statutory master cannot be added manually.');
         }
+    }
+  }
+
+  Future<void> _openAddAccountGroupDialog(String folderPath) async {
+    final masters = await MasterRepository.loadMasters(folderPath: folderPath);
+    final majorHeadsList = masters.majorHeads;
+
+    final nameCtrl = TextEditingController();
+    final idCtrl = TextEditingController();
+    String? selectedMajorHead = majorHeadsList.isNotEmpty ? majorHeadsList.first : '';
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          title: const Text('Add Account Group', style: TextStyle(fontWeight: FontWeight.w900)),
+          content: SizedBox(
+            width: 400,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(labelText: 'Account Group Name', hintText: 'e.g., Equipment Reserve'),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: selectedMajorHead != null && majorHeadsList.contains(selectedMajorHead) ? selectedMajorHead : null,
+                  decoration: const InputDecoration(labelText: 'Major Head'),
+                  items: majorHeadsList.map((mh) => DropdownMenuItem(value: mh, child: Text(mh, style: const TextStyle(fontSize: 13)))).toList(),
+                  onChanged: (val) {
+                    if (val != null) setDialogState(() => selectedMajorHead = val);
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: idCtrl,
+                  decoration: const InputDecoration(labelText: 'Account ID (Optional)', hintText: 'e.g., 11500'),
+                  keyboardType: TextInputType.number,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+              child: const Text('Save', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (result == true && nameCtrl.text.trim().isNotEmpty) {
+      final success = await MasterRepository.upsertAccountGroup(
+        folderPath: folderPath,
+        group: {
+          'name': nameCtrl.text.trim(),
+          'majorHead': selectedMajorHead ?? '',
+          'id': idCtrl.text.trim(),
+        },
+      );
+
+      if (success) {
+        _onMasterAdded('Account Group "${nameCtrl.text}"');
+      } else {
+        _showToast('Account Group already exists.');
+      }
     }
   }
 
@@ -571,6 +647,20 @@ class _MasterModifyDialogState extends State<MasterModifyDialog> {
         }
         break;
 
+      case MasterType.accountGroup:
+        for (final g in masters.accountGroups) {
+          final name = g['name']?.toString() ?? '';
+          final majorHead = g['majorHead']?.toString() ?? '';
+          final id = g['id']?.toString() ?? '';
+          records.add({
+            'title': name,
+            'badge': majorHead,
+            'detail': 'Account ID: ${id.isNotEmpty ? id : "-"}',
+            'raw': g,
+          });
+        }
+        break;
+
       default:
         final key = _masterConfigs[widget.item.type]?.storageKey;
         if (key != null) {
@@ -675,9 +765,81 @@ class _MasterModifyDialogState extends State<MasterModifyDialog> {
         );
         break;
 
+      case MasterType.accountGroup:
+        await _editAccountGroup(title, raw);
+        break;
+
       default:
         final key = _masterConfigs[widget.item.type]?.storageKey;
         if (key != null) await _editSimpleStringMaster(title, key);
+    }
+  }
+
+  Future<void> _editAccountGroup(String oldTitle, Map<String, dynamic> initialData) async {
+    final masters = await MasterRepository.loadMasters(folderPath: _folderPath!);
+    final majorHeadsList = masters.majorHeads;
+
+    final nameCtrl = TextEditingController(text: initialData['name'] ?? oldTitle);
+    final idCtrl = TextEditingController(text: initialData['id'] ?? '');
+    String? selectedMajorHead = initialData['majorHead']?.toString();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          title: const Text('Edit Account Group', style: TextStyle(fontWeight: FontWeight.w900)),
+          content: SizedBox(
+            width: 400,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(labelText: 'Account Group Name'),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: selectedMajorHead != null && majorHeadsList.contains(selectedMajorHead) ? selectedMajorHead : null,
+                  decoration: const InputDecoration(labelText: 'Major Head'),
+                  items: majorHeadsList.map((mh) => DropdownMenuItem(value: mh, child: Text(mh, style: const TextStyle(fontSize: 13)))).toList(),
+                  onChanged: (val) {
+                    if (val != null) setDialogState(() => selectedMajorHead = val);
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: idCtrl,
+                  decoration: const InputDecoration(labelText: 'Account ID (Optional)'),
+                  keyboardType: TextInputType.number,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+              child: const Text('Save', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (result == true && _folderPath != null) {
+      await MasterRepository.upsertAccountGroup(
+        folderPath: _folderPath!,
+        group: {
+          'name': nameCtrl.text.trim(),
+          'majorHead': selectedMajorHead ?? '',
+          'id': idCtrl.text.trim(),
+        },
+        oldName: oldTitle,
+      );
+      _onMutationSuccess('Updated Account Group "${nameCtrl.text}"');
     }
   }
 
@@ -729,6 +891,9 @@ class _MasterModifyDialogState extends State<MasterModifyDialog> {
         break;
       case MasterType.series:
         await MasterRepository.deleteSeries(folderPath: _folderPath!, seriesName: title);
+        break;
+      case MasterType.accountGroup:
+        await MasterRepository.deleteAccountGroup(folderPath: _folderPath!, groupName: title);
         break;
       default:
         final key = _masterConfigs[widget.item.type]?.storageKey;

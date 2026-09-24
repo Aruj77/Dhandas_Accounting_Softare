@@ -14,10 +14,10 @@ class StorageService {
 
   static const Map<String, dynamic> defaultCompanyMasters = {
     'debtors': [
-      {'name': 'Cash', 'gstin': '', 'group': 'Cash-in-hand'},
+      {'name': 'Cash', 'gstin': '', 'group': 'Cash and Cash Equivalents - Petty Cash Vault'},
     ],
     'creditors': [
-      {'name': 'Cash', 'gstin': '', 'group': 'Cash-in-hand'},
+      {'name': 'Cash', 'gstin': '', 'group': 'Cash and Cash Equivalents - Petty Cash Vault'},
     ],
     'items': [],
     'series': ['Main'],
@@ -49,15 +49,207 @@ class StorageService {
       'MLT', 'MTR', 'MTS', 'NOS', 'PAC', 'PCS', 'PRS', 'QTL', 'ROL', 'SET',
       'SQF', 'SQM', 'SQY', 'TBS', 'TGM', 'THD', 'TON', 'TUB', 'UGS', 'UNT', 'YDS',
     ],
+    'majorHeads': [
+      'Non-Current Assets',
+      'Current Assets',
+      'Non-Current Liabilities',
+      'Current Liabilities',
+      'Shareholders\' Funds',
+      'Revenue',
+      'Other Income',
+      'Cost of Goods Sold',
+      'Operating Expenses',
+    ],
     'accountGroups': [
-      'Sundry Debtors',
-      'Sundry Creditors',
-      'Bank Accounts',
-      'Cash-in-hand',
-      'Direct Expenses',
-      'Indirect Expenses',
-      'Sales Accounts',
-      'Purchase Accounts',
+      // ==========================================
+      // 10000 - NON-CURRENT ASSETS
+      // ==========================================
+      {'name': 'Land - Freehold', 'majorHead': 'Non-Current Assets', 'id': '11100'},
+      {'name': 'Land - Leasehold', 'majorHead': 'Non-Current Assets', 'id': '11150'},
+      {'name': 'Buildings - Office Premises', 'majorHead': 'Non-Current Assets', 'id': '11200'},
+      {'name': 'Buildings - Factory Structures', 'majorHead': 'Non-Current Assets', 'id': '11210'},
+      {'name': 'Buildings - Warehouses', 'majorHead': 'Non-Current Assets', 'id': '11220'},
+      {'name': 'Accumulated Depreciation - Buildings', 'majorHead': 'Non-Current Assets', 'id': '11250'},
+      {'name': 'Plant and Machinery - Heavy Production Equipment', 'majorHead': 'Non-Current Assets', 'id': '11300'},
+      {'name': 'Plant and Machinery - Assembly Lines', 'majorHead': 'Non-Current Assets', 'id': '11310'},
+      {'name': 'Plant and Machinery - Electrical Installations', 'majorHead': 'Non-Current Assets', 'id': '11320'},
+      {'name': 'Accumulated Depreciation - Plant and Machinery', 'majorHead': 'Non-Current Assets', 'id': '11350'},
+      {'name': 'Office Equipment - Computers & Laptops', 'majorHead': 'Non-Current Assets', 'id': '11400'},
+      {'name': 'Office Equipment - Servers & Networking Gear', 'majorHead': 'Non-Current Assets', 'id': '11410'},
+      {'name': 'Office Equipment - Printers & Copiers', 'majorHead': 'Non-Current Assets', 'id': '11420'},
+      {'name': 'Accumulated Depreciation - Office Equipment', 'majorHead': 'Non-Current Assets', 'id': '11450'},
+      {'name': 'Furniture and Fixtures - Office Desks & Chairs', 'majorHead': 'Non-Current Assets', 'id': '11500'},
+      {'name': 'Furniture and Fixtures - Retail Displays & Shelving', 'majorHead': 'Non-Current Assets', 'id': '11510'},
+      {'name': 'Accumulated Depreciation - Furniture and Fixtures', 'majorHead': 'Non-Current Assets', 'id': '11550'},
+      {'name': 'Vehicles - Executive Cars', 'majorHead': 'Non-Current Assets', 'id': '11600'},
+      {'name': 'Vehicles - Delivery Lorries & Trucks', 'majorHead': 'Non-Current Assets', 'id': '11610'},
+      {'name': 'Vehicles - Forklifts & Material Handlers', 'majorHead': 'Non-Current Assets', 'id': '11620'},
+      {'name': 'Accumulated Depreciation - Vehicles', 'majorHead': 'Non-Current Assets', 'id': '11650'},
+      {'name': 'Capital Work-in-Progress (CWIP) - Building Construction', 'majorHead': 'Non-Current Assets', 'id': '11700'},
+      {'name': 'Capital Work-in-Progress (CWIP) - Machinery Installation', 'majorHead': 'Non-Current Assets', 'id': '11710'},
+      {'name': 'Intangible Assets - Goodwill', 'majorHead': 'Non-Current Assets', 'id': '11800'},
+      {'name': 'Intangible Assets - Corporate Brand & Trademarks', 'majorHead': 'Non-Current Assets', 'id': '11810'},
+      {'name': 'Intangible Assets - Product Patents & Formulas', 'majorHead': 'Non-Current Assets', 'id': '11820'},
+      {'name': 'Intangible Assets - ERP Software Licenses', 'majorHead': 'Non-Current Assets', 'id': '11830'},
+      {'name': 'Accumulated Amortization - Intangible Assets', 'majorHead': 'Non-Current Assets', 'id': '11850'},
+      {'name': 'Intangible Assets Under Development', 'majorHead': 'Non-Current Assets', 'id': '11900'},
+      {'name': 'Long-Term Investments - Equity Shares in Subsidiaries', 'majorHead': 'Non-Current Assets', 'id': '12100'},
+      {'name': 'Long-Term Investments - Government Bonds & Securities', 'majorHead': 'Non-Current Assets', 'id': '12110'},
+      {'name': 'Long-Term Investments - Real Estate Properties', 'majorHead': 'Non-Current Assets', 'id': '12120'},
+      {'name': 'Deferred Tax Assets (Net)', 'majorHead': 'Non-Current Assets', 'id': '12200'},
+      {'name': 'Long-Term Loans and Advances - Security Deposits for Rent', 'majorHead': 'Non-Current Assets', 'id': '12300'},
+      {'name': 'Long-Term Loans and Advances - Electricity & Utility Deposits', 'majorHead': 'Non-Current Assets', 'id': '12310'},
+      {'name': 'Long-Term Loans and Advances - Capital Advances to Machinery Vendors', 'majorHead': 'Non-Current Assets', 'id': '12320'},
+      {'name': 'Other Non-Current Assets - Long-Term Trade Receivables', 'majorHead': 'Non-Current Assets', 'id': '12400'},
+      {'name': 'Other Non-Current Assets - Unamortized Preliminary Expenses', 'majorHead': 'Non-Current Assets', 'id': '12410'},
+
+      // ==========================================
+      // 13000 - CURRENT ASSETS
+      // ==========================================
+      {'name': 'Current Investments - Liquid Mutual Funds', 'majorHead': 'Current Assets', 'id': '13100'},
+      {'name': 'Current Investments - Short-Term Treasury Bills', 'majorHead': 'Current Assets', 'id': '13110'},
+      {'name': 'Inventory - Raw Materials', 'majorHead': 'Current Assets', 'id': '13200'},
+      {'name': 'Inventory - Work-in-Progress (WIP)', 'majorHead': 'Current Assets', 'id': '13210'},
+      {'name': 'Inventory - Finished Goods', 'majorHead': 'Current Assets', 'id': '13220'},
+      {'name': 'Inventory - Stores, Spares & Loose Tools', 'majorHead': 'Current Assets', 'id': '13230'},
+      {'name': 'Inventory - Goods-in-Transit', 'majorHead': 'Current Assets', 'id': '13240'},
+      {'name': 'Sundry Debtors', 'majorHead': 'Current Assets', 'id': '13300'},
+      {'name': 'Trade Receivables - Export Customers', 'majorHead': 'Current Assets', 'id': '13310'},
+      {'name': 'Provision for Bad & Doubtful Debts', 'majorHead': 'Current Assets', 'id': '13350'},
+      {'name': 'Cash and Cash Equivalents - Petty Cash Vault', 'majorHead': 'Current Assets', 'id': '13400'},
+      {'name': 'Cash and Cash Equivalents - Bank Current Account (Local)', 'majorHead': 'Current Assets', 'id': '13410'},
+      {'name': 'Cash and Cash Equivalents - Bank Current Account (Foreign Currency)', 'majorHead': 'Current Assets', 'id': '13420'},
+      {'name': 'Cash and Cash Equivalents - Fixed Deposits (Maturity < 3 months)', 'majorHead': 'Current Assets', 'id': '13430'},
+      {'name': 'Short-Term Loans and Advances - Employee Salary Loans', 'majorHead': 'Current Assets', 'id': '13500'},
+      {'name': 'Short-Term Loans and Advances - Supplier Advances', 'majorHead': 'Current Assets', 'id': '13510'},
+      {'name': 'Short-Term Loans and Advances - Prepaid Insurance Premiums', 'majorHead': 'Current Assets', 'id': '13520'},
+      {'name': 'Short-Term Loans and Advances - Prepaid Rent', 'majorHead': 'Current Assets', 'id': '13530'},
+      {'name': 'Short-Term Loans and Advances - Prepaid Software Subscriptions', 'majorHead': 'Current Assets', 'id': '13540'},
+      {'name': 'Other Current Assets - Interest Accrued on Bank Deposits', 'majorHead': 'Current Assets', 'id': '13600'},
+      {'name': 'Other Current Assets - GST Input Tax Credit (ITC) Balance', 'majorHead': 'Current Assets', 'id': '13610'},
+      {'name': 'Other Current Assets - Customs Duty Drawback Receivable', 'majorHead': 'Current Assets', 'id': '13620'},
+
+      // ==========================================
+      // 21000 - NON-CURRENT LIABILITIES
+      // ==========================================
+      {'name': 'Long-Term Borrowings - Secured Bank Term Loans', 'majorHead': 'Non-Current Liabilities', 'id': '21100'},
+      {'name': 'Long-Term Borrowings - Non-Convertible Debentures (NCDs)', 'majorHead': 'Non-Current Liabilities', 'id': '21110'},
+      {'name': 'Long-Term Borrowings - Unsecured Infrastructure Bonds', 'majorHead': 'Non-Current Liabilities', 'id': '21120'},
+      {'name': 'Long-Term Borrowings - Long-Term Loans from Promoters', 'majorHead': 'Non-Current Liabilities', 'id': '21130'},
+      {'name': 'Deferred Tax Liabilities (Net)', 'majorHead': 'Non-Current Liabilities', 'id': '21200'},
+      {'name': 'Other Long-Term Liabilities - Premium on Redemption of Debentures', 'majorHead': 'Non-Current Liabilities', 'id': '21300'},
+      {'name': 'Other Long-Term Liabilities - Long-Term Lease Obligations (IFRS 16)', 'majorHead': 'Non-Current Liabilities', 'id': '21310'},
+      {'name': 'Other Long-Term Liabilities - Long-Term Trade Payables', 'majorHead': 'Non-Current Liabilities', 'id': '21320'},
+      {'name': 'Long-Term Provisions - Provision for Employee Gratuity', 'majorHead': 'Non-Current Liabilities', 'id': '21400'},
+      {'name': 'Long-Term Provisions - Provision for Employee Pension Fund', 'majorHead': 'Non-Current Liabilities', 'id': '21410'},
+      {'name': 'Long-Term Provisions - Provision for Asset Decommissioning Costs', 'majorHead': 'Non-Current Liabilities', 'id': '21420'},
+
+      // ==========================================
+      // 22000 - CURRENT LIABILITIES
+      // ==========================================
+      {'name': 'Short-Term Borrowings - Bank Cash Credit facility', 'majorHead': 'Current Liabilities', 'id': '22100'},
+      {'name': 'Short-Term Borrowings - Bank Overdraft Account', 'majorHead': 'Current Liabilities', 'id': '22110'},
+      {'name': 'Short-Term Borrowings - Commercial Papers (CPs) Issued', 'majorHead': 'Current Liabilities', 'id': '22120'},
+      {'name': 'Short-Term Borrowings - Working Capital Demand Loans', 'majorHead': 'Current Liabilities', 'id': '22130'},
+      {'name': 'Sundry Creditors', 'majorHead': 'Current Liabilities', 'id': '22200'},
+      {'name': 'Trade Payables - Other Domestic Suppliers', 'majorHead': 'Current Liabilities', 'id': '22210'},
+      {'name': 'Trade Payables - Foreign Vendors / Overseas Suppliers', 'majorHead': 'Current Liabilities', 'id': '22220'},
+      {'name': 'Trade Payables - Bills Payable', 'majorHead': 'Current Liabilities', 'id': '22230'},
+      {'name': 'Other Current Liabilities - Current Maturities of Long-Term Debt', 'majorHead': 'Current Liabilities', 'id': '22300'},
+      {'name': 'Other Current Liabilities - Interest Accrued but Not Due on Loans', 'majorHead': 'Current Liabilities', 'id': '22310'},
+      {'name': 'Other Current Liabilities - Interest Accrued and Due on Loans', 'majorHead': 'Current Liabilities', 'id': '22320'},
+      {'name': 'Other Current Liabilities - Income Received in Advance (Unearned Revenue)', 'majorHead': 'Current Liabilities', 'id': '22330'},
+      {'name': 'Other Current Liabilities - Unpaid & Unclaimed Dividends', 'majorHead': 'Current Liabilities', 'id': '22340'},
+      {'name': 'Other Current Liabilities - Statutory Dues: GST Output Payable', 'majorHead': 'Current Liabilities', 'id': '22350'},
+      {'name': 'Other Current Liabilities - Statutory Dues: TDS Deducted Payable', 'majorHead': 'Current Liabilities', 'id': '22360'},
+      {'name': 'Other Current Liabilities - Statutory Dues: PF & ESI Payable', 'majorHead': 'Current Liabilities', 'id': '22370'},
+      {'name': 'Other Current Liabilities - Accrued Office Rent Expense', 'majorHead': 'Current Liabilities', 'id': '22380'},
+      {'name': 'Other Current Liabilities - Accrued Employee Salaries & Bonus', 'majorHead': 'Current Liabilities', 'id': '22390'},
+      {'name': 'Short-Term Provisions - Provision for Corporate Income Tax', 'majorHead': 'Current Liabilities', 'id': '22400'},
+      {'name': 'Short-Term Provisions - Proposed Dividend to Shareholders', 'majorHead': 'Current Liabilities', 'id': '22410'},
+      {'name': 'Short-Term Provisions - Provision for Product Warranties', 'majorHead': 'Current Liabilities', 'id': '22420'},
+      {'name': 'Short-Term Provisions - Provision for Compensated Leave Absences', 'majorHead': 'Current Liabilities', 'id': '22430'},
+
+      // ==========================================
+      // 30000 - EQUITY / CAPITAL
+      // ==========================================
+      {'name': 'Share Capital - Authorised Equity Share Capital', 'majorHead': 'Shareholders\' Funds', 'id': '31100'},
+      {'name': 'Share Capital - Subscribed and Fully Paid Equity Capital', 'majorHead': 'Shareholders\' Funds', 'id': '31110'},
+      {'name': 'Share Capital - Preference Share Capital', 'majorHead': 'Shareholders\' Funds', 'id': '31120'},
+      {'name': 'Share Capital - Share Forfeiture Account', 'majorHead': 'Shareholders\' Funds', 'id': '31130'},
+      {'name': 'Reserves and Surplus - Capital Reserve Account', 'majorHead': 'Shareholders\' Funds', 'id': '32100'},
+      {'name': 'Reserves and Surplus - Capital Redemption Reserve (CRR)', 'majorHead': 'Shareholders\' Funds', 'id': '32110'},
+      {'name': 'Reserves and Surplus - Securities Premium Account', 'majorHead': 'Shareholders\' Funds', 'id': '32120'},
+      {'name': 'Reserves and Surplus - General Reserve Account', 'majorHead': 'Shareholders\' Funds', 'id': '32130'},
+      {'name': 'Reserves and Surplus - Revaluation Reserve', 'majorHead': 'Shareholders\' Funds', 'id': '32140'},
+      {'name': 'Reserves and Surplus - Foreign Currency Translation Reserve', 'majorHead': 'Shareholders\' Funds', 'id': '32150'},
+      {'name': 'Reserves and Surplus - Profit & Loss Account Balance (Surplus)', 'majorHead': 'Shareholders\' Funds', 'id': '32160'},
+      {'name': 'Share Application Money Pending Allotment', 'majorHead': 'Shareholders\' Funds', 'id': '33100'},
+
+      // ==========================================
+      // 40000 - INCOME / REVENUE
+      // ==========================================
+      {'name': 'Operating Revenue - Domestic Product Sales', 'majorHead': 'Revenue', 'id': '41100'},
+      {'name': 'Operating Revenue - Export Product Sales', 'majorHead': 'Revenue', 'id': '41110'},
+      {'name': 'Operating Revenue - Technical Services Rendered', 'majorHead': 'Revenue', 'id': '41120'},
+      {'name': 'Operating Revenue - SaaS Subscription Revenues', 'majorHead': 'Revenue', 'id': '41130'},
+      {'name': 'Operating Revenue - Less: Sales Returns and Rebates', 'majorHead': 'Revenue', 'id': '41190'},
+      {'name': 'Other Income - Interest Income on Bank Deposits', 'majorHead': 'Other Income', 'id': '42100'},
+      {'name': 'Other Income - Dividend Income from Long-Term Stocks', 'majorHead': 'Other Income', 'id': '42110'},
+      {'name': 'Other Income - Net Realized Foreign Exchange Gains', 'majorHead': 'Other Income', 'id': '42120'},
+      {'name': 'Other Income - Net Gain on Disposal of Property, Plant & Equipment', 'majorHead': 'Other Income', 'id': '42130'},
+      {'name': 'Other Income - Scrap and Waste Material Sales', 'majorHead': 'Other Income', 'id': '42140'},
+      {'name': 'Other Income - Insurance Claim Settlements Received', 'majorHead': 'Other Income', 'id': '42150'},
+
+      // ==========================================
+      // 50000 - COGS / DIRECT COSTS
+      // ==========================================
+      {'name': 'Direct Production Costs - Raw Material Purchases', 'majorHead': 'Cost of Goods Sold', 'id': '51100'},
+      {'name': 'Direct Production Costs - Import Freight and Inward Logistics', 'majorHead': 'Cost of Goods Sold', 'id': '51110'},
+      {'name': 'Direct Production Costs - Customs Duties & Clearing Charges', 'majorHead': 'Cost of Goods Sold', 'id': '51120'},
+      {'name': 'Direct Production Costs - Factory Workers Direct Wages', 'majorHead': 'Cost of Goods Sold', 'id': '51200'},
+      {'name': 'Direct Production Costs - Sub-Contracting & Job Work Outsource Fees', 'majorHead': 'Cost of Goods Sold', 'id': '51210'},
+      {'name': 'Direct Production Costs - Factory Electricity Power & Water Utilities', 'majorHead': 'Cost of Goods Sold', 'id': '51300'},
+      {'name': 'Direct Production Costs - Fuel, Gas, and Boiler Consumables', 'majorHead': 'Cost of Goods Sold', 'id': '51310'},
+      {'name': 'Direct Production Costs - Factory Stores, Spares & Consumable Tools', 'majorHead': 'Cost of Goods Sold', 'id': '51400'},
+      {'name': 'Direct Production Costs - Repair & Maintenance of Plant Machinery', 'majorHead': 'Cost of Goods Sold', 'id': '51410'},
+
+      // ==========================================
+      // 60000 - OPERATING EXPENSES (OPEX)
+      // ==========================================
+      {'name': 'Employee Benefit Expenses - Administrative Staff Salaries', 'majorHead': 'Operating Expenses', 'id': '61100'},
+      {'name': 'Employee Benefit Expenses - Management Remuneration & Bonuses', 'majorHead': 'Operating Expenses', 'id': '61110'},
+      {'name': 'Employee Benefit Expenses - Employer Contribution to Provident Fund (PF)', 'majorHead': 'Operating Expenses', 'id': '61120'},
+      {'name': 'Employee Benefit Expenses - Corporate Group Medical Insurance', 'majorHead': 'Operating Expenses', 'id': '61130'},
+      {'name': 'Employee Benefit Expenses - Staff Welfare, Catering & Office Pantry', 'majorHead': 'Operating Expenses', 'id': '61140'},
+      {'name': 'Employee Benefit Expenses - Recruitment, Headhunting & Interview Costs', 'majorHead': 'Operating Expenses', 'id': '61150'},
+      {'name': 'Employee Benefit Expenses - Workforce Training & Skill Upgrade Courses', 'majorHead': 'Operating Expenses', 'id': '61160'},
+      {'name': 'Administrative Expenses - Head Office Building Rental', 'majorHead': 'Operating Expenses', 'id': '62100'},
+      {'name': 'Administrative Expenses - Office Power, Water & Housekeeping', 'majorHead': 'Operating Expenses', 'id': '62110'},
+      {'name': 'Administrative Expenses - Office Stationery, Printing & Courier', 'majorHead': 'Operating Expenses', 'id': '62120'},
+      {'name': 'Administrative Expenses - Broadband, Leased Lines & Mobile Connections', 'majorHead': 'Operating Expenses', 'id': '62130'},
+      {'name': 'Administrative Expenses - Software Subscriptions & IT Cloud Infrastructure', 'majorHead': 'Operating Expenses', 'id': '62140'},
+      {'name': 'Administrative Expenses - Legal Fees, Court Costs & Litigation Expenses', 'majorHead': 'Operating Expenses', 'id': '62200'},
+      {'name': 'Administrative Expenses - Company Secretarial & Filing Fees', 'majorHead': 'Operating Expenses', 'id': '62210'},
+      {'name': 'Administrative Expenses - Statutory, Tax, and Internal Audit Fees', 'majorHead': 'Operating Expenses', 'id': '62220'},
+      {'name': 'Administrative Expenses - Repair & Maintenance of Corporate Office Buildings', 'majorHead': 'Operating Expenses', 'id': '62300'},
+      {'name': 'Administrative Expenses - IT Hardware & Software AMC / Support Fees', 'majorHead': 'Operating Expenses', 'id': '62310'},
+      {'name': 'Administrative Expenses - Commercial Property and Liability Insurance', 'majorHead': 'Operating Expenses', 'id': '62400'},
+      {'name': 'Administrative Expenses - Bank Processing Charges & Transaction Fees', 'majorHead': 'Operating Expenses', 'id': '62500'},
+      {'name': 'Administrative Expenses - Credit Card Processing Commissions', 'majorHead': 'Operating Expenses', 'id': '62510'},
+      {'name': 'Selling & Distribution Expenses - Advertisement and Media Placements', 'majorHead': 'Operating Expenses', 'id': '63100'},
+      {'name': 'Selling & Distribution Expenses - Digital Marketing, SEO & Performance Ads', 'majorHead': 'Operating Expenses', 'id': '63110'},
+      {'name': 'Selling & Distribution Expenses - Exhibition Stalls and Trade Fair Costs', 'majorHead': 'Operating Expenses', 'id': '63120'},
+      {'name': 'Selling & Distribution Expenses - Sales Force Field Incentives and Commissions', 'majorHead': 'Operating Expenses', 'id': '63200'},
+      {'name': 'Selling & Distribution Expenses - Outward Freight, Shipping & Warehouse Dispatch', 'majorHead': 'Operating Expenses', 'id': '63300'},
+      {'name': 'Selling & Distribution Expenses - Sales Team Travel, Lodging & Conveyance', 'majorHead': 'Operating Expenses', 'id': '63400'},
+      {'name': 'Selling & Distribution Expenses - Client Entertainment, Gifting & Customer Relations', 'majorHead': 'Operating Expenses', 'id': '63500'},
+      {'name': 'Selling & Distribution Expenses - Customer Bad Debts Written Off', 'majorHead': 'Operating Expenses', 'id': '63600'},
+      {'name': 'Non-Cash Expenses - Depreciation on Tangible Fixed Assets', 'majorHead': 'Operating Expenses', 'id': '64100'},
+      {'name': 'Non-Cash Expenses - Amortization on Intangible Assets', 'majorHead': 'Operating Expenses', 'id': '64200'},
+      {'name': 'Financial Expenses - Interest Paid on Secured Bank Term Loans', 'majorHead': 'Operating Expenses', 'id': '64300'},
+      {'name': 'Financial Expenses - Interest Paid on Working Capital Bank Overdrafts', 'majorHead': 'Operating Expenses', 'id': '64310'},
+      {'name': 'Financial Expenses - Coupon Payouts on Corporate Bonds & Debentures', 'majorHead': 'Operating Expenses', 'id': '64320'},
     ],
     'materialCenters': [
       'Main Store',
@@ -171,7 +363,6 @@ class StorageService {
     final folderPath = companyData['folderPath']?.toString();
     if (folderPath != null) {
       _mastersMemoryCache.remove(folderPath);
-      // Close open SQLite database handles to avoid Windows file locks (OS Error 32)
       await DatabaseManager.instance.disposeCompany(folderPath);
 
       final dir = Directory(folderPath);
@@ -221,7 +412,6 @@ class StorageService {
     debugPrint('StorageService: Successfully saved masters to ${file.path}');
   }
 
-  /// Maps generic voucher JSON payload to a type-safe Drift Companion record.
   static VouchersTableCompanion _mapVoucherToCompanion(
     Map<String, dynamic> vch, {
     required String defaultVchType,

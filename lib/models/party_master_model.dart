@@ -8,6 +8,10 @@ class PartyMasterModel {
   final String address;
   final String aadhaar;
   final String mobile;
+  final String email;
+  final String contactPerson;
+  final String accountNumber;
+  final String ifsc;
 
   String get displayName => name;
   
@@ -21,6 +25,10 @@ class PartyMasterModel {
     this.address = '',
     this.aadhaar = '',
     this.mobile = '',
+    this.email = '',
+    this.contactPerson = '',
+    this.accountNumber = '',
+    this.ifsc = '',
   });
 
   factory PartyMasterModel.fromJson(Map<String, dynamic> json) {
@@ -34,6 +42,10 @@ class PartyMasterModel {
       address: json['address'] as String? ?? '',
       aadhaar: json['aadhaar'] as String? ?? '',
       mobile: json['mobile'] as String? ?? '',
+      email: json['email'] as String? ?? '',
+      contactPerson: json['contactPerson'] as String? ?? '',
+      accountNumber: json['accountNumber'] as String? ?? '',
+      ifsc: json['ifsc'] as String? ?? '',
     );
   }
 
@@ -48,6 +60,10 @@ class PartyMasterModel {
       'address': address,
       'aadhaar': aadhaar,
       'mobile': mobile,
+      'email': email,
+      'contactPerson': contactPerson,
+      'accountNumber': accountNumber,
+      'ifsc': ifsc,
     };
   }
 
@@ -61,6 +77,10 @@ class PartyMasterModel {
     String? address,
     String? aadhaar,
     String? mobile,
+    String? email,
+    String? contactPerson,
+    String? accountNumber,
+    String? ifsc,
   }) {
     return PartyMasterModel(
       name: name ?? this.name,
@@ -72,6 +92,10 @@ class PartyMasterModel {
       address: address ?? this.address,
       aadhaar: aadhaar ?? this.aadhaar,
       mobile: mobile ?? this.mobile,
+      email: email ?? this.email,
+      contactPerson: contactPerson ?? this.contactPerson,
+      accountNumber: accountNumber ?? this.accountNumber,
+      ifsc: ifsc ?? this.ifsc,
     );
   }
 }

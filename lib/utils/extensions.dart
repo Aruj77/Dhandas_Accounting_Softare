@@ -1,5 +1,6 @@
-// desktop/lib/utils/extensions.dart
+// lib/utils/extensions.dart
 import 'package:intl/intl.dart';
+import 'math_expression_evaluator.dart';
 
 final NumberFormat _inrCurrencyFormat = NumberFormat.currency(
   locale: 'en_IN',
@@ -25,9 +26,24 @@ int parseInt(dynamic value, [int fallback = 0]) {
 extension NumericParseExt on Object? {
   double toCleanDouble([double fallback = 0.0]) => parseDouble(this, fallback);
   int toCleanInt([int fallback = 0]) => parseInt(this, fallback);
+  
+  double evalMath([double fallback = 0.0]) {
+    if (this == null) return fallback;
+    final str = toString().trim();
+    if (str.isEmpty) return fallback;
+    return MathExpressionEvaluator.tryEvaluate(str) ?? fallback;
+  }
 }
 
 extension CurrencyFormatExt on Object? {
+  /// Formats numbers into standard 2-decimal string format (e.g. "1500.00")
+  String toCurrency() {
+    if (this is num) return (this as num).toStringAsFixed(2);
+    final parsed = double.tryParse(toString().replaceAll(',', '').trim()) ?? 0.0;
+    return parsed.toStringAsFixed(2);
+  }
+
+  /// Formats numbers into Indian Rupee currency string (e.g. "₹1,500.00")
   String toINR() {
     if (this == null) return '₹0.00';
     if (this is num) {

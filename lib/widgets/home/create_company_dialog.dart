@@ -30,26 +30,7 @@ class _CreateCompanyDialogState extends ConsumerState<CreateCompanyDialog> {
   bool _isSaving = false;
   String? _gstError;
 
-  static const List<String> _countries = [
-    'Afghanistan', 'Albania', 'Algeria', 'Andorra', 'Angola', 'Argentina',
-    'Armenia', 'Australia', 'Austria', 'Azerbaijan', 'Bahrain', 'Bangladesh',
-    'Belarus', 'Belgium', 'Bhutan', 'Bolivia', 'Brazil', 'Bulgaria', 'Cambodia',
-    'Cameroon', 'Canada', 'Chile', 'China', 'Colombia', 'Croatia', 'Cuba',
-    'Cyprus', 'Czech Republic', 'Denmark', 'Egypt', 'Estonia', 'Ethiopia',
-    'Finland', 'France', 'Georgia', 'Germany', 'Ghana', 'Greece', 'Hungary',
-    'Iceland', 'India', 'Indonesia', 'Iran', 'Iraq', 'Ireland', 'Israel',
-    'Italy', 'Japan', 'Jordan', 'Kazakhstan', 'Kenya', 'Kuwait', 'Laos',
-    'Latvia', 'Lebanon', 'Luxembourg', 'Malaysia', 'Maldives', 'Mauritius',
-    'Mexico', 'Monaco', 'Morocco', 'Myanmar', 'Nepal', 'Netherlands',
-    'New Zealand', 'Nigeria', 'Norway', 'Oman', 'Pakistan', 'Panama', 'Peru',
-    'Philippines', 'Poland', 'Portugal', 'Qatar', 'Romania', 'Russia',
-    'Saudi Arabia', 'Serbia', 'Singapore', 'Slovakia', 'Slovenia',
-    'South Africa', 'South Korea', 'Spain', 'Sri Lanka', 'Sweden',
-    'Switzerland', 'Taiwan', 'Thailand', 'Turkey', 'Uganda', 'Ukraine',
-    'United Arab Emirates', 'United Kingdom', 'United States', 'Uruguay',
-    'Uzbekistan', 'Vatican City', 'Venezuela', 'Vietnam', 'Yemen', 'Zimbabwe'
-  ];
-
+  List<String> get _countries => GstConstants.allSortedCountries;
   List<String> get _allStates => GstConstants.allSortedStateNames;
 
   Future<void> _validateAndFetchGstin() async {

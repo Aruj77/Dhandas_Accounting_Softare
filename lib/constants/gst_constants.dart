@@ -59,4 +59,57 @@ class GstConstants {
 
   static String? getStateCodeByName(String stateName) =>
       stateNameToCode[stateName.trim().toLowerCase()];
+
+  static const List<String> countries = [
+    'India',
+    'Afghanistan',
+    'Albania',
+    'Algeria',
+    'Andorra',
+    'Angola',
+    'Argentina',
+    'Australia',
+    'Austria',
+    'Bahrain',
+    'Bangladesh',
+    'Belgium',
+    'Bhutan',
+    'Brazil',
+    'Canada',
+    'China',
+    'Denmark',
+    'Egypt',
+    'France',
+    'Germany',
+    'Italy',
+    'Japan',
+    'Malaysia',
+    'Nepal',
+    'Netherlands',
+    'New Zealand',
+    'Oman',
+    'Pakistan',
+    'Qatar',
+    'Russia',
+    'Saudi Arabia',
+    'Singapore',
+    'South Africa',
+    'South Korea',
+    'Spain',
+    'Sri Lanka',
+    'Sweden',
+    'Switzerland',
+    'Thailand',
+    'United Arab Emirates',
+    'United Kingdom',
+    'United States',
+    'Vietnam',
+  ];
+
+  static List<String> get allSortedCountries =>
+      List<String>.from(countries)..sort((a, b) {
+        if (a == 'India') return -1;
+        if (b == 'India') return 1;
+        return a.compareTo(b);
+      });
 }

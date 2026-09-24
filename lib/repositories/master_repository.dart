@@ -15,7 +15,8 @@ class CompanyMasters {
   final List<String> materialCenters;
   final List<String> units;
   final List<String> taxCategories;
-  final List<String> accountGroups;
+  final List<Map<String, dynamic>> accountGroups;
+  final List<String> majorHeads;
 
   const CompanyMasters({
     this.debtors = const [],
@@ -29,6 +30,7 @@ class CompanyMasters {
     this.units = const [],
     this.taxCategories = const [],
     this.accountGroups = const [],
+    this.majorHeads = const [],
   });
 
   factory CompanyMasters.fromJson(Map<String, dynamic> raw) {
@@ -62,6 +64,18 @@ class CompanyMasters {
           .toList();
     }
 
+    List<Map<String, dynamic>> parseAccountGroups(dynamic rawGroups) {
+      if (rawGroups is List) {
+        return rawGroups.map((e) {
+          if (e is Map) {
+            return Map<String, dynamic>.from(e);
+          }
+          return {'name': e.toString().trim(), 'majorHead': '', 'id': ''};
+        }).toList();
+      }
+      return [];
+    }
+
     final seriesList = extractStringList('series');
     if (!seriesList.contains('Main')) {
       seriesList.insert(0, 'Main');
@@ -87,7 +101,8 @@ class CompanyMasters {
       materialCenters: extractStringList('materialCenters'),
       units: extractStringList('units'),
       taxCategories: extractStringList('taxCategories'),
-      accountGroups: extractStringList('accountGroups'),
+      accountGroups: parseAccountGroups(raw['accountGroups']),
+      majorHeads: extractStringList('majorHeads'),
     );
   }
 
@@ -115,6 +130,7 @@ class CompanyMasters {
       'units': units,
       'taxCategories': taxCategories,
       'accountGroups': accountGroups,
+      'majorHeads': majorHeads,
     };
   }
 
@@ -122,8 +138,6 @@ class CompanyMasters {
     switch (key) {
       case 'materialCenters':
         return materialCenters;
-      case 'accountGroups':
-        return accountGroups;
       case 'billSundries':
         return billSundries;
       case 'units':
@@ -132,6 +146,8 @@ class CompanyMasters {
         return saleTypes;
       case 'taxCategories':
         return taxCategories;
+      case 'majorHeads':
+        return majorHeads;
       default:
         return const [];
     }
@@ -179,7 +195,8 @@ class MasterRepository {
     remove('debtors');
     remove('creditors');
 
-    final isCreditor = party.group.trim().toLowerCase().contains('creditor');
+    final isCreditor = party.group.trim().toLowerCase().contains('creditor') ||
+        party.group.trim().toLowerCase().contains('supplier');
     final listKey = isCreditor ? 'creditors' : 'debtors';
     final targetList = List<Map<String, dynamic>>.from(
       (raw[listKey] as List? ?? []).map((e) => Map<String, dynamic>.from(e as Map)),
@@ -323,7 +340,54 @@ class MasterRepository {
     return true;
   }
 
-  /// Adds a simple master item (material centers, account groups, bill sundries, etc.).
+  /// Adds or updates a structured account group mapped to a major head.
+  static Future<bool> upsertAccountGroup({
+    required String folderPath,
+    required Map<String, dynamic> group,
+    String? oldName,
+  }) async {
+    final raw = await StorageService.loadCompanyMasters(folderPath: folderPath);
+    final groups = (raw['accountGroups'] as List? ?? []).map((g) {
+      if (g is Map) return Map<String, dynamic>.from(g);
+      return {'name': g.toString(), 'majorHead': '', 'id': ''};
+    }).toList();
+
+    final targetName = (oldName ?? group['name']).toString().trim().toLowerCase();
+
+    if (oldName == null && groups.any((g) => g['name'].toString().toLowerCase() == targetName)) {
+      return false;
+    }
+
+    final index = groups.indexWhere((g) => g['name'].toString().toLowerCase() == targetName);
+    if (index != -1) {
+      groups[index] = group;
+    } else {
+      groups.add(group);
+    }
+
+    raw['accountGroups'] = groups;
+    await StorageService.saveCompanyMasters(folderPath: folderPath, mastersData: raw);
+    return true;
+  }
+
+  /// Deletes an account group by name.
+  static Future<void> deleteAccountGroup({
+    required String folderPath,
+    required String groupName,
+  }) async {
+    final raw = await StorageService.loadCompanyMasters(folderPath: folderPath);
+    final groups = (raw['accountGroups'] as List? ?? []).map((g) {
+      if (g is Map) return Map<String, dynamic>.from(g);
+      return {'name': g.toString(), 'majorHead': '', 'id': ''};
+    }).toList();
+
+    groups.removeWhere((g) => g['name'].toString().toLowerCase() == groupName.trim().toLowerCase());
+    raw['accountGroups'] = groups;
+
+    await StorageService.saveCompanyMasters(folderPath: folderPath, mastersData: raw);
+  }
+
+  /// Adds a simple master item (material centers, bill sundries, etc.).
   static Future<bool> addSimpleMaster({
     required String folderPath,
     required String key,

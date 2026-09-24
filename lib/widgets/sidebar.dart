@@ -38,7 +38,6 @@ class SideBarState extends State<SideBar> {
         _MenuItem(icon: Icons.inventory_2_outlined, title: 'Inventory & Stock'),
         _MenuItem(icon: Icons.bar_chart_rounded, title: 'Reports & GST'),
         _MenuItem(icon: Icons.rule_folder_rounded, title: 'GSTR-2B Audit'),
-        _MenuItem(icon: Icons.admin_panel_settings_outlined, title: 'Administration'),
       ];
     }
     return const [

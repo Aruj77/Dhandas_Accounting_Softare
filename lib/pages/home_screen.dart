@@ -1,3 +1,4 @@
+// lib/pages/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,7 +22,6 @@ import '../widgets/home/recent_companies_panel.dart';
 import '../widgets/set_directory_dialog.dart';
 import '../widgets/sidebar.dart';
 import '../widgets/top_bar.dart';
-import 'company/administration_screen.dart';
 import 'company/gstr2b_reconciliation_screen.dart';
 import 'company/masters_dashboard_screen.dart';
 import 'company/reports_dashboard_screen.dart';
@@ -160,7 +160,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       },
     ).then((selectedCompany) {
       if (selectedCompany != null && mounted) {
-        final companyModel = selectedCompany is CompanyModel
+        final CompanyModel companyModel = selectedCompany is CompanyModel
             ? selectedCompany
             : CompanyModel.fromJson(selectedCompany as Map<String, dynamic>);
 
@@ -171,7 +171,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           _activeListQuery = null;
         });
 
-        ref.read(activeCompanyProvider.notifier).state = companyModel;
+        _syncCompanyToProvider(companyModel);
 
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _sidebarKey.currentState?.focusActiveItem();
@@ -184,6 +184,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         );
       }
     });
+  }
+
+  void _syncCompanyToProvider(CompanyModel company) {
+    try {
+      ref.read(activeCompanyProvider.notifier).state = company as dynamic;
+    } catch (_) {
+      ref.read(activeCompanyProvider.notifier).state = company.toJson() as dynamic;
+    }
   }
 
   void _showCreateCompanyModal() {
@@ -432,12 +440,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             Expanded(child: content),
             if (_activeCompany != null)
               CompanyWorkspaceFooter(
-                company: activeCompanyMap!,
-                onChangeFy: () => setState(() {
-                  _activeVoucherType = null;
-                  _activeListQuery = null;
-                  _selectedIndex = 5;
-                }),
+                company: _activeCompany!,
+                onCompanyUpdated: (dynamic updated) {
+                  final CompanyModel updatedModel = updated is CompanyModel
+                      ? updated
+                      : CompanyModel.fromJson(updated as Map<String, dynamic>);
+                  setState(() => _activeCompany = updatedModel);
+                  _syncCompanyToProvider(updatedModel);
+                },
               ),
           ],
         ),
@@ -479,16 +489,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           title: 'Inventory & Items',
           subtitle: 'Stock items, HSN codes, batches, and unit measurements.',
         ),
-        ReportsDashboardScreen(company: _activeCompany!),
+        ReportsDashboardScreen(company: activeCompanyMap),
         const Gstr2bReconciliationScreen(),
-        AdministrationScreen(
-          company: activeCompanyMap,
-          onCompanyUpdated: (updated) {
-            final updatedModel = CompanyModel.fromJson(updated);
-            setState(() => _activeCompany = updatedModel);
-            ref.read(activeCompanyProvider.notifier).state = updatedModel;
-          },
-        ),
       ],
     );
   }

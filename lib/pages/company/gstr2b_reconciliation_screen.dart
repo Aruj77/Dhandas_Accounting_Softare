@@ -325,18 +325,11 @@ class _Gstr2bReconciliationScreenState
                                     children: [
                                       Text(
                                         'Portal: ${portalVal.toINR()}',
-                                        style: const TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
-                                        ),
+                                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
                                       ),
                                       Text(
                                         'Books: ${localVal.toINR()}',
-                                        style: const TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
-                                          color: AppColors.textSecondary,
-                                        ),
+                                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textSecondary),
                                       ),
                                     ],
                                   ),
