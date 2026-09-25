@@ -37,18 +37,16 @@ class VoucherListScreen extends ConsumerStatefulWidget {
   final bool initialManageMode;
   final VoidCallback onClose;
 
-  VoucherListScreen({
+  const VoucherListScreen({
     super.key,
-    required dynamic company,
+    required this.company,
     required this.voucherType,
     this.fromDate,
     this.toDate,
     this.initialSeries = 'All',
     this.initialManageMode = false,
     required this.onClose,
-  }) : company = company is CompanyModel
-            ? company
-            : CompanyModel.fromJson(company as Map<String, dynamic>);
+  });
 
   @override
   ConsumerState<VoucherListScreen> createState() => _VoucherListScreenState();
@@ -522,9 +520,9 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => VoucherEntryScreen(
-          company: widget.company.toJson(),
+          company: widget.company,
           voucherType: widget.voucherType,
-          voucherToEdit: voucher.toJson(),
+          voucherToEdit: voucher,
           isEdit: true,
           keyboardSettings: KeyboardShortcutSettings.defaults(),
           onClose: () => Navigator.of(context).pop(),

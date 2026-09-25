@@ -2,9 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../constants/app_colors.dart';
 import '../models/company_model.dart';
+import '../constants/app_colors.dart';
 import '../provider/company_provider.dart';
 import '../services/focus_policy_service.dart';
 import '../services/keyboard_shortcut_service.dart';
@@ -382,18 +381,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     Widget content;
-    final activeCompanyMap = _activeCompany?.toJson();
+    _activeCompany?.toJson();
 
     if (_activeVoucherType != null) {
       content = VoucherEntryScreen(
-        company: activeCompanyMap!,
+        company: _activeCompany!, // Pass CompanyModel directly
         voucherType: _activeVoucherType!,
         onClose: () => setState(() => _activeVoucherType = null),
         keyboardSettings: _keyboardSettings,
       );
     } else if (_activeListQuery != null) {
       content = VoucherListScreen(
-        company: activeCompanyMap!,
+        company: _activeCompany!, // Pass CompanyModel directly
         voucherType: _activeListQuery!.voucherType,
         fromDate: _activeListQuery!.fromDate,
         toDate: _activeListQuery!.toDate,
@@ -407,7 +406,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           SideBar(
             key: _sidebarKey,
             selectedIndex: _selectedIndex,
-            activeCompany: activeCompanyMap,
+            activeCompany: _activeCompany?.toJson(), // SideBar can still accept a map if needed
             onSwitchCompany: _switchWorkspace,
             onMoveToRightPane: _jumpToRightPane,
             onItemSelected: (index) {
@@ -456,14 +455,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildActiveCompanyView() {
-    final activeCompanyMap = _activeCompany!.toJson();
+    final activeCompany = _activeCompany!;
 
-    return IndexedStack(
+   return IndexedStack(
       index: _selectedIndex,
       children: [
         TransactionsDashboard(
           key: _dashboardKey,
-          company: activeCompanyMap,
+          company: activeCompany, // Pass CompanyModel
           onMoveToSidebar: _jumpToSidebar,
           onAddTransaction: (vchType) {
             setState(() {
@@ -483,13 +482,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             });
           },
         ),
-        MastersDashboardScreen(company: activeCompanyMap),
+        MastersDashboardScreen(company: activeCompany), // Pass CompanyModel
         _buildPlaceholderView(
           icon: Icons.inventory_2_outlined,
           title: 'Inventory & Items',
           subtitle: 'Stock items, HSN codes, batches, and unit measurements.',
         ),
-        ReportsDashboardScreen(company: activeCompanyMap),
+        ReportsDashboardScreen(company: activeCompany), // Pass CompanyModel
         const Gstr2bReconciliationScreen(),
       ],
     );

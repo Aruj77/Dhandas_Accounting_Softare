@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../constants/app_colors.dart';
+import '../../../models/company_model.dart';
+import '../../../models/voucher_model.dart';
 import '../../../pages/company/voucher/voucher_entry_screen.dart';
 import '../../../pages/company/voucher/voucher_list_screen.dart';
 import '../../../services/focus_policy_service.dart';
@@ -7,10 +9,9 @@ import '../../../services/keyboard_shortcut_service.dart';
 import '../../../services/loading_service.dart';
 import '../../../services/notification_service.dart';
 import '../../../services/storage_service.dart';
-import '../../../utils/app_date_utils.dart';
 
 class VoucherModifyDialog extends StatefulWidget {
-  final Map<String, dynamic> company;
+  final CompanyModel company;
   final String voucherType;
   final VoidCallback onVoucherUpdated;
 
@@ -28,7 +29,7 @@ class VoucherModifyDialog extends StatefulWidget {
 class _VoucherModifyDialogState extends State<VoucherModifyDialog> {
   final TextEditingController _vchNoCtrl = TextEditingController();
   final FocusNode _vchNoFocus = FocusNode();
-  List<Map<String, dynamic>> _vouchers = [];
+  List<VoucherModel> _vouchers = [];
   bool _isLoading = true;
 
   @override
@@ -46,19 +47,23 @@ class _VoucherModifyDialogState extends State<VoucherModifyDialog> {
 
   Future<void> _loadVouchers() async {
     await LoadingService.wrap(() async {
-      final folderPath = widget.company['folderPath']?.toString();
-      final fy = (widget.company['activeFinancialYear'] ?? AppDateUtils.defaultFinancialYear).toString();
+      final folderPath = widget.company.folderPath;
+      final fy = widget.company.activeFinancialYear;
 
-      if (folderPath != null) {
-        final loaded = await StorageService.loadVouchers(
+      if (folderPath.isNotEmpty) {
+        final rawLoaded = await StorageService.loadVouchers(
           folderPath: folderPath,
           financialYear: fy,
           voucherType: widget.voucherType,
         );
 
+        final loaded = rawLoaded.map(VoucherModel.fromJson).toList();
         final target = widget.voucherType.toLowerCase();
+        
         final matching = loaded.where((v) {
-          return (v['voucherType'] ?? '').toString().toLowerCase() == target;
+          return v.voucherType.toLowerCase() == target ||
+              v.voucherType.toLowerCase().contains(target) ||
+              target.contains(v.voucherType.toLowerCase());
         }).toList();
 
         if (mounted) {
@@ -66,7 +71,7 @@ class _VoucherModifyDialogState extends State<VoucherModifyDialog> {
             _vouchers = matching;
             _isLoading = false;
             if (_vouchers.isNotEmpty) {
-              _vchNoCtrl.text = (_vouchers.last['voucherNumber'] ?? '').toString();
+              _vchNoCtrl.text = _vouchers.last.voucherNumber;
               _vchNoCtrl.selection = TextSelection(
                 baseOffset: 0,
                 extentOffset: _vchNoCtrl.text.length,
@@ -81,7 +86,7 @@ class _VoucherModifyDialogState extends State<VoucherModifyDialog> {
   void _openEditForVoucherNumber(String vchNo) {
     final query = vchNo.trim().toLowerCase();
     final match = _vouchers.where((v) {
-      return (v['voucherNumber'] ?? '').toString().trim().toLowerCase() == query;
+      return v.voucherNumber.trim().toLowerCase() == query;
     }).firstOrNull;
 
     if (match == null) {
@@ -103,7 +108,7 @@ class _VoucherModifyDialogState extends State<VoucherModifyDialog> {
         builder: (ctx) => VoucherEntryScreen(
           company: widget.company,
           voucherType: widget.voucherType,
-          voucherToEdit: match,
+          voucherToEdit: match, // Pass typed VoucherModel directly
           isEdit: true,
           keyboardSettings: KeyboardShortcutSettings.defaults(),
           onClose: () {

@@ -12,12 +12,10 @@ import '../../utils/number_parsing_utils.dart';
 class ReportsDashboardScreen extends StatefulWidget {
   final CompanyModel company;
 
-  ReportsDashboardScreen({
+  const ReportsDashboardScreen({
     super.key,
-    required dynamic company,
-  }) : company = company is CompanyModel
-            ? company
-            : CompanyModel.fromJson(company as Map<String, dynamic>);
+    required this.company,
+  });
 
   @override
   State<ReportsDashboardScreen> createState() => _ReportsDashboardScreenState();

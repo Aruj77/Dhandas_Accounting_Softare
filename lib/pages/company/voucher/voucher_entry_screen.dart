@@ -57,28 +57,16 @@ class VoucherEntryScreen extends ConsumerStatefulWidget {
   final bool isEdit;
   final VoucherModel? scanPrefill;
 
-  VoucherEntryScreen({
+  const VoucherEntryScreen({
     super.key,
-    required dynamic company,
+    required this.company,
     required this.voucherType,
     required this.onClose,
     required this.keyboardSettings,
-    dynamic voucherToEdit,
+    this.voucherToEdit,
     this.isEdit = false,
-    dynamic scanPrefill,
-  })  : company = company is CompanyModel
-            ? company
-            : CompanyModel.fromJson(company as Map<String, dynamic>),
-        voucherToEdit = voucherToEdit == null
-            ? null
-            : (voucherToEdit is VoucherModel
-                ? voucherToEdit
-                : VoucherModel.fromJson(voucherToEdit as Map<String, dynamic>)),
-        scanPrefill = scanPrefill == null
-            ? null
-            : (scanPrefill is VoucherModel
-                ? scanPrefill
-                : VoucherModel.fromJson(scanPrefill as Map<String, dynamic>));
+    this.scanPrefill,
+  });
 
   @override
   ConsumerState<VoucherEntryScreen> createState() => _VoucherEntryScreenState();
@@ -214,14 +202,8 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     super.dispose();
   }
 
-  String _formatPartyDisplay(String name, String gstin) {
-    final cleanName = GstPartyUtils.extractPartyName(name).trim();
-    final cleanGstin = gstin.trim().isNotEmpty
-        ? gstin.trim()
-        : GstPartyUtils.extractPartyGstin(name).trim();
-    final targetName = cleanName.isNotEmpty ? cleanName : name.trim();
-    return cleanGstin.isNotEmpty ? '$targetName ($cleanGstin)' : targetName;
-  }
+  String _formatPartyDisplay(String name, String gstin) =>
+      GstPartyUtils.formatPartyDisplay(name, gstin);
 
   PartyMasterModel? _findParty(String text) {
     final clean = text.trim().toLowerCase();
@@ -237,7 +219,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     _partyCache = {
       for (final p in _currentParties) ...{
         p.name.toLowerCase().trim(): p,
-        p.displayName.toLowerCase().trim(): p,
+        p.name.toLowerCase().trim(): p,
         if (p.gstin.isNotEmpty) ...{
           '${p.name} (${p.gstin})'.toLowerCase().trim(): p,
           '${p.name} - ${p.gstin}'.toLowerCase().trim(): p,
@@ -520,7 +502,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     }, message: '');
   }
 
-  bool _evaluateField(TextEditingController controller, {bool isQty = false}) {
+  bool _evaluateController(TextEditingController controller, {bool isQty = false}) {
     final text = controller.text.trim();
     if (text.isEmpty) return false;
 
@@ -539,49 +521,38 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
   }
 
   void _evaluateAndRecalculateItemField(VoucherItemRow row, String field) {
-    switch (field) {
-      case 'qty':
-        _evaluateField(row.qty, isQty: true);
-        final q = row.qty.text.evalMath();
-        final p = row.price.text.evalMath();
-        if (q > 0 && p > 0) {
-          row.taxable.text = (q * p).toCurrency();
-          VoucherCalculationService.recalculateTaxesFromTaxable(row, _isInterState);
-        }
-        _calculateAllTotals();
-        break;
+    final isQty = field == 'qty';
+    final ctrl = switch (field) {
+      'qty' => row.qty,
+      'price' => row.price,
+      'taxable' => row.taxable,
+      'amount' => row.amount,
+      _ => null,
+    };
 
-      case 'price':
-        _evaluateField(row.price);
-        final q = row.qty.text.evalMath();
-        final p = row.price.text.evalMath();
-        if (q > 0 && p > 0) {
-          row.taxable.text = (q * p).toCurrency();
-          VoucherCalculationService.recalculateTaxesFromTaxable(row, _isInterState);
-        }
-        _calculateAllTotals();
-        break;
+    if (ctrl != null) _evaluateController(ctrl, isQty: isQty);
 
-      case 'taxable':
-        _evaluateField(row.taxable);
-        final t = row.taxable.text.evalMath();
-        final q = row.qty.text.evalMath();
-        if (t > 0) {
-          if (q > 0) row.price.text = (t / q).toCurrency();
-          VoucherCalculationService.recalculateTaxesFromTaxable(row, _isInterState);
-        }
-        _calculateAllTotals();
-        break;
+    final q = row.qty.text.evalMath();
+    final p = row.price.text.evalMath();
 
-      case 'amount':
-        _evaluateField(row.amount);
-        final amt = row.amount.text.evalMath();
-        if (amt > 0) {
-          VoucherCalculationService.recalculateFromInvoiceAmount(row, _isInterState);
-        }
-        _calculateAllTotals();
-        break;
+    if (field == 'qty' || field == 'price') {
+      if (q > 0 && p > 0) {
+        row.taxable.text = (q * p).toCurrency();
+        VoucherCalculationService.recalculateTaxesFromTaxable(row, _isInterState);
+      }
+    } else if (field == 'taxable') {
+      final t = row.taxable.text.evalMath();
+      if (t > 0) {
+        if (q > 0) row.price.text = (t / q).toCurrency();
+        VoucherCalculationService.recalculateTaxesFromTaxable(row, _isInterState);
+      }
+    } else if (field == 'amount') {
+      final amt = row.amount.text.evalMath();
+      if (amt > 0) {
+        VoucherCalculationService.recalculateFromInvoiceAmount(row, _isInterState);
+      }
     }
+    _calculateAllTotals();
   }
 
   void _attachItemRowListeners(VoucherItemRow row) {
@@ -826,7 +797,9 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
   Future<void> _checkVoucherNumberOnBlur() async {
     if (_isHandlingVchNoWarning ||
         _isHandlingDuplicateVchWarning ||
-        _isEditingExisting) return;
+        _isEditingExisting) {
+      return;
+    }
     final vchText = _h.vchNo.text.trim();
 
     if (vchText.isEmpty) {
@@ -1045,14 +1018,12 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
   }
 
   String _extractPartyStateCode(String partyText) {
-    final gstin = GstPartyUtils.extractPartyGstin(partyText.trim());
-    if (gstin.length >= 2 && int.tryParse(gstin.substring(0, 2)) != null) {
-      return gstin.substring(0, 2);
-    }
     final matched = _findParty(partyText);
-    return (matched != null && matched.gstin.trim().length >= 2)
-        ? matched.gstin.trim().substring(0, 2)
-        : '';
+    final partyGstin = matched?.gstin.trim() ?? '';
+    return GstPartyUtils.extractStateCode(
+      partyText,
+      fallbackStateCode: partyGstin.length >= 2 ? partyGstin.substring(0, 2) : '',
+    );
   }
 
   void _checkGstMode({bool autoAdjustSaleType = false}) {
@@ -1471,10 +1442,12 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
 
   Future<void> _saveVoucher() async {
     for (final r in _items) {
-      _evaluateField(r.qty, isQty: true);
-      _evaluateField(r.price);
-      _evaluateField(r.taxable);
-      _evaluateField(r.amount);
+      if (r.item.text.trim().isNotEmpty) {
+        _evaluateController(r.qty, isQty: true);
+        _evaluateController(r.price);
+        _evaluateController(r.taxable);
+        _evaluateController(r.amount);
+      }
     }
     _calculateAllTotals();
 

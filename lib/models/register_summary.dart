@@ -1,4 +1,5 @@
 import '../utils/gst_party_utils.dart';
+import '../utils/number_parsing_utils.dart';
 
 class RegisterSummary {
   final int totalInvoices;
@@ -31,17 +32,17 @@ class RegisterSummary {
     double cess = 0.0;
 
     for (final v in vouchers) {
-      invVal += v['grandTotal'].toCleanDouble();
-      taxable += v['subTotal'].toCleanDouble();
-      igst += v['igst'].toCleanDouble();
-      cgst += v['cgst'].toCleanDouble();
-      sgst += v['sgst'].toCleanDouble();
+      invVal += NumberParsing.toDouble(v['grandTotal']);
+      taxable += NumberParsing.toDouble(v['subTotal']);
+      igst += NumberParsing.toDouble(v['igst']);
+      cgst += NumberParsing.toDouble(v['cgst']);
+      sgst += NumberParsing.toDouble(v['sgst']);
       cess += GstPartyUtils.extractCessAmount(v);
 
       final items = v['items'] as List? ?? const [];
       for (final i in items) {
         if (i is Map) {
-          qty += i['qty'].toCleanDouble();
+          qty += NumberParsing.toDouble(i['qty']);
         }
       }
     }

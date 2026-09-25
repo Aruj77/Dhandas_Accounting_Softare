@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
 import '../../services/focus_policy_service.dart';
 import '../../utils/app_action_bottom_sheet.dart';
-import '../../utils/app_date_utils.dart';
 import '../../widgets/common/dashboard_action_chip.dart';
 import '../../widgets/common/interactive_dashboard_card.dart';
 import '../../widgets/common/company_dashboard_header.dart';
 import '../../widgets/company/date_range_dialog.dart';
 import '../../widgets/voucher/popup/voucher_modify_dialog.dart';
+import '../../models/company_model.dart';
 
 enum TransactionAction { add, modify, list }
 
@@ -27,7 +27,7 @@ class _TxItem {
 }
 
 class TransactionsDashboard extends StatefulWidget {
-  final Map<String, dynamic> company;
+  final CompanyModel company;
   final VoidCallback? onMoveToSidebar;
   final void Function(String voucherType)? onAddTransaction;
   final void Function(
@@ -103,11 +103,11 @@ class TransactionsDashboardState extends State<TransactionsDashboard> {
         );
         break;
       case TransactionAction.list:
-        final fy = (widget.company['activeFinancialYear'] ?? AppDateUtils.defaultFinancialYear).toString();
+        final fy = widget.company.activeFinancialYear;
         final result = await showDialog<Map<String, dynamic>>(
           context: context,
           builder: (_) => DateRangeDialog(
-            company: widget.company,
+            company: widget.company.toJson(),
             financialYear: fy,
             voucherType: voucherType,
           ),
@@ -126,8 +126,8 @@ class TransactionsDashboardState extends State<TransactionsDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    final companyName = (widget.company['companyName'] ?? 'Workspace').toString();
-    final activeFy = (widget.company['activeFinancialYear'] ?? AppDateUtils.defaultFinancialYear).toString();
+    final companyName = widget.company.companyName;
+    final activeFy = widget.company.activeFinancialYear;
 
     return AutoScreenFocus(
       screen: FocusTargetScreen.homeDashboard,

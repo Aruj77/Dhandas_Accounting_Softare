@@ -7,7 +7,6 @@ import '../../repositories/master_repository.dart';
 import '../../services/focus_policy_service.dart';
 import '../../services/notification_service.dart';
 import '../../utils/app_action_bottom_sheet.dart';
-import '../../utils/app_date_utils.dart';
 import '../../widgets/common/app_confirm_dialog.dart';
 import '../../widgets/common/dashboard_action_chip.dart';
 import '../../widgets/common/interactive_dashboard_card.dart';
@@ -16,6 +15,7 @@ import '../../widgets/voucher/popup/add_item_dialog.dart';
 import '../../widgets/voucher/popup/add_party_dialog.dart';
 import '../../widgets/voucher/popup/add_series_dialog.dart';
 import '../../widgets/common/app_input_dialog.dart';
+import '../../models/company_model.dart';
 
 enum MasterCategory { accounts, inventory, configuration }
 enum MasterAction { add, modify }
@@ -73,7 +73,7 @@ class _MasterItem {
 }
 
 class MastersDashboardScreen extends StatefulWidget {
-  final Map<String, dynamic> company;
+  final CompanyModel company;
   final VoidCallback? onMoveToSidebar;
   final void Function(MasterType type, MasterAction action)? onMasterAction;
   final VoidCallback? onMastersChanged;
@@ -197,7 +197,7 @@ class MastersDashboardScreenState extends State<MastersDashboardScreen> {
       widget.onMasterAction!(item.type, action);
       return;
     }
-    final folderPath = widget.company['folderPath']?.toString();
+    final folderPath = widget.company.folderPath;
     if (action == MasterAction.add) {
       await _openAddMasterDialog(item.type, folderPath);
       return;
@@ -207,7 +207,7 @@ class MastersDashboardScreenState extends State<MastersDashboardScreen> {
       context: context,
       barrierDismissible: true,
       builder: (_) => MasterModifyDialog(
-        company: widget.company,
+        company: widget.company.toJson(),
         item: item,
         onAddNew: () => _openAddMasterDialog(item.type, folderPath),
         onDataChanged: () => widget.onMastersChanged?.call(),
@@ -239,7 +239,7 @@ class MastersDashboardScreenState extends State<MastersDashboardScreen> {
         await showDialog(
           context: context,
           builder: (_) => AddItemDialog(
-            company: widget.company,
+            company: widget.company.toJson(),
             folderPath: folderPath,
             onItemCreated: (data) async {
               await MasterRepository.upsertItem(
@@ -393,8 +393,8 @@ class MastersDashboardScreenState extends State<MastersDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final companyName = (widget.company['companyName'] ?? 'Workspace').toString();
-    final activeFy = (widget.company['activeFinancialYear'] ?? AppDateUtils.defaultFinancialYear).toString();
+    final companyName = widget.company.companyName;
+    final activeFy = widget.company.activeFinancialYear;
 
     return AutoScreenFocus(
       screen: FocusTargetScreen.mastersDashboard,
