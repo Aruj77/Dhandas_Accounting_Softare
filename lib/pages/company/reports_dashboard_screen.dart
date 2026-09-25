@@ -7,9 +7,32 @@ import '../../services/loading_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/storage_service.dart';
 import '../../utils/number_parsing_utils.dart';
-import '../../utils/app_action_bottom_sheet.dart';
+import '../../widgets/common/company_dashboard_header.dart';
+import '../../widgets/common/dashboard_action_chip.dart';
+import '../../widgets/common/interactive_dashboard_card.dart';
 import '../../pages/company/reports/stock_detail_list_screen.dart';
 import '../../pages/company/reports/consolidated_hsn_stock_screen.dart';
+import '../../pages/company/gstr2b_reconciliation_screen.dart';
+
+class _ReportCardData {
+  final String title;
+  final String subtitle;
+  final String description;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onPrimaryAction;
+  final List<Widget> actionChips;
+
+  _ReportCardData({
+    required this.title,
+    required this.subtitle,
+    required this.description,
+    required this.icon,
+    required this.color,
+    required this.onPrimaryAction,
+    required this.actionChips,
+  });
+}
 
 class ReportsDashboardScreen extends StatefulWidget {
   final CompanyModel company;
@@ -25,11 +48,7 @@ class ReportsDashboardScreen extends StatefulWidget {
 
 class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
   bool _isLoading = true;
-  String _selectedPeriod = 'Current F.Y.';
 
-  final FocusNode _periodDropdownFocusNode = FocusNode();
-
-  List<VoucherModel> _allVouchers = [];
   double _totalSales = 0.0;
   double _totalPurchases = 0.0;
   double _totalReceipts = 0.0;
@@ -49,6 +68,14 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
       _totalTaxOutput +
       _totalTaxInput;
 
+  static const List<List<int>> _sections = [
+    [0, 1, 2], // Financial Performance
+    [3, 4],    // Inventory & Warehousing
+    [5, 6],    // Taxation & GST Compliance
+  ];
+
+  late final List<FocusNode> _focusNodes = List.generate(7, (_) => FocusNode());
+
   @override
   void initState() {
     super.initState();
@@ -57,7 +84,9 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
 
   @override
   void dispose() {
-    _periodDropdownFocusNode.dispose();
+    for (final node in _focusNodes) {
+      node.dispose();
+    }
     super.dispose();
   }
 
@@ -153,7 +182,6 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
 
         if (mounted) {
           setState(() {
-            _allVouchers = vouchers;
             _totalSales = sales;
             _totalPurchases = purchases;
             _totalReceipts = receipts;
@@ -168,68 +196,6 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
         }
       }
     }, message: 'Recalculating Financial Reports...');
-  }
-
-  void _showStockAnalysisBottomSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) => AppActionBottomSheet(
-        title: 'Stock Analysis & Valuation',
-        subtitle: 'Select an inventory report option to review itemized or consolidated details.',
-        actions: [
-          AppActionItem(
-            title: 'Opening Stock (Amount Total)',
-            desc: 'Previous FY Closing Balance: ₹${_openingStockAmount.toCurrency()}',
-            icon: Icons.history_rounded,
-            color: AppColors.primary,
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => StockDetailListScreen(
-                    title: 'Opening Stock Breakdown',
-                    totalAmount: _openingStockAmount,
-                    items: _inventoryItems.map((e) => {...e, 'val': (e['val'] as double) * 0.9}).toList(),
-                  ),
-                ),
-              );
-            },
-          ),
-          AppActionItem(
-            title: 'Closing Stock (Amount Total)',
-            desc: 'Current Valuation Balance: ₹${_closingStockAmount.toCurrency()}',
-            icon: Icons.inventory_2_rounded,
-            color: AppColors.success,
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => StockDetailListScreen(
-                    title: 'Closing Stock Breakdown',
-                    totalAmount: _closingStockAmount,
-                    items: _inventoryItems,
-                  ),
-                ),
-              );
-            },
-          ),
-          AppActionItem(
-            title: 'Consolidated Stock Status',
-            desc: 'View stock movement and valuation by HSN or Tax Rate with date filtering',
-            icon: Icons.table_chart_rounded,
-            color: AppColors.purple,
-            onTap: () {
-              Navigator.pop(context);
-              _showDateRangeDialog(context);
-            },
-          ),
-        ],
-      ),
-    );
   }
 
   void _showDateRangeDialog(BuildContext context) {
@@ -314,6 +280,166 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
     );
   }
 
+  List<_ReportCardData> _buildCardsData(double netProfit, double profitMargin) {
+    return [
+      _ReportCardData(
+        title: 'Total Revenue (Sales)',
+        subtitle: '₹${_totalSales.toCurrency()}',
+        description: 'Total recorded outward supplies and revenue.',
+        icon: Icons.trending_up_rounded,
+        color: AppColors.success,
+        onPrimaryAction: () => _showExportSnack('Sales Register'),
+        actionChips: [
+          DashboardActionChip(
+            label: 'View Register',
+            icon: Icons.list_alt_rounded,
+            color: AppColors.success,
+            onTap: () => _showExportSnack('Sales Register'),
+          ),
+        ],
+      ),
+      _ReportCardData(
+        title: 'Gross Expenses (Purchases)',
+        subtitle: '₹${_totalPurchases.toCurrency()}',
+        description: 'Total recorded inward supplies and expenses.',
+        icon: Icons.shopping_bag_outlined,
+        color: AppColors.purple,
+        onPrimaryAction: () => _showExportSnack('Purchase Register'),
+        actionChips: [
+          DashboardActionChip(
+            label: 'View Register',
+            icon: Icons.list_alt_rounded,
+            color: AppColors.purple,
+            onTap: () => _showExportSnack('Purchase Register'),
+          ),
+        ],
+      ),
+      _ReportCardData(
+        title: 'Net Estimated Profit',
+        subtitle: '₹${netProfit.toCurrency()}',
+        description: '${profitMargin.toStringAsFixed(1)}% Net Margin based on automated estimates.',
+        icon: Icons.account_balance_wallet_rounded,
+        color: AppColors.primary,
+        onPrimaryAction: () => _showExportSnack('P&L Statement'),
+        actionChips: [
+          DashboardActionChip(
+            label: 'P&L Report',
+            icon: Icons.analytics_rounded,
+            color: AppColors.primary,
+            onTap: () => _showExportSnack('P&L Statement'),
+          ),
+        ],
+      ),
+      _ReportCardData(
+        title: 'Stock Valuation',
+        subtitle: 'Closing: ₹${_closingStockAmount.toCurrency()}',
+        description: 'Opening Balance: ₹${_openingStockAmount.toCurrency()}',
+        icon: Icons.inventory_2_rounded,
+        color: AppColors.warning,
+        onPrimaryAction: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => StockDetailListScreen(
+                title: 'Closing Stock Breakdown',
+                totalAmount: _closingStockAmount,
+                items: _inventoryItems,
+              ),
+            ),
+          );
+        },
+        actionChips: [
+          DashboardActionChip(
+            label: 'Opening',
+            icon: Icons.history_rounded,
+            color: AppColors.textSecondary,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => StockDetailListScreen(
+                    title: 'Opening Stock Breakdown',
+                    totalAmount: _openingStockAmount,
+                    items: _inventoryItems.map((e) => {...e, 'val': (e['val'] as double) * 0.9}).toList(),
+                  ),
+                ),
+              );
+            },
+          ),
+          DashboardActionChip(
+            label: 'Closing',
+            icon: Icons.inventory_rounded,
+            color: AppColors.warning,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => StockDetailListScreen(
+                    title: 'Closing Stock Breakdown',
+                    totalAmount: _closingStockAmount,
+                    items: _inventoryItems,
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+      _ReportCardData(
+        title: 'Consolidated Stock',
+        subtitle: 'Live Tracking',
+        description: 'View stock movement and valuation by HSN or Tax Rate.',
+        icon: Icons.table_chart_rounded,
+        color: AppColors.info,
+        onPrimaryAction: () => _showDateRangeDialog(context),
+        actionChips: [
+          DashboardActionChip(
+            label: 'Generate',
+            icon: Icons.play_arrow_rounded,
+            color: AppColors.info,
+            onTap: () => _showDateRangeDialog(context),
+          ),
+        ],
+      ),
+      _ReportCardData(
+        title: 'GST Ledger Summary',
+        subtitle: 'Out: ₹${_totalTaxOutput.toCurrency()} | In: ₹${_totalTaxInput.toCurrency()}',
+        description: 'Live estimated tax liability and Input Tax Credit (ITC).',
+        icon: Icons.account_balance_rounded,
+        color: AppColors.error,
+        onPrimaryAction: () => _showExportSnack('GST Computation'),
+        actionChips: [
+          DashboardActionChip(
+            label: 'Computation',
+            icon: Icons.calculate_rounded,
+            color: AppColors.error,
+            onTap: () => _showExportSnack('GST Computation'),
+          ),
+        ],
+      ),
+      _ReportCardData(
+        title: 'GSTR-2B Reconciliation',
+        subtitle: 'Audit & Match',
+        description: 'Automated ITC audit and vendor mismatch detection via Portal JSON.',
+        icon: Icons.rule_folder_rounded,
+        color: AppColors.primaryAccent,
+        onPrimaryAction: () {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => Gstr2bReconciliationScreen(company: widget.company)));
+        },
+        actionChips: [
+          DashboardActionChip(
+            label: 'Reconcile',
+            icon: Icons.compare_arrows_rounded,
+            color: AppColors.primaryAccent,
+            onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => Gstr2bReconciliationScreen(company: widget.company)));
+            },
+          ),
+        ],
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final activeFy = widget.company.activeFinancialYear;
@@ -324,236 +450,145 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
     final profitMargin = _totalSales > 0 ? (netProfit / _totalSales) * 100 : 0.0;
     (_totalTaxOutput - _totalTaxInput).clamp(0.0, double.infinity);
 
+    final cards = _buildCardsData(netProfit, profitMargin);
+
     return AutoScreenFocus(
       screen: FocusTargetScreen.reportsDashboard,
       nodeMap: {
-        FocusFieldNode.firstField: _periodDropdownFocusNode,
+        FocusFieldNode.firstField: _focusNodes.first,
       },
       child: Scaffold(
         backgroundColor: AppColors.background,
         body: _isLoading
             ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-            : SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 28),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+            : LayoutBuilder(
+                builder: (context, constraints) {
+                  final contentWidth = constraints.maxWidth - 64;
+                  final cols = contentWidth > 1000 ? 3 : (contentWidth > 650 ? 2 : 1);
+
+                  return SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(32, 28, 32, 40),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '$companyName — Financial Intelligence Hub',
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w900,
-                                color: AppColors.textPrimary,
-                                letterSpacing: -0.6,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            const Text(
-                              'Comprehensive financial analytics, automated statements, and tax compliance overview.',
-                              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                            ),
-                          ],
+                        CompanyDashboardHeader(
+                          companyName: companyName,
+                          financialYear: activeFy,
+                          subtitle: 'Comprehensive financial analytics, automated statements, and tax compliance overview.',
+                          accentColor: AppColors.success,
                         ),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: AppColors.surface,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: AppColors.border),
-                          ),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              focusNode: _periodDropdownFocusNode,
-                              value: _selectedPeriod,
-                              icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppColors.textSecondary),
-                              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-                              items: ['Current F.Y.', 'Q1 (Apr-Jun)', 'Q2 (Jul-Sep)', 'Q3 (Oct-Dec)', 'Q4 (Jan-Mar)']
-                                  .map((p) => DropdownMenuItem(value: p, child: Text(p)))
-                                  .toList(),
-                              onChanged: (val) {
-                                if (val != null) setState(() => _selectedPeriod = val);
-                              },
-                            ),
-                          ),
+                        const SizedBox(height: 30),
+                        _buildCategorySection(
+                          'Financial Performance',
+                          'Revenue, expenses, and automated profit estimates',
+                          Icons.insights_rounded,
+                          AppColors.success,
+                          _sections[0],
+                          cols,
+                          cards,
                         ),
-                        const SizedBox(width: 10),
-                        OutlinedButton.icon(
-                          onPressed: () => _showExportSnack('Executive PDF Summary'),
-                          style: OutlinedButton.styleFrom(
-                            backgroundColor: AppColors.surface,
-                            foregroundColor: AppColors.textPrimary,
-                            side: const BorderSide(color: AppColors.border),
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                          icon: const Icon(Icons.picture_as_pdf_rounded, size: 16, color: AppColors.error),
-                          label: const Text('Export PDF', style: TextStyle(fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 22),
+                        _buildCategorySection(
+                          'Inventory & Warehousing',
+                          'Stock valuation, consolidation, and ledger movements',
+                          Icons.inventory_2_outlined,
+                          AppColors.warning,
+                          _sections[1],
+                          cols,
+                          cards,
                         ),
-                        const SizedBox(width: 10),
-                        ElevatedButton.icon(
-                          onPressed: _loadFinancialData,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: AppColors.surface,
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            elevation: 0,
-                          ),
-                          icon: const Icon(Icons.refresh_rounded, size: 16),
-                          label: const Text('Refresh', style: TextStyle(fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 22),
+                        _buildCategorySection(
+                          'Taxation & GST Compliance',
+                          'Liability computation, ITC tracking, and portal audits',
+                          Icons.account_balance_rounded,
+                          AppColors.error,
+                          _sections[2],
+                          cols,
+                          cards,
                         ),
                       ],
                     ),
-                    const SizedBox(height: 28),
-                    _buildStockAnalysisCard(context),
-                    const SizedBox(height: 28),
-                    const Text(
-                      'Executive Key Performance Indicators',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
-                    ),
-                    const SizedBox(height: 14),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildKpiCard(
-                            'Total Revenue (Sales)',
-                            '₹${_totalSales.toCurrency()}',
-                            '+12.4% vs last FY',
-                            Icons.trending_up_rounded,
-                            AppColors.success,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _buildKpiCard(
-                            'Gross Expenses',
-                            '₹${_totalPurchases.toCurrency()}',
-                            'Inward supply volume',
-                            Icons.shopping_bag_outlined,
-                            AppColors.purple,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _buildKpiCard(
-                            'Net Estimated Profit',
-                            '₹${netProfit.toCurrency()}',
-                            '${profitMargin.toStringAsFixed(1)}% Net Margin',
-                            Icons.account_balance_wallet_rounded,
-                            AppColors.primary,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _buildKpiCard(
-                            'Recorded Vouchers',
-                            '${_allVouchers.length} entries',
-                            'Active F.Y. $activeFy',
-                            Icons.folder_open_rounded,
-                            AppColors.warning,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                  );
+                },
               ),
       ),
     );
   }
 
-  Widget _buildStockAnalysisCard(BuildContext context) {
-    return InkWell(
-      onTap: () => _showStockAnalysisBottomSheet(context),
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.inventory_2_rounded, color: AppColors.primary, size: 20),
-                SizedBox(width: 10),
-                Text('Stock Analysis & Inventory Valuation', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
-                Spacer(),
-                Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
-              ],
-            ),
-            const SizedBox(height: 4),
-            const Text('Click to inspect Opening, Closing, and Consolidated Stock ledger registers', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-            const Divider(height: 24, color: AppColors.border),
-            Row(
-              children: [
-                Expanded(child: _buildStatementRow('Opening Stock (Prev. FY Closing)', _openingStockAmount)),
-                Expanded(child: _buildStatementRow('Closing Stock', _closingStockAmount)),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildKpiCard(String title, String value, String subtitle, IconData icon, Color color) {
+  Widget _buildCategorySection(
+    String title,
+    String desc,
+    IconData icon,
+    Color color,
+    List<int> indexes,
+    int cols,
+    List<_ReportCardData> cards,
+  ) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      width: double.infinity,
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: AppColors.border),
-        boxShadow: const [BoxShadow(color: AppColors.shadowColor, blurRadius: 10, offset: Offset(0, 3))],
+        boxShadow: const [BoxShadow(color: AppColors.shadowColor, blurRadius: 20, offset: Offset(0, 7))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-                child: Icon(icon, color: color, size: 20),
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(color: color.withValues(alpha: .09), borderRadius: BorderRadius.circular(13)),
+                child: Icon(icon, color: color, size: 21),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(6)),
-                child: const Text('Live', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.textSecondary)),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
+                    const SizedBox(height: 3),
+                    Text(desc, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.textSecondary)),
+                  ],
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          Text(title, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
-          const SizedBox(height: 4),
-          Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
-          const SizedBox(height: 6),
-          Text(subtitle, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatementRow(String label, double amount) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textSecondary)),
-          Text('₹${amount.toCurrency()}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+          const SizedBox(height: 18),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: indexes.length,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: cols,
+              crossAxisSpacing: 14,
+              mainAxisSpacing: 14,
+              mainAxisExtent: 220,
+            ),
+            itemBuilder: (_, i) {
+              final idx = indexes[i];
+              final item = cards[idx];
+              return InteractiveDashboardCard(
+                index: idx,
+                cols: cols,
+                focusNode: _focusNodes[idx],
+                allFocusNodes: _focusNodes,
+                sections: _sections,
+                title: item.title,
+                subtitle: item.subtitle,
+                description: item.description,
+                icon: item.icon,
+                color: item.color,
+                onPrimaryAction: item.onPrimaryAction,
+                actionChips: item.actionChips,
+              );
+            },
+          ),
         ],
       ),
     );
