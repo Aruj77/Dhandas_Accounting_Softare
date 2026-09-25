@@ -4,8 +4,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pdf/pdf.dart';
-import 'package:printing/printing.dart';
 import '../../../constants/app_colors.dart';
 import '../../../models/company_model.dart';
 import '../../../models/register_summary.dart';
@@ -27,7 +25,7 @@ import '../../../utils/register_header_bar.dart';
 import '../../../widgets/common/app_confirm_dialog.dart';
 import '../../../widgets/common/data_table_cells.dart';
 import 'voucher_entry_screen.dart';
-
+import '../../../widgets/common/print_studio_dialog.dart';
 class VoucherListScreen extends ConsumerStatefulWidget {
   final CompanyModel company;
   final String voucherType;
@@ -643,394 +641,40 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
 
   void _triggerPrint() {
     final activeKeys = _columnLabels.keys.where(_isColVisible).toList();
-    double selectedMargin = 20.0,
-        columnScale = 1.0,
-        tableFontSize = 8.0,
-        borderWidth = 0.5;
-    bool isLandscape = true,
-        isLegal = false,
-        showAddress = true,
-        showDateRange = true,
-        showSubtitle = true,
-        alternateRowColors = false;
 
-    showDialog(
+    PrintStudioDialog.show(
       context: context,
-      barrierDismissible: true,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setPrintDialogState) {
-          PdfPageFormat getActiveFormat() {
-            final base = isLegal ? PdfPageFormat.legal : PdfPageFormat.a4;
-            return isLandscape ? base.landscape : base.portrait;
-          }
-
-          Widget buildSidebarCard(
-                  String title, IconData icon, List<Widget> children) =>
-              Container(
-                padding: const EdgeInsets.all(12),
-                margin: const EdgeInsets.only(bottom: 14),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(icon, size: 14, color: AppColors.primary),
-                        const SizedBox(width: 6),
-                        Text(
-                          title,
-                          style: const TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.textSecondary,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    ...children,
-                  ],
-                ),
-              );
-
-          return Dialog(
-            backgroundColor: AppColors.surface,
-            clipBehavior: Clip.antiAlias,
-            insetPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: SizedBox(
-              width: math.min(MediaQuery.of(context).size.width * 0.96, 1380),
-              height: math.min(MediaQuery.of(context).size.height * 0.94, 900),
-              child: Column(
-                children: [
-                  Container(
-                    height: 54,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    decoration: const BoxDecoration(
-                      color: AppColors.surface,
-                      border: Border(
-                          bottom:
-                              BorderSide(color: AppColors.border, width: 1.2)),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(Icons.print_rounded,
-                              size: 18, color: AppColors.primary),
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          'Print Studio — ${widget.voucherType} Register',
-                          style: const TextStyle(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: AppColors.background,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            '${isLegal ? 'Legal' : 'A4'} • ${isLandscape ? 'Landscape' : 'Portrait'}',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ),
-                        const Spacer(),
-                        TextButton.icon(
-                          onPressed: () => setPrintDialogState(() {
-                            selectedMargin = 20.0;
-                            columnScale = 1.0;
-                            tableFontSize = 8.0;
-                            borderWidth = 0.5;
-                            isLandscape = true;
-                            isLegal = false;
-                            showAddress = true;
-                            showDateRange = true;
-                            showSubtitle = true;
-                            alternateRowColors = false;
-                          }),
-                          icon: const Icon(Icons.refresh_rounded,
-                              size: 15, color: AppColors.textSecondary),
-                          label: const Text(
-                            'Reset Defaults',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          icon: const Icon(Icons.close_rounded,
-                              size: 20, color: AppColors.textSecondary),
-                          onPressed: () => Navigator.pop(ctx),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 320,
-                          decoration: const BoxDecoration(
-                            color: AppColors.cardBg,
-                            border: Border(
-                                right: BorderSide(
-                                    color: AppColors.border, width: 1.2)),
-                          ),
-                          child: ListView(
-                            padding: const EdgeInsets.all(16),
-                            children: [
-                              buildSidebarCard(
-                                  'PAGE LAYOUT', Icons.description_rounded, [
-                                const Text(
-                                  'Orientation',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                SegmentedButton<bool>(
-                                  segments: const [
-                                    ButtonSegment(
-                                      value: true,
-                                      label: Text('Landscape',
-                                          style: TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold)),
-                                    ),
-                                    ButtonSegment(
-                                      value: false,
-                                      label: Text('Portrait',
-                                          style: TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold)),
-                                    ),
-                                  ],
-                                  selected: {isLandscape},
-                                  showSelectedIcon: false,
-                                  style: SegmentedButton.styleFrom(
-                                    selectedBackgroundColor: AppColors.primary,
-                                    selectedForegroundColor: AppColors.surface,
-                                  ),
-                                  onSelectionChanged: (val) =>
-                                      setPrintDialogState(
-                                          () => isLandscape = val.first),
-                                ),
-                                const SizedBox(height: 12),
-                                const Text(
-                                  'Paper Size',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                SegmentedButton<bool>(
-                                  segments: const [
-                                    ButtonSegment(
-                                      value: false,
-                                      label: Text('A4',
-                                          style: TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold)),
-                                    ),
-                                    ButtonSegment(
-                                      value: true,
-                                      label: Text('Legal',
-                                          style: TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold)),
-                                    ),
-                                  ],
-                                  selected: {isLegal},
-                                  showSelectedIcon: false,
-                                  style: SegmentedButton.styleFrom(
-                                    selectedBackgroundColor: AppColors.primary,
-                                    selectedForegroundColor: AppColors.surface,
-                                  ),
-                                  onSelectionChanged: (val) =>
-                                      setPrintDialogState(
-                                          () => isLegal = val.first),
-                                ),
-                              ]),
-                              buildSidebarCard(
-                                  'PAGE MARGINS', Icons.border_outer_rounded, [
-                                Row(
-                                  children: [
-                                    Text(
-                                      'Margin: ${selectedMargin.toInt()} pt',
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.textPrimary,
-                                      ),
-                                    ),
-                                    const Spacer(),
-                                  ],
-                                ),
-                                Slider(
-                                  value: selectedMargin,
-                                  min: 8.0,
-                                  max: 45.0,
-                                  divisions: 37,
-                                  activeColor: AppColors.primary,
-                                  onChanged: (val) => setPrintDialogState(
-                                      () => selectedMargin = val),
-                                ),
-                              ]),
-                              buildSidebarCard(
-                                  'TABLE SCALING', Icons.tune_rounded, [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    const Text('Party Flex',
-                                        style: TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w700,
-                                            color: AppColors.textPrimary)),
-                                    Text('${(columnScale * 100).toInt()}%',
-                                        style: const TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w800,
-                                            color: AppColors.primary)),
-                                  ],
-                                ),
-                                Slider(
-                                  value: columnScale,
-                                  min: 0.8,
-                                  max: 1.6,
-                                  divisions: 8,
-                                  activeColor: AppColors.primary,
-                                  onChanged: (val) => setPrintDialogState(
-                                      () => columnScale = val),
-                                ),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    const Text('Font Size',
-                                        style: TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w700,
-                                            color: AppColors.textPrimary)),
-                                    Text('${tableFontSize.toStringAsFixed(1)} pt',
-                                        style: const TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w800,
-                                            color: AppColors.primary)),
-                                  ],
-                                ),
-                                Slider(
-                                  value: tableFontSize,
-                                  min: 7.0,
-                                  max: 10.5,
-                                  divisions: 7,
-                                  activeColor: AppColors.primary,
-                                  onChanged: (val) => setPrintDialogState(
-                                      () => tableFontSize = val),
-                                ),
-                              ]),
-                            ],
-                          ),
-                        ),
-                        Expanded(
-                          child: Container(
-                            color: AppColors.background,
-                            child: Theme(
-                              data: Theme.of(context).copyWith(
-                                appBarTheme: const AppBarTheme(
-                                  backgroundColor: AppColors.surface,
-                                  elevation: 0,
-                                  iconTheme: IconThemeData(
-                                      color: AppColors.primary),
-                                ),
-                                primaryColor: AppColors.primary,
-                                scaffoldBackgroundColor: AppColors.background,
-                              ),
-                              child: PdfPreview(
-                                build: (format) =>
-                                    VoucherPdfExportService.generateRegisterPdf(
-                                  format: getActiveFormat(),
-                                  company: widget.company.toJson(),
-                                  voucherType: widget.voucherType,
-                                  fromDate: _effectiveFromDate,
-                                  toDate: _effectiveToDate,
-                                  filteredVouchers: _filtered
-                                      .map((v) => v.toJson())
-                                      .toList(),
-                                  activeKeys: activeKeys,
-                                  columnLabels: _columnLabels,
-                                  extractPartyName:
-                                      GstPartyUtils.extractPartyName,
-                                  extractPartyGstin:
-                                      GstPartyUtils.extractPartyGstin,
-                                  getPlaceOfSupply: _getPos,
-                                  extractCessAmount:
-                                      GstPartyUtils.extractCessAmount,
-                                  formatDate: AppDateUtils.formatDate,
-                                  totalQuantity: _summary.totalQuantity,
-                                  totalInvoiceValue: _summary.totalInvoiceValue,
-                                  totalTaxable: _summary.totalTaxable,
-                                  totalIgst: _summary.totalIgst,
-                                  totalCgst: _summary.totalCgst,
-                                  totalSgst: _summary.totalSgst,
-                                  totalCess: _summary.totalCess,
-                                  pageMargin: selectedMargin,
-                                  columnScale: columnScale,
-                                  tableFontSize: tableFontSize,
-                                  borderWidth: borderWidth,
-                                  showAddress: showAddress,
-                                  showDateRange: showDateRange,
-                                  showSubtitle: showSubtitle,
-                                  alternateRowColors: alternateRowColors,
-                                ),
-                                initialPageFormat: getActiveFormat(),
-                                canChangePageFormat: false,
-                                canChangeOrientation: false,
-                                allowPrinting: true,
-                                allowSharing: true,
-                                pdfFileName:
-                                    '${widget.voucherType.replaceAll(' ', '_').toLowerCase()}_register.pdf',
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
+      title: '${widget.voucherType} Register',
+      pdfFileName: '${widget.voucherType.replaceAll(' ', '_').toLowerCase()}_register.pdf',
+      onBuildPdf: (format, config) => VoucherPdfExportService.generateRegisterPdf(
+        format: format,
+        company: widget.company.toJson(),
+        voucherType: widget.voucherType,
+        fromDate: _effectiveFromDate,
+        toDate: _effectiveToDate,
+        filteredVouchers: _filtered.map((v) => v.toJson()).toList(),
+        activeKeys: activeKeys,
+        columnLabels: _columnLabels,
+        extractPartyName: GstPartyUtils.extractPartyName,
+        extractPartyGstin: GstPartyUtils.extractPartyGstin,
+        getPlaceOfSupply: _getPos,
+        extractCessAmount: GstPartyUtils.extractCessAmount,
+        formatDate: AppDateUtils.formatDate,
+        totalQuantity: _summary.totalQuantity,
+        totalInvoiceValue: _summary.totalInvoiceValue,
+        totalTaxable: _summary.totalTaxable,
+        totalIgst: _summary.totalIgst,
+        totalCgst: _summary.totalCgst,
+        totalSgst: _summary.totalSgst,
+        totalCess: _summary.totalCess,
+        pageMargin: config.margin,
+        columnScale: config.columnScale,
+        tableFontSize: config.tableFontSize,
+        borderWidth: config.borderWidth,
+        showAddress: config.showAddress,
+        showDateRange: config.showDateRange,
+        showSubtitle: config.showSubtitle,
+        alternateRowColors: config.alternateRowColors,
       ),
     );
   }

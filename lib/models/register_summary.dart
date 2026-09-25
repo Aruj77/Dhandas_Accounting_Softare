@@ -46,7 +46,7 @@ class RegisterSummary {
         }
       }
     }
-
+    
     return RegisterSummary(
       totalInvoices: vouchers.length,
       totalQuantity: qty,
@@ -58,4 +58,15 @@ class RegisterSummary {
       totalCess: cess,
     );
   }
+
+  factory RegisterSummary.empty() => const RegisterSummary(
+    totalInvoices: 0,
+    totalQuantity: 0.0,
+    totalInvoiceValue: 0.0,
+    totalTaxable: 0.0,
+    totalIgst: 0.0,
+    totalCgst: 0.0,
+    totalSgst: 0.0,
+    totalCess: 0.0,
+  );
 }
