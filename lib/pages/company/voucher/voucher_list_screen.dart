@@ -5,17 +5,16 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../constants/app_colors.dart';
 import '../../../models/company_model.dart';
 import '../../../models/register_summary.dart';
 import '../../../models/voucher_model.dart';
-import '../../../provider/sync_provider.dart';
 import '../../../services/focus_policy_service.dart';
 import '../../../services/keyboard_shortcut_service.dart';
 import '../../../services/loading_service.dart';
 import '../../../services/notification_service.dart';
 import '../../../services/storage_service.dart';
-import '../../../services/sync_worker.dart';
 import '../../../services/voucher_excel_export_service.dart';
 import '../../../services/voucher_pdf_export_service.dart';
 import '../../../utils/app_date_utils.dart';
@@ -25,8 +24,8 @@ import '../../../utils/number_parsing_utils.dart';
 import '../../../utils/register_header_bar.dart';
 import '../../../widgets/common/app_confirm_dialog.dart';
 import '../../../widgets/common/data_table_cells.dart';
-import 'voucher_entry_screen.dart';
 import '../../../widgets/common/print_studio_dialog.dart';
+import 'voucher_entry_screen.dart';
 
 class VoucherListScreen extends ConsumerStatefulWidget {
   final CompanyModel company;
@@ -34,7 +33,6 @@ class VoucherListScreen extends ConsumerStatefulWidget {
   final DateTime? fromDate;
   final DateTime? toDate;
   final String initialSeries;
-  final bool initialManageMode;
   final VoidCallback onClose;
 
   const VoucherListScreen({
@@ -44,7 +42,6 @@ class VoucherListScreen extends ConsumerStatefulWidget {
     this.fromDate,
     this.toDate,
     this.initialSeries = 'All',
-    this.initialManageMode = false,
     required this.onClose,
   });
 
@@ -64,7 +61,6 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
   List<VoucherModel> _filtered = [];
   final Set<String> _selectedKeys = {};
   bool _isLoading = true;
-  late bool _isManageMode;
   int _focusedIndex = -1;
   List<FocusNode> _rowFocusNodes = [];
   late String _selectedSeries;
@@ -74,7 +70,29 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
   late DateTime _effectiveToDate;
 
   KeyboardShortcutSettings _keyboardSettings = KeyboardShortcutSettings.defaults();
-  SyncWorker? _cachedSyncWorker;
+
+  static const double _checkboxColWidth = 42.0;
+  static const double _actionsColWidth = 76.0;
+
+  // Proportional flex weights across the screen
+  static const Map<String, int> _columnFlex = {
+    'sno': 4,
+    'party': 18,
+    'gstin': 14,
+    'pos': 13,
+    'vchNo': 10,
+    'date': 9,
+    'qty': 7,
+    'unit': 5,
+    'hsn': 8,
+    'invoiceVal': 12,
+    'taxable': 11,
+    'taxRate': 6,
+    'igst': 8,
+    'cgst': 8,
+    'sgst': 8,
+    'cess': 7,
+  };
 
   final Map<String, String> _columnLabels = {
     'sno': 'S.No.',
@@ -112,7 +130,6 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
   @override
   void initState() {
     super.initState();
-    _isManageMode = widget.initialManageMode;
     _selectedSeries = widget.initialSeries.trim().isEmpty
         ? 'All'
         : widget.initialSeries.trim();
@@ -125,6 +142,7 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
     _loadAvailableSeries();
     _loadVouchers();
     _searchCtrl.addListener(_onSearch);
+
     _bodyHorizontalScrollCtrl.addListener(() {
       for (final ctrl in [_horizontalHeaderCtrl, _horizontalFooterCtrl]) {
         if (ctrl.hasClients &&
@@ -132,14 +150,6 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
           ctrl.jumpTo(_bodyHorizontalScrollCtrl.offset);
         }
       }
-    });
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _cachedSyncWorker = ref.read(syncWorkerProvider);
-      _cachedSyncWorker?.onRemoteMutationReceived = () {
-        if (mounted) _loadVouchers();
-      };
     });
   }
 
@@ -173,9 +183,6 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
 
   @override
   void dispose() {
-    if (_cachedSyncWorker?.onRemoteMutationReceived != null) {
-      _cachedSyncWorker?.onRemoteMutationReceived = null;
-    }
     _searchCtrl.dispose();
     _searchFocusNode.dispose();
     _horizontalHeaderCtrl.dispose();
@@ -353,35 +360,6 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
 
   bool _isColVisible(String k) =>
       (_userSelectedColumns[k] ?? true) && _hasEntries(k);
-
-  double _calculateActiveMinWidth() {
-    const weights = {
-      'sno': 45.0,
-      'party': 160.0,
-      'gstin': 130.0,
-      'pos': 140.0,
-      'vchNo': 95.0,
-      'date': 85.0,
-      'qty': 65.0,
-      'unit': 50.0,
-      'hsn': 75.0,
-      'invoiceVal': 105.0,
-      'taxable': 95.0,
-      'taxRate': 55.0,
-      'igst': 80.0,
-      'cgst': 80.0,
-      'sgst': 80.0,
-      'cess': 75.0,
-    };
-    double total = _columnLabels.keys
-        .where(_isColVisible)
-        .fold(0.0, (w, k) => w + (weights[k] ?? 80.0));
-    if (_isManageMode) {
-      total += 40.0;
-      total += 90.0;
-    }
-    return total;
-  }
 
   Future<void> _confirmAndDelete(List<VoucherModel> toDelete) async {
     await LoadingService.wrap(() async {
@@ -691,7 +669,6 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
     required int index,
     required VoucherModel voucher,
     VoucherItemModel? item,
-    required double rowWidth,
     bool isSubRow = false,
   }) {
     final key = voucher.id;
@@ -720,108 +697,207 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
     }
 
     return Container(
-      width: rowWidth,
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       decoration: BoxDecoration(
-          color: isSubRow ? AppColors.cardBg : Colors.transparent),
+        color: isSubRow ? AppColors.cardBg : Colors.transparent,
+      ),
       child: Row(
         children: [
-          if (_isManageMode)
-            SizedBox(
-              width: 40,
-              child: isSubRow
-                  ? null
-                  : Center(
-                      child: Checkbox(
-                        value: isSelected,
-                        activeColor: AppColors.primary,
-                        onChanged: (val) {
-                          setState(() {
-                            if (val == true) {
-                              _selectedKeys.add(key);
-                            } else {
-                              _selectedKeys.remove(key);
-                            }
-                          });
-                        },
-                      ),
+          SizedBox(
+            width: _checkboxColWidth,
+            child: isSubRow
+                ? null
+                : Center(
+                    child: Checkbox(
+                      value: isSelected,
+                      activeColor: AppColors.primary,
+                      onChanged: (val) {
+                        setState(() {
+                          if (val == true) {
+                            _selectedKeys.add(key);
+                          } else {
+                            _selectedKeys.remove(key);
+                          }
+                        });
+                      },
                     ),
-            ),
+                  ),
+          ),
           if (_isColVisible('sno'))
-            RegisterDataCell(isSubRow ? '' : '${index + 1}',
-                width: 45, isMuted: true),
+            Expanded(
+              flex: _columnFlex['sno']!,
+              child: RegisterDataCell(
+                isSubRow ? '' : '${index + 1}',
+                width: double.infinity,
+                isMuted: true,
+              ),
+            ),
           if (_isColVisible('party'))
             Expanded(
-                flex: 3,
-                child: RegisterDataCell(isSubRow ? '' : voucher.party,
-                    width: double.infinity, isBold: true)),
+              flex: _columnFlex['party']!,
+              child: RegisterDataCell(
+                isSubRow ? '' : voucher.party,
+                width: double.infinity,
+                isBold: true,
+              ),
+            ),
           if (_isColVisible('gstin'))
             Expanded(
-                flex: 2,
-                child: RegisterDataCell(isSubRow ? '' : voucher.partyGstin,
-                    width: double.infinity, color: AppColors.successDark)),
+              flex: _columnFlex['gstin']!,
+              child: RegisterDataCell(
+                isSubRow ? '' : voucher.partyGstin,
+                width: double.infinity,
+                color: AppColors.successDark,
+              ),
+            ),
           if (_isColVisible('pos'))
             Expanded(
-                flex: 2,
-                child: RegisterDataCell(isSubRow ? '' : pos,
-                    width: double.infinity)),
-          if (_isColVisible('vchNo'))
-            RegisterDataCell(isSubRow ? '' : voucher.voucherNumber,
-                width: 95, color: AppColors.primary, isBold: true),
-          if (_isColVisible('date'))
-            RegisterDataCell(isSubRow ? '' : voucher.date, width: 85),
-          if (_isColVisible('qty'))
-            RegisterDataCell(qtyStr, width: 65, textAlign: TextAlign.right),
-          if (_isColVisible('unit'))
-            RegisterDataCell(unitStr,
-                width: 50, textAlign: TextAlign.center, isMuted: true),
-          if (_isColVisible('hsn')) RegisterDataCell(hsnStr, width: 75),
-          if (_isColVisible('invoiceVal'))
-            RegisterDataCell(
-                isSubRow ? '' : voucher.grandTotal.toCurrency(),
-                width: 105,
-                textAlign: TextAlign.right,
-                isBold: true),
-          if (_isColVisible('taxable'))
-            RegisterDataCell(taxableStr,
-                width: 95, textAlign: TextAlign.right),
-          if (_isColVisible('taxRate'))
-            RegisterDataCell(rateStr,
-                width: 55, textAlign: TextAlign.right, isMuted: true),
-          if (_isColVisible('igst'))
-            RegisterDataCell(igstStr, width: 80, textAlign: TextAlign.right),
-          if (_isColVisible('cgst'))
-            RegisterDataCell(cgstStr, width: 80, textAlign: TextAlign.right),
-          if (_isColVisible('sgst'))
-            RegisterDataCell(sgstStr, width: 80, textAlign: TextAlign.right),
-          if (_isColVisible('cess'))
-            RegisterDataCell(cessStr, width: 75, textAlign: TextAlign.right),
-          if (_isManageMode)
-            Container(
-              width: 90,
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: isSubRow
-                  ? const SizedBox(width: 90)
-                  : Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit_note_rounded,
-                              size: 20, color: AppColors.primary),
-                          onPressed: () => _openEdit(voucher),
-                          splashRadius: 18,
-                          tooltip: 'Edit Voucher',
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete_outline_rounded,
-                              size: 18, color: AppColors.error),
-                          onPressed: () => _confirmAndDelete([voucher]),
-                          splashRadius: 18,
-                          tooltip: 'Delete Voucher',
-                        ),
-                      ],
-                    ),
+              flex: _columnFlex['pos']!,
+              child: RegisterDataCell(
+                isSubRow ? '' : pos,
+                width: double.infinity,
+              ),
             ),
+          if (_isColVisible('vchNo'))
+            Expanded(
+              flex: _columnFlex['vchNo']!,
+              child: RegisterDataCell(
+                isSubRow ? '' : voucher.voucherNumber,
+                width: double.infinity,
+                color: AppColors.primary,
+                isBold: true,
+              ),
+            ),
+          if (_isColVisible('date'))
+            Expanded(
+              flex: _columnFlex['date']!,
+              child: RegisterDataCell(
+                isSubRow ? '' : voucher.date,
+                width: double.infinity,
+              ),
+            ),
+          if (_isColVisible('qty'))
+            Expanded(
+              flex: _columnFlex['qty']!,
+              child: RegisterDataCell(
+                qtyStr,
+                width: double.infinity,
+                textAlign: TextAlign.right,
+              ),
+            ),
+          if (_isColVisible('unit'))
+            Expanded(
+              flex: _columnFlex['unit']!,
+              child: RegisterDataCell(
+                unitStr,
+                width: double.infinity,
+                textAlign: TextAlign.center,
+                isMuted: true,
+              ),
+            ),
+          if (_isColVisible('hsn'))
+            Expanded(
+              flex: _columnFlex['hsn']!,
+              child: RegisterDataCell(
+                hsnStr,
+                width: double.infinity,
+              ),
+            ),
+          if (_isColVisible('invoiceVal'))
+            Expanded(
+              flex: _columnFlex['invoiceVal']!,
+              child: RegisterDataCell(
+                isSubRow ? '' : voucher.grandTotal.toCurrency(),
+                width: double.infinity,
+                textAlign: TextAlign.right,
+                isBold: true,
+              ),
+            ),
+          if (_isColVisible('taxable'))
+            Expanded(
+              flex: _columnFlex['taxable']!,
+              child: RegisterDataCell(
+                taxableStr,
+                width: double.infinity,
+                textAlign: TextAlign.right,
+              ),
+            ),
+          if (_isColVisible('taxRate'))
+            Expanded(
+              flex: _columnFlex['taxRate']!,
+              child: RegisterDataCell(
+                rateStr,
+                width: double.infinity,
+                textAlign: TextAlign.right,
+                isMuted: true,
+              ),
+            ),
+          if (_isColVisible('igst'))
+            Expanded(
+              flex: _columnFlex['igst']!,
+              child: RegisterDataCell(
+                igstStr,
+                width: double.infinity,
+                textAlign: TextAlign.right,
+              ),
+            ),
+          if (_isColVisible('cgst'))
+            Expanded(
+              flex: _columnFlex['cgst']!,
+              child: RegisterDataCell(
+                cgstStr,
+                width: double.infinity,
+                textAlign: TextAlign.right,
+              ),
+            ),
+          if (_isColVisible('sgst'))
+            Expanded(
+              flex: _columnFlex['sgst']!,
+              child: RegisterDataCell(
+                sgstStr,
+                width: double.infinity,
+                textAlign: TextAlign.right,
+              ),
+            ),
+          if (_isColVisible('cess'))
+            Expanded(
+              flex: _columnFlex['cess']!,
+              child: RegisterDataCell(
+                cessStr,
+                width: double.infinity,
+                textAlign: TextAlign.right,
+              ),
+            ),
+          SizedBox(
+            width: _actionsColWidth,
+            child: isSubRow
+                ? const SizedBox(width: _actionsColWidth)
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        icon: const Icon(Icons.edit_note_rounded,
+                            size: 20, color: AppColors.primary),
+                        onPressed: () => _openEdit(voucher),
+                        splashRadius: 16,
+                        tooltip: 'Edit Voucher',
+                      ),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        icon: const Icon(Icons.delete_outline_rounded,
+                            size: 18, color: AppColors.error),
+                        onPressed: () => _confirmAndDelete([voucher]),
+                        splashRadius: 16,
+                        tooltip: 'Delete Voucher',
+                      ),
+                    ],
+                  ),
+          ),
         ],
       ),
     );
@@ -872,39 +948,37 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
           backgroundColor: AppColors.background,
           body: Column(
             children: [
+              // Top Bar with requested colorful buttons
               Container(
                 height: 56,
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 decoration: const BoxDecoration(
                   color: AppColors.surface,
                   border: Border(
-                      bottom:
-                          BorderSide(color: AppColors.border, width: 1.2)),
+                    bottom: BorderSide(color: AppColors.border, width: 1.2),
+                  ),
                 ),
                 child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(colors: [
                           AppColors.primaryAccent,
-                          AppColors.primary
+                          AppColors.primary,
                         ]),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
                         children: [
-                          Icon(
-                            _isManageMode
-                                ? Icons.edit_calendar_rounded
-                                : Icons.format_list_bulleted_rounded,
+                          const Icon(
+                            Icons.format_list_bulleted_rounded,
                             size: 16,
                             color: AppColors.surface,
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            '${widget.voucherType.toUpperCase()} ${_isManageMode ? "MANAGEMENT" : "REGISTER"}',
+                            '${widget.voucherType.toUpperCase()} REGISTER',
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w900,
@@ -917,8 +991,7 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
                     ),
                     const SizedBox(width: 12),
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: AppColors.background,
                         borderRadius: BorderRadius.circular(6),
@@ -941,8 +1014,9 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
                         color: AppColors.surface,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                            color: AppColors.primary.withValues(alpha: 0.4),
-                            width: 1.2),
+                          color: AppColors.primary.withValues(alpha: 0.4),
+                          width: 1.2,
+                        ),
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
@@ -955,9 +1029,7 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
                               .map((s) => DropdownMenuItem(
                                     value: s,
                                     child: Text(
-                                      s == 'All'
-                                          ? 'Series: All'
-                                          : 'Series: $s',
+                                      s == 'All' ? 'Series: All' : 'Series: $s',
                                       style: const TextStyle(
                                         fontSize: 11.5,
                                         fontWeight: FontWeight.w800,
@@ -979,7 +1051,7 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
                       ),
                     ),
                     const Spacer(),
-                    if (_isManageMode && _selectedKeys.isNotEmpty)
+                    if (_selectedKeys.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: ElevatedButton.icon(
@@ -1008,30 +1080,6 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
                           ),
                         ),
                       ),
-                    TextButton.icon(
-                      onPressed: () => setState(() {
-                        _isManageMode = !_isManageMode;
-                        _selectedKeys.clear();
-                      }),
-                      icon: Icon(
-                        _isManageMode
-                            ? Icons.visibility_rounded
-                            : Icons.edit_note_rounded,
-                        size: 16,
-                        color: _isManageMode
-                            ? AppColors.warning
-                            : AppColors.primary,
-                      ),
-                      label: Text(
-                        _isManageMode ? 'Register Mode' : 'Manage Mode',
-                        style: TextStyle(
-                          color: _isManageMode
-                              ? AppColors.warning
-                              : AppColors.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
                     TextButton.icon(
                       onPressed: _openColumnSettingsDialog,
                       icon: const Icon(Icons.view_column_rounded,
@@ -1089,11 +1137,12 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
                   ],
                 ),
               ),
+
               RegisterHeaderBar(
                 searchController: _searchCtrl,
                 searchFocusNode: _searchFocusNode,
                 summary: _summary,
-                isManageMode: _isManageMode,
+                isManageMode: true,
                 onSubmitted: (_) {
                   if (_rowFocusNodes.isNotEmpty &&
                       _rowFocusNodes[0].canRequestFocus) {
@@ -1102,6 +1151,7 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
                   }
                 },
               ),
+
               Expanded(
                 child: Container(
                   margin: const EdgeInsets.fromLTRB(20, 0, 20, 14),
@@ -1114,113 +1164,127 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
                     borderRadius: BorderRadius.circular(14),
                     child: LayoutBuilder(
                       builder: (context, constraints) {
-                        final dynamicWidth = math.max(
-                          constraints.maxWidth,
-                          _calculateActiveMinWidth(),
-                        );
+                        // Enforce minWidth 1000 for compact screens, stretch to 100% on larger screens
+                        final tableWidth = math.max(constraints.maxWidth, 1000.0);
+
                         return Column(
                           children: [
                             SingleChildScrollView(
                               controller: _horizontalHeaderCtrl,
                               scrollDirection: Axis.horizontal,
                               child: Container(
-                                width: dynamicWidth,
+                                width: tableWidth,
                                 height: 40,
                                 decoration: const BoxDecoration(
                                   color: AppColors.cardBg,
                                   border: Border(
-                                      bottom: BorderSide(
-                                          color: AppColors.border, width: 1.2)),
+                                    bottom: BorderSide(color: AppColors.border, width: 1.2),
+                                  ),
                                 ),
                                 child: Row(
                                   children: [
-                                    if (_isManageMode)
-                                      SizedBox(
-                                        width: 40,
-                                        child: Center(
-                                          child: Checkbox(
-                                            value: allSelected,
-                                            activeColor: AppColors.primary,
-                                            onChanged: (v) {
-                                              setState(() {
-                                                if (v == true) {
-                                                  _selectedKeys.addAll(allKeys);
-                                                } else {
-                                                  _selectedKeys.clear();
-                                                }
-                                              });
-                                            },
-                                          ),
+                                    SizedBox(
+                                      width: _checkboxColWidth,
+                                      child: Center(
+                                        child: Checkbox(
+                                          value: allSelected,
+                                          activeColor: AppColors.primary,
+                                          onChanged: (v) {
+                                            setState(() {
+                                              if (v == true) {
+                                                _selectedKeys.addAll(allKeys);
+                                              } else {
+                                                _selectedKeys.clear();
+                                              }
+                                            });
+                                          },
                                         ),
                                       ),
+                                    ),
                                     if (_isColVisible('sno'))
-                                      const RegisterHeaderCell('S.No.',
-                                          width: 45),
+                                      Expanded(
+                                        flex: _columnFlex['sno']!,
+                                        child: const RegisterHeaderCell('S.No.', width: double.infinity),
+                                      ),
                                     if (_isColVisible('party'))
-                                      const Expanded(
-                                          flex: 3,
-                                          child: RegisterHeaderCell('Party',
-                                              width: double.infinity)),
+                                      Expanded(
+                                        flex: _columnFlex['party']!,
+                                        child: const RegisterHeaderCell('Party', width: double.infinity),
+                                      ),
                                     if (_isColVisible('gstin'))
-                                      const Expanded(
-                                          flex: 2,
-                                          child: RegisterHeaderCell('GSTIN',
-                                              width: double.infinity)),
+                                      Expanded(
+                                        flex: _columnFlex['gstin']!,
+                                        child: const RegisterHeaderCell('GSTIN', width: double.infinity),
+                                      ),
                                     if (_isColVisible('pos'))
-                                      const Expanded(
-                                          flex: 2,
-                                          child: RegisterHeaderCell(
-                                              'Place of Supply',
-                                              width: double.infinity)),
+                                      Expanded(
+                                        flex: _columnFlex['pos']!,
+                                        child: const RegisterHeaderCell('Place of Supply', width: double.infinity),
+                                      ),
                                     if (_isColVisible('vchNo'))
-                                      const RegisterHeaderCell('Voc. No.',
-                                          width: 95),
+                                      Expanded(
+                                        flex: _columnFlex['vchNo']!,
+                                        child: const RegisterHeaderCell('Voc. No.', width: double.infinity),
+                                      ),
                                     if (_isColVisible('date'))
-                                      const RegisterHeaderCell('Voc. Date',
-                                          width: 85),
+                                      Expanded(
+                                        flex: _columnFlex['date']!,
+                                        child: const RegisterHeaderCell('Voc. Date', width: double.infinity),
+                                      ),
                                     if (_isColVisible('qty'))
-                                      const RegisterHeaderCell('Qty.',
-                                          width: 65,
-                                          textAlign: TextAlign.right),
+                                      Expanded(
+                                        flex: _columnFlex['qty']!,
+                                        child: const RegisterHeaderCell('Qty.', width: double.infinity, textAlign: TextAlign.right),
+                                      ),
                                     if (_isColVisible('unit'))
-                                      const RegisterHeaderCell('Unit',
-                                          width: 50,
-                                          textAlign: TextAlign.center),
+                                      Expanded(
+                                        flex: _columnFlex['unit']!,
+                                        child: const RegisterHeaderCell('Unit', width: double.infinity, textAlign: TextAlign.center),
+                                      ),
                                     if (_isColVisible('hsn'))
-                                      const RegisterHeaderCell('HSN',
-                                          width: 75),
+                                      Expanded(
+                                        flex: _columnFlex['hsn']!,
+                                        child: const RegisterHeaderCell('HSN', width: double.infinity),
+                                      ),
                                     if (_isColVisible('invoiceVal'))
-                                      const RegisterHeaderCell('Invoice Value',
-                                          width: 105,
-                                          textAlign: TextAlign.right),
+                                      Expanded(
+                                        flex: _columnFlex['invoiceVal']!,
+                                        child: const RegisterHeaderCell('Invoice Value', width: double.infinity, textAlign: TextAlign.right),
+                                      ),
                                     if (_isColVisible('taxable'))
-                                      const RegisterHeaderCell('Taxable',
-                                          width: 95,
-                                          textAlign: TextAlign.right),
+                                      Expanded(
+                                        flex: _columnFlex['taxable']!,
+                                        child: const RegisterHeaderCell('Taxable', width: double.infinity, textAlign: TextAlign.right),
+                                      ),
                                     if (_isColVisible('taxRate'))
-                                      const RegisterHeaderCell('Rate',
-                                          width: 55,
-                                          textAlign: TextAlign.right),
+                                      Expanded(
+                                        flex: _columnFlex['taxRate']!,
+                                        child: const RegisterHeaderCell('Rate', width: double.infinity, textAlign: TextAlign.right),
+                                      ),
                                     if (_isColVisible('igst'))
-                                      const RegisterHeaderCell('IGST',
-                                          width: 80,
-                                          textAlign: TextAlign.right),
+                                      Expanded(
+                                        flex: _columnFlex['igst']!,
+                                        child: const RegisterHeaderCell('IGST', width: double.infinity, textAlign: TextAlign.right),
+                                      ),
                                     if (_isColVisible('cgst'))
-                                      const RegisterHeaderCell('CGST',
-                                          width: 80,
-                                          textAlign: TextAlign.right),
+                                      Expanded(
+                                        flex: _columnFlex['cgst']!,
+                                        child: const RegisterHeaderCell('CGST', width: double.infinity, textAlign: TextAlign.right),
+                                      ),
                                     if (_isColVisible('sgst'))
-                                      const RegisterHeaderCell('SGST',
-                                          width: 80,
-                                          textAlign: TextAlign.right),
+                                      Expanded(
+                                        flex: _columnFlex['sgst']!,
+                                        child: const RegisterHeaderCell('SGST', width: double.infinity, textAlign: TextAlign.right),
+                                      ),
                                     if (_isColVisible('cess'))
-                                      const RegisterHeaderCell('Cess',
-                                          width: 75,
-                                          textAlign: TextAlign.right),
-                                    if (_isManageMode)
-                                      const RegisterHeaderCell('Actions',
-                                          width: 90,
-                                          textAlign: TextAlign.center),
+                                      Expanded(
+                                        flex: _columnFlex['cess']!,
+                                        child: const RegisterHeaderCell('Cess', width: double.infinity, textAlign: TextAlign.right),
+                                      ),
+                                    const SizedBox(
+                                      width: _actionsColWidth,
+                                      child: RegisterHeaderCell('Actions', width: _actionsColWidth, textAlign: TextAlign.center),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -1228,159 +1292,109 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
                             Expanded(
                               child: _isLoading
                                   ? const Center(
-                                      child: CircularProgressIndicator(
-                                          color: AppColors.primary))
+                                      child: CircularProgressIndicator(color: AppColors.primary))
                                   : _filtered.isEmpty
                                       ? const Center(
-                                          child: Text(
-                                              'No matching vouchers found.'))
+                                          child: Text('No matching vouchers found.'))
                                       : Scrollbar(
-                                          controller:
-                                              _bodyHorizontalScrollCtrl,
+                                          controller: _bodyHorizontalScrollCtrl,
                                           thumbVisibility: true,
                                           child: SingleChildScrollView(
-                                            controller:
-                                                _bodyHorizontalScrollCtrl,
+                                            controller: _bodyHorizontalScrollCtrl,
                                             scrollDirection: Axis.horizontal,
                                             child: SizedBox(
-                                              width: dynamicWidth,
+                                              width: tableWidth,
                                               child: Scrollbar(
-                                                controller:
-                                                    _bodyVerticalScrollCtrl,
+                                                controller: _bodyVerticalScrollCtrl,
                                                 thumbVisibility: true,
                                                 child: ListView.separated(
-                                                  controller:
-                                                      _bodyVerticalScrollCtrl,
+                                                  controller: _bodyVerticalScrollCtrl,
                                                   itemCount: _filtered.length,
                                                   separatorBuilder: (_, __) =>
-                                                      const Divider(
-                                                          height: 1,
-                                                          color: AppColors
-                                                              .borderLight),
+                                                      const Divider(height: 1, color: AppColors.borderLight),
                                                   itemBuilder: (context, idx) {
                                                     if (idx >= _rowFocusNodes.length) {
                                                       return const SizedBox.shrink();
                                                     }
 
                                                     final v = _filtered[idx];
-                                                    final isFocused =
-                                                        _focusedIndex == idx;
+                                                    final isFocused = _focusedIndex == idx;
 
                                                     return Focus(
-                                                      focusNode:
-                                                          _rowFocusNodes[idx],
+                                                      focusNode: _rowFocusNodes[idx],
                                                       onFocusChange: (f) {
-                                                        if (f) {
-                                                          setState(() =>
-                                                              _focusedIndex =
-                                                                  idx);
-                                                        }
+                                                        if (f) setState(() => _focusedIndex = idx);
                                                       },
                                                       onKeyEvent: (_, e) {
                                                         if (e is KeyDownEvent || e is KeyRepeatEvent) {
-                                                          if (KeyboardShortcutService
-                                                              .matchesAction(_keyboardSettings, KeyboardShortcutService.activateAction, e) ||
-                                                              KeyboardShortcutService
-                                                              .isConfirm(e)) {
+                                                          if (KeyboardShortcutService.matchesAction(
+                                                                  _keyboardSettings,
+                                                                  KeyboardShortcutService.activateAction,
+                                                                  e) ||
+                                                              KeyboardShortcutService.isConfirm(e)) {
                                                             _openEdit(v);
-                                                            return KeyEventResult
-                                                                .handled;
+                                                            return KeyEventResult.handled;
                                                           }
-                                                          if (KeyboardShortcutService
-                                                              .matchesAction(_keyboardSettings, KeyboardShortcutService.moveDownAction, e) ||
-                                                              KeyboardShortcutService
-                                                              .isDown(e)) {
-                                                            if (idx + 1 <
-                                                                _rowFocusNodes
-                                                                    .length) {
-                                                              _rowFocusNodes[
-                                                                      idx + 1]
-                                                                  .requestFocus();
-                                                            } else if (_rowFocusNodes
-                                                                .isNotEmpty) {
-                                                              _rowFocusNodes[0]
-                                                                  .requestFocus();
+                                                          if (KeyboardShortcutService.matchesAction(
+                                                                  _keyboardSettings,
+                                                                  KeyboardShortcutService.moveDownAction,
+                                                                  e) ||
+                                                              KeyboardShortcutService.isDown(e)) {
+                                                            if (idx + 1 < _rowFocusNodes.length) {
+                                                              _rowFocusNodes[idx + 1].requestFocus();
+                                                            } else if (_rowFocusNodes.isNotEmpty) {
+                                                              _rowFocusNodes[0].requestFocus();
                                                             }
-                                                            return KeyEventResult
-                                                                .handled;
+                                                            return KeyEventResult.handled;
                                                           }
-                                                          if (KeyboardShortcutService
-                                                              .matchesAction(_keyboardSettings, KeyboardShortcutService.moveUpAction, e) ||
-                                                              KeyboardShortcutService
-                                                              .isUp(e)) {
+                                                          if (KeyboardShortcutService.matchesAction(
+                                                                  _keyboardSettings,
+                                                                  KeyboardShortcutService.moveUpAction,
+                                                                  e) ||
+                                                              KeyboardShortcutService.isUp(e)) {
                                                             if (idx - 1 >= 0) {
-                                                              _rowFocusNodes[
-                                                                      idx - 1]
-                                                                  .requestFocus();
+                                                              _rowFocusNodes[idx - 1].requestFocus();
                                                             } else {
-                                                              _searchFocusNode
-                                                                  .requestFocus();
+                                                              _searchFocusNode.requestFocus();
                                                             }
-                                                            return KeyEventResult
-                                                                .handled;
+                                                            return KeyEventResult.handled;
                                                           }
                                                         }
-                                                        return KeyEventResult
-                                                            .ignored;
+                                                        return KeyEventResult.ignored;
                                                       },
                                                       child: GestureDetector(
-                                                        onDoubleTap: () =>
-                                                            _openEdit(v),
+                                                        onDoubleTap: () => _openEdit(v),
                                                         onTap: () {
-                                                          setState(() =>
-                                                              _focusedIndex =
-                                                                  idx);
-                                                          _rowFocusNodes[idx]
-                                                              .requestFocus();
+                                                          setState(() => _focusedIndex = idx);
+                                                          _rowFocusNodes[idx].requestFocus();
                                                         },
                                                         child: Container(
-                                                          decoration:
-                                                              BoxDecoration(
+                                                          decoration: BoxDecoration(
                                                             color: isFocused
-                                                                ? AppColors
-                                                                    .primaryLight
+                                                                ? AppColors.primaryLight
                                                                 : (_selectedKeys.contains(v.id)
-                                                                    ? AppColors
-                                                                        .primaryLight
-                                                                        .withValues(alpha: 0.45)
-                                                                    : Colors
-                                                                        .transparent),
+                                                                    ? AppColors.primaryLight.withValues(alpha: 0.45)
+                                                                    : Colors.transparent),
                                                             border: isFocused
-                                                                ? Border.all(
-                                                                    color: AppColors
-                                                                        .primary,
-                                                                    width: 1.5)
+                                                                ? Border.all(color: AppColors.primary, width: 1.5)
                                                                 : null,
                                                             borderRadius: isFocused
-                                                                ? BorderRadius
-                                                                    .circular(6)
+                                                                ? BorderRadius.circular(6)
                                                                 : null,
                                                           ),
                                                           child: v.items.isEmpty
                                                               ? _buildRegisterRow(
                                                                   index: idx,
                                                                   voucher: v,
-                                                                  rowWidth:
-                                                                      dynamicWidth,
                                                                 )
                                                               : Column(
-                                                                  children: List
-                                                                      .generate(
-                                                                    v.items
-                                                                        .length,
-                                                                    (iIdx) =>
-                                                                        _buildRegisterRow(
-                                                                      index:
-                                                                          idx,
-                                                                      voucher:
-                                                                          v,
-                                                                      item: v.items[
-                                                                          iIdx],
-                                                                      isSubRow:
-                                                                          iIdx >
-                                                                              0,
-                                                                      rowWidth:
-                                                                          dynamicWidth,
+                                                                  children: List.generate(
+                                                                    v.items.length,
+                                                                    (iIdx) => _buildRegisterRow(
+                                                                      index: idx,
+                                                                      voucher: v,
+                                                                      item: v.items[iIdx],
+                                                                      isSubRow: iIdx > 0,
                                                                     ),
                                                                   ),
                                                                 ),
@@ -1398,91 +1412,127 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
                               controller: _horizontalFooterCtrl,
                               scrollDirection: Axis.horizontal,
                               child: Container(
-                                width: dynamicWidth,
+                                width: tableWidth,
                                 height: 38,
                                 decoration: const BoxDecoration(
                                   color: AppColors.background,
                                   border: Border(
-                                      top: BorderSide(
-                                          color: AppColors.borderFocus,
-                                          width: 1.2)),
+                                    top: BorderSide(color: AppColors.borderFocus, width: 1.2),
+                                  ),
                                 ),
                                 child: Row(
                                   children: [
-                                    if (_isManageMode)
-                                      const SizedBox(width: 40),
+                                    const SizedBox(width: _checkboxColWidth),
                                     if (_isColVisible('sno'))
-                                      const RegisterFooterCell('', width: 45),
+                                      Expanded(
+                                        flex: _columnFlex['sno']!,
+                                        child: const RegisterFooterCell('', width: double.infinity),
+                                      ),
                                     if (_isColVisible('party'))
-                                      const Expanded(
-                                          flex: 3,
-                                          child: RegisterFooterCell('TOTAL',
-                                              width: double.infinity)),
+                                      Expanded(
+                                        flex: _columnFlex['party']!,
+                                        child: const RegisterFooterCell('TOTAL', width: double.infinity),
+                                      ),
                                     if (_isColVisible('gstin'))
-                                      const Expanded(
-                                          flex: 2,
-                                          child: RegisterFooterCell('',
-                                              width: double.infinity)),
+                                      Expanded(
+                                        flex: _columnFlex['gstin']!,
+                                        child: const RegisterFooterCell('', width: double.infinity),
+                                      ),
                                     if (_isColVisible('pos'))
-                                      const Expanded(
-                                          flex: 2,
-                                          child: RegisterFooterCell('',
-                                              width: double.infinity)),
+                                      Expanded(
+                                        flex: _columnFlex['pos']!,
+                                        child: const RegisterFooterCell('', width: double.infinity),
+                                      ),
                                     if (_isColVisible('vchNo'))
-                                      const RegisterFooterCell('', width: 95),
+                                      Expanded(
+                                        flex: _columnFlex['vchNo']!,
+                                        child: const RegisterFooterCell('', width: double.infinity),
+                                      ),
                                     if (_isColVisible('date'))
-                                      const RegisterFooterCell('', width: 85),
+                                      Expanded(
+                                        flex: _columnFlex['date']!,
+                                        child: const RegisterFooterCell('', width: double.infinity),
+                                      ),
                                     if (_isColVisible('qty'))
-                                      RegisterFooterCell(
-                                        _summary.totalQuantity.toCurrency(),
-                                        width: 65,
-                                        textAlign: TextAlign.right,
+                                      Expanded(
+                                        flex: _columnFlex['qty']!,
+                                        child: RegisterFooterCell(
+                                          _summary.totalQuantity.toCurrency(),
+                                          width: double.infinity,
+                                          textAlign: TextAlign.right,
+                                        ),
                                       ),
                                     if (_isColVisible('unit'))
-                                      const RegisterFooterCell('', width: 50),
+                                      Expanded(
+                                        flex: _columnFlex['unit']!,
+                                        child: const RegisterFooterCell('', width: double.infinity),
+                                      ),
                                     if (_isColVisible('hsn'))
-                                      const RegisterFooterCell('', width: 75),
+                                      Expanded(
+                                        flex: _columnFlex['hsn']!,
+                                        child: const RegisterFooterCell('', width: double.infinity),
+                                      ),
                                     if (_isColVisible('invoiceVal'))
-                                      RegisterFooterCell(
-                                        _summary.totalInvoiceValue.toCurrency(),
-                                        width: 105,
-                                        textAlign: TextAlign.right,
-                                        highlight: true,
+                                      Expanded(
+                                        flex: _columnFlex['invoiceVal']!,
+                                        child: RegisterFooterCell(
+                                          _summary.totalInvoiceValue.toCurrency(),
+                                          width: double.infinity,
+                                          textAlign: TextAlign.right,
+                                          highlight: true,
+                                        ),
                                       ),
                                     if (_isColVisible('taxable'))
-                                      RegisterFooterCell(
-                                        _summary.totalTaxable.toCurrency(),
-                                        width: 95,
-                                        textAlign: TextAlign.right,
+                                      Expanded(
+                                        flex: _columnFlex['taxable']!,
+                                        child: RegisterFooterCell(
+                                          _summary.totalTaxable.toCurrency(),
+                                          width: double.infinity,
+                                          textAlign: TextAlign.right,
+                                        ),
                                       ),
                                     if (_isColVisible('taxRate'))
-                                      const RegisterFooterCell('', width: 55),
+                                      Expanded(
+                                        flex: _columnFlex['taxRate']!,
+                                        child: const RegisterFooterCell('', width: double.infinity),
+                                      ),
                                     if (_isColVisible('igst'))
-                                      RegisterFooterCell(
-                                        _summary.totalIgst.toCurrency(),
-                                        width: 80,
-                                        textAlign: TextAlign.right,
+                                      Expanded(
+                                        flex: _columnFlex['igst']!,
+                                        child: RegisterFooterCell(
+                                          _summary.totalIgst.toCurrency(),
+                                          width: double.infinity,
+                                          textAlign: TextAlign.right,
+                                        ),
                                       ),
                                     if (_isColVisible('cgst'))
-                                      RegisterFooterCell(
-                                        _summary.totalCgst.toCurrency(),
-                                        width: 80,
-                                        textAlign: TextAlign.right,
+                                      Expanded(
+                                        flex: _columnFlex['cgst']!,
+                                        child: RegisterFooterCell(
+                                          _summary.totalCgst.toCurrency(),
+                                          width: double.infinity,
+                                          textAlign: TextAlign.right,
+                                        ),
                                       ),
                                     if (_isColVisible('sgst'))
-                                      RegisterFooterCell(
-                                        _summary.totalSgst.toCurrency(),
-                                        width: 80,
-                                        textAlign: TextAlign.right,
+                                      Expanded(
+                                        flex: _columnFlex['sgst']!,
+                                        child: RegisterFooterCell(
+                                          _summary.totalSgst.toCurrency(),
+                                          width: double.infinity,
+                                          textAlign: TextAlign.right,
+                                        ),
                                       ),
                                     if (_isColVisible('cess'))
-                                      RegisterFooterCell(
-                                        _summary.totalCess.toCurrency(),
-                                        width: 75,
-                                        textAlign: TextAlign.right,
+                                      Expanded(
+                                        flex: _columnFlex['cess']!,
+                                        child: RegisterFooterCell(
+                                          _summary.totalCess.toCurrency(),
+                                          width: double.infinity,
+                                          textAlign: TextAlign.right,
+                                        ),
                                       ),
-                                    if (_isManageMode)
-                                      const SizedBox(width: 90),
+                                    const SizedBox(width: _actionsColWidth),
                                   ],
                                 ),
                               ),

@@ -8,14 +8,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../constants/app_colors.dart';
-import '../../../database/app_database.dart';
 import '../../../models/company_model.dart';
 import '../../../models/item_master_model.dart';
 import '../../../models/party_master_model.dart';
 import '../../../models/voucher_header_controllers.dart';
 import '../../../models/voucher_model.dart';
 import '../../../provider/company_provider.dart';
-import '../../../provider/sync_provider.dart';
 import '../../../repositories/master_repository.dart';
 import '../../../services/focus_policy_service.dart';
 import '../../../services/keyboard_shortcut_service.dart';
@@ -219,7 +217,6 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     };
     _partyCache = {
       for (final p in _currentParties) ...{
-        p.name.toLowerCase().trim(): p,
         p.name.toLowerCase().trim(): p,
         if (p.gstin.isNotEmpty) ...{
           '${p.name} (${p.gstin})'.toLowerCase().trim(): p,
@@ -1530,18 +1527,6 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
       financialYear: financialYear,
       voucherData: payload.toJson(),
     );
-
-    final syncWorker = ref.read(syncWorkerProvider);
-    if (syncWorker != null) {
-      final db = AppDatabase.forCompany(folderPath);
-      try {
-        await syncWorker.pushLocalMutation(db, payload.toJson());
-      } catch (e) {
-        debugPrint('SyncWorker pushLocalMutation error: $e');
-      } finally {
-        await db.close();
-      }
-    }
 
     if (!mounted) return;
     _notify('${widget.voucherType} [${_h.vchNo.text}] saved!');

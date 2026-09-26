@@ -1039,7 +1039,13 @@ class _MasterModifyDialogState extends State<MasterModifyDialog> {
                                       children: [
                                         Row(
                                           children: [
-                                            Text(r['title'] ?? '', style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                                            Expanded(
+                                              child: Text(
+                                                r['title'] ?? '',
+                                                style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
                                             const SizedBox(width: 8),
                                             Container(
                                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
@@ -1048,7 +1054,13 @@ class _MasterModifyDialogState extends State<MasterModifyDialog> {
                                             ),
                                           ],
                                         ),
-                                        Text(r['detail'] ?? '', style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary)),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          r['detail'] ?? '',
+                                          style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
                                       ],
                                     ),
                                   ),

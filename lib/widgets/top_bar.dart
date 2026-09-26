@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../constants/app_colors.dart';
 import '../provider/company_provider.dart';
-import '../provider/sync_provider.dart';
 
 class TopBar extends ConsumerStatefulWidget {
   const TopBar({super.key});
@@ -17,7 +16,6 @@ class _TopBarState extends ConsumerState<TopBar> {
   @override
   Widget build(BuildContext context) {
     final activeCompany = ref.watch(activeCompanyProvider);
-    final worker = ref.watch(syncWorkerProvider);
 
     return Container(
       height: 60,
@@ -27,21 +25,11 @@ class _TopBarState extends ConsumerState<TopBar> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // LIVE MULTI-BRANCH SYNC STATUS BADGE
+          // LOCAL WORKSPACE STATUS BADGE
           if (activeCompany == null)
             _buildBadge(isOnline: false, label: 'No Active Workspace')
-          else if (worker != null)
-            ValueListenableBuilder<bool>(
-              valueListenable: worker.isConnected,
-              builder: (context, isOnline, _) {
-                return _buildBadge(
-                  isOnline: isOnline,
-                  label: isOnline ? 'Cloud Synced' : 'Offline / Reconnecting',
-                );
-              },
-            )
           else
-            _buildBadge(isOnline: false, label: 'Connecting...'),
+            _buildBadge(isOnline: true, label: 'Local Engine Active'),
           const SizedBox(width: 16),
 
           // PROFILE TRIGGER

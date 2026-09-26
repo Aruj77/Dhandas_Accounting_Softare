@@ -131,7 +131,6 @@ class _VoucherModifyDialogState extends State<VoucherModifyDialog> {
         builder: (ctx) => VoucherListScreen(
           company: widget.company,
           voucherType: widget.voucherType,
-          initialManageMode: true,
           onClose: () {
             Navigator.of(ctx).pop();
             onUpdatedCallback();
