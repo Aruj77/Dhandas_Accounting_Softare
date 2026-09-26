@@ -103,6 +103,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _resetShortcuts() async {
     await _applyKeyboardSettings(KeyboardShortcutSettings.defaults());
+    NotificationService.show(
+      context,
+      message: 'Keyboard shortcuts reset to defaults.',
+      type: NotificationType.success,
+    );
   }
 
   @override
@@ -141,6 +146,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 28),
 
+            // Application Updates Card
             _buildSettingsCard(
               icon: Icons.system_update_rounded,
               badgeColor: AppColors.success,
@@ -279,6 +285,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 20),
 
+            // Storage & Database Location Card
             _buildSettingsCard(
               icon: Icons.folder_shared_rounded,
               badgeColor: AppColors.primary,
@@ -335,6 +342,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 20),
 
+            // Keyboard & Shortcuts Card
             _buildSettingsCard(
               icon: Icons.keyboard_alt_rounded,
               badgeColor: AppColors.primary,
@@ -431,6 +439,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 20),
 
+            // Application Information Card
             _buildSettingsCard(
               icon: Icons.info_outline_rounded,
               badgeColor: AppColors.purple,
@@ -576,7 +585,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           SizedBox(
             width: 180,
             child: DropdownButtonFormField<String>(
-              initialValue: selectedKey,
+              initialValue: definition.options.any((o) => o.id == selectedKey) ? selectedKey : definition.options.first.id,
               isExpanded: true,
               icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppColors.textSecondary),
               decoration: InputDecoration(

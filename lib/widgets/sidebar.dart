@@ -91,17 +91,15 @@ class SideBarState extends State<SideBar> {
   void _handleKeyNavigation(int index, KeyEvent event) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) return;
 
-    final key = event.logicalKey;
-
-    if (KeyboardShortcutService.isUp(key)) {
+    if (KeyboardShortcutService.isUp(event)) {
       final prev = (index - 1).clamp(0, _itemFocusNodes.length - 1);
       _itemFocusNodes[prev].requestFocus();
       widget.onItemSelected(prev);
-    } else if (KeyboardShortcutService.isDown(key)) {
+    } else if (KeyboardShortcutService.isDown(event)) {
       final next = (index + 1).clamp(0, _itemFocusNodes.length - 1);
       _itemFocusNodes[next].requestFocus();
       widget.onItemSelected(next);
-    } else if (KeyboardShortcutService.isRight(key) || KeyboardShortcutService.isConfirm(key)) {
+    } else if (KeyboardShortcutService.isRight(event) || KeyboardShortcutService.isConfirm(event)) {
       widget.onItemSelected(index);
       widget.onMoveToRightPane?.call();
     }
@@ -222,12 +220,11 @@ class SideBarState extends State<SideBar> {
                   },
                   onKeyEvent: (node, event) {
                     _handleKeyNavigation(index, event);
-                    final key = event.logicalKey;
                     if (event is KeyDownEvent &&
-                        (KeyboardShortcutService.isUp(key) ||
-                            KeyboardShortcutService.isDown(key) ||
-                            KeyboardShortcutService.isRight(key) ||
-                            KeyboardShortcutService.isConfirm(key))) {
+                        (KeyboardShortcutService.isUp(event) ||
+                            KeyboardShortcutService.isDown(event) ||
+                            KeyboardShortcutService.isRight(event) ||
+                            KeyboardShortcutService.isConfirm(event))) {
                       return KeyEventResult.handled;
                     }
                     return KeyEventResult.ignored;

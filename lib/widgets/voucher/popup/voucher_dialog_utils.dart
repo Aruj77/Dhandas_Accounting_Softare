@@ -1,8 +1,8 @@
 // lib/widgets/voucher/popup/voucher_dialog_utils.dart
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../../constants/app_colors.dart';
 import '../../../services/focus_policy_service.dart';
+import '../../../services/keyboard_shortcut_service.dart';
 
 class DialogActionConfig {
   final String label;
@@ -258,14 +258,11 @@ class _FocusableDialogButton extends StatelessWidget {
     return Focus(
       focusNode: focusNode,
       onKeyEvent: (node, event) {
-        if (event is KeyDownEvent &&
-            (event.logicalKey == LogicalKeyboardKey.enter ||
-                event.logicalKey == LogicalKeyboardKey.numpadEnter ||
-                event.logicalKey == LogicalKeyboardKey.space)) {
-          onPressed();
-          return KeyEventResult.handled;
-        }
-        return KeyEventResult.ignored;
+        if (KeyboardShortcutService.isConfirm(event)) {
+              Navigator.pop(context, true);
+              return KeyEventResult.handled;
+            }
+            return KeyEventResult.ignored;
       },
       child: Builder(
         builder: (ctx) {

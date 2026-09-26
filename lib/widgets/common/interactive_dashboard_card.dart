@@ -100,7 +100,6 @@ class _InteractiveDashboardCardState extends State<InteractiveDashboardCard> {
             cursor: SystemMouseCursors.click,
             onEnter: (_) {
               setState(() => _isHovered = true);
-              widget.focusNode.requestFocus();
             },
             onExit: (_) => setState(() => _isHovered = false),
             child: AnimatedContainer(
@@ -135,7 +134,6 @@ class _InteractiveDashboardCardState extends State<InteractiveDashboardCard> {
               child: InkWell(
                 borderRadius: BorderRadius.circular(18),
                 onTap: () {
-                  widget.focusNode.requestFocus();
                   widget.onPrimaryAction();
                 },
                 child: Padding(

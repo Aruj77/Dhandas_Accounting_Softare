@@ -1,4 +1,3 @@
-// lib/pages/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -71,6 +70,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void initState() {
     super.initState();
     _loadKeyboardSettings();
+    HardwareKeyboard.instance.addHandler(_handleGlobalHardwareKey);
 
     FocusPolicyService.requestScreenFocus(
       screen: FocusTargetScreen.homeDashboard,
@@ -83,6 +83,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleGlobalHardwareKey);
     _openCompanyBtnFocus.dispose();
     _createCompanyBtnFocus.dispose();
     _backupDataFocus.dispose();
@@ -92,7 +93,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Future<void> _loadKeyboardSettings() async {
-    final settings = await KeyboardShortcutService.loadSettings();
+    var settings = await KeyboardShortcutService.loadSettings();
+
+    // Normalize legacy stored shortcuts from previous app runs
+    final normalized = <String, String>{};
+    settings.shortcuts.forEach((key, val) {
+      String clean = val;
+      if (val.toLowerCase() == 'escape') {
+        clean = 'Esc';
+      } else if (val.toLowerCase() == 'enter') {
+        clean = 'Enter';
+      } else if (val.toLowerCase().startsWith('f') && int.tryParse(val.substring(1)) != null) {
+        clean = val.toUpperCase();
+      } else if (val.toLowerCase().startsWith('shift+f')) {
+        clean = 'Shift+${val.substring(6).toUpperCase()}';
+      }
+      normalized[key] = clean;
+    });
+    settings = settings.copyWith(shortcuts: normalized);
+
     if (mounted) {
       setState(() => _keyboardSettings = settings);
     }
@@ -298,57 +317,60 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     _sidebarKey.currentState?.focusActiveItem();
   }
 
-  KeyEventResult _handleKeyboardEvent(FocusNode node, KeyEvent event) {
-    if (!_keyboardSettings.keyboardIntensiveMode) {
-      return KeyEventResult.ignored;
-    }
+  bool _handleGlobalHardwareKey(KeyEvent event) {
+    if (!_keyboardSettings.keyboardIntensiveMode) return false;
+    if (event is! KeyDownEvent) return false;
 
-    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
-      return KeyEventResult.ignored;
-    }
+    // Do not intercept if user is typing into an input field
+    if (_isEditableFocusActive()) return false;
 
-    if (_isEditableFocusActive()) {
-      return KeyEventResult.ignored;
-    }
+    // Do not intercept if a dialog or modal popup route is open
+    final route = ModalRoute.of(context);
+    if (route != null && !route.isCurrent) return false;
 
+    // Esc (Go Back): Switches workspace back to HomeScreen when inside a company
     if (KeyboardShortcutService.matchesAction(
       _keyboardSettings,
       KeyboardShortcutService.goBackAction,
       event,
     )) {
       _goBack();
-      return KeyEventResult.handled;
+      return true;
     }
 
+    // If viewing entry/list, allow them to manage internal keys
     if (_activeVoucherType != null || _activeListQuery != null) {
-      return KeyEventResult.ignored;
+      return false;
     }
 
-    if (KeyboardShortcutService.matchesAction(
-      _keyboardSettings,
-      KeyboardShortcutService.openCompanyAction,
-      event,
-    )) {
-      _showOpenCompanyModal();
-      return KeyEventResult.handled;
-    }
+    // Company setup shortcuts ONLY trigger when on root home screen (no active company)
+    if (_activeCompany == null) {
+      if (KeyboardShortcutService.matchesAction(
+        _keyboardSettings,
+        KeyboardShortcutService.openCompanyAction,
+        event,
+      )) {
+        _showOpenCompanyModal();
+        return true;
+      }
 
-    if (KeyboardShortcutService.matchesAction(
-      _keyboardSettings,
-      KeyboardShortcutService.createCompanyAction,
-      event,
-    )) {
-      _showCreateCompanyModal();
-      return KeyEventResult.handled;
-    }
+      if (KeyboardShortcutService.matchesAction(
+        _keyboardSettings,
+        KeyboardShortcutService.createCompanyAction,
+        event,
+      )) {
+        _showCreateCompanyModal();
+        return true;
+      }
 
-    if (KeyboardShortcutService.matchesAction(
-      _keyboardSettings,
-      KeyboardShortcutService.changeDirectoryAction,
-      event,
-    )) {
-      _showSetDirectoryModal();
-      return KeyEventResult.handled;
+      if (KeyboardShortcutService.matchesAction(
+        _keyboardSettings,
+        KeyboardShortcutService.changeDirectoryAction,
+        event,
+      )) {
+        _showSetDirectoryModal();
+        return true;
+      }
     }
 
     if (KeyboardShortcutService.matchesAction(
@@ -363,7 +385,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         _selectedIndex = 3;
       });
       ref.read(activeCompanyProvider.notifier).state = null;
-      return KeyEventResult.handled;
+      return true;
     }
 
     if (KeyboardShortcutService.matchesAction(
@@ -372,27 +394,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       event,
     )) {
       _switchWorkspace();
-      return KeyEventResult.handled;
+      return true;
     }
 
-    return KeyEventResult.ignored;
+    return false;
   }
 
   @override
   Widget build(BuildContext context) {
     Widget content;
-    _activeCompany?.toJson();
 
     if (_activeVoucherType != null) {
       content = VoucherEntryScreen(
-        company: _activeCompany!, // Pass CompanyModel directly
+        company: _activeCompany!,
         voucherType: _activeVoucherType!,
         onClose: () => setState(() => _activeVoucherType = null),
         keyboardSettings: _keyboardSettings,
       );
     } else if (_activeListQuery != null) {
       content = VoucherListScreen(
-        company: _activeCompany!, // Pass CompanyModel directly
+        company: _activeCompany!,
         voucherType: _activeListQuery!.voucherType,
         fromDate: _activeListQuery!.fromDate,
         toDate: _activeListQuery!.toDate,
@@ -406,7 +427,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           SideBar(
             key: _sidebarKey,
             selectedIndex: _selectedIndex,
-            activeCompany: _activeCompany?.toJson(), // SideBar can still accept a map if needed
+            activeCompany: _activeCompany?.toJson(),
             onSwitchCompany: _switchWorkspace,
             onMoveToRightPane: _jumpToRightPane,
             onItemSelected: (index) {
@@ -429,27 +450,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       );
     }
 
-    return Focus(
-      autofocus: true,
-      onKeyEvent: _handleKeyboardEvent,
-      child: Scaffold(
-        backgroundColor: AppColors.background,
-        body: Column(
-          children: [
-            Expanded(child: content),
-            if (_activeCompany != null)
-              CompanyWorkspaceFooter(
-                company: _activeCompany!,
-                onCompanyUpdated: (dynamic updated) {
-                  final CompanyModel updatedModel = updated is CompanyModel
-                      ? updated
-                      : CompanyModel.fromJson(updated as Map<String, dynamic>);
-                  setState(() => _activeCompany = updatedModel);
-                  _syncCompanyToProvider(updatedModel);
-                },
-              ),
-          ],
-        ),
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: Column(
+        children: [
+          Expanded(child: content),
+          if (_activeCompany != null)
+            CompanyWorkspaceFooter(
+              company: _activeCompany!,
+              onCompanyUpdated: (dynamic updated) {
+                final CompanyModel updatedModel = updated is CompanyModel
+                    ? updated
+                    : CompanyModel.fromJson(updated as Map<String, dynamic>);
+                setState(() => _activeCompany = updatedModel);
+                _syncCompanyToProvider(updatedModel);
+              },
+            ),
+        ],
       ),
     );
   }
@@ -457,12 +474,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget _buildActiveCompanyView() {
     final activeCompany = _activeCompany!;
 
-   return IndexedStack(
+    return IndexedStack(
       index: _selectedIndex,
       children: [
         TransactionsDashboard(
           key: _dashboardKey,
-          company: activeCompany, // Pass CompanyModel
+          company: activeCompany,
           onMoveToSidebar: _jumpToSidebar,
           onAddTransaction: (vchType) {
             setState(() {
@@ -482,13 +499,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             });
           },
         ),
-        MastersDashboardScreen(company: activeCompany), // Pass CompanyModel
+        MastersDashboardScreen(company: activeCompany),
         _buildPlaceholderView(
           icon: Icons.inventory_2_outlined,
           title: 'Inventory & Items',
           subtitle: 'Stock items, HSN codes, batches, and unit measurements.',
         ),
-        ReportsDashboardScreen(company: activeCompany), // Pass CompanyModel
+        ReportsDashboardScreen(company: activeCompany),
         const Gstr2bReconciliationScreen(),
       ],
     );

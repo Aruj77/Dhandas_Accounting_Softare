@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../constants/app_colors.dart';
+import '../../services/keyboard_shortcut_service.dart';
 
 class DataDirectoryBanner extends StatefulWidget {
   final String? currentDirectory;
@@ -42,18 +42,13 @@ class _DataDirectoryBannerState extends State<DataDirectoryBanner> {
       focusNode: _node,
       onFocusChange: (val) => setState(() => _isFocused = val),
       onKeyEvent: (node, event) {
-        if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
-          return KeyEventResult.ignored;
-        }
-
-        final key = event.logicalKey;
-        if (key == LogicalKeyboardKey.arrowUp || key == LogicalKeyboardKey.numpad8) {
+        if (KeyboardShortcutService.isUp(event)) {
           widget.onMoveUp?.call();
           return KeyEventResult.handled;
-        } else if (key == LogicalKeyboardKey.arrowLeft || key == LogicalKeyboardKey.numpad4) {
+        } else if (KeyboardShortcutService.isLeft(event)) {
           widget.onMoveLeft?.call();
           return KeyEventResult.handled;
-        } else if (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.numpadEnter) {
+        } else if (KeyboardShortcutService.isConfirm(event)) {
           widget.onTap();
           return KeyEventResult.handled;
         }

@@ -8,6 +8,7 @@ class ActionButton extends StatefulWidget {
   final Color iconColor;
   final Color iconBackground;
   final VoidCallback? onTap;
+  final String? shortcutBadge;
 
   const ActionButton({
     super.key,
@@ -17,6 +18,7 @@ class ActionButton extends StatefulWidget {
     this.iconColor = AppColors.primary,
     this.iconBackground = AppColors.primaryLight,
     this.onTap,
+    this.shortcutBadge,
   });
 
   @override
@@ -62,7 +64,7 @@ class _ActionButtonState extends State<ActionButton> {
                           blurRadius: 18,
                           offset: const Offset(0, 8),
                         ),
-                        BoxShadow(
+                        const BoxShadow(
                           color: AppColors.shadowColor,
                           blurRadius: 6,
                           offset: Offset(0, 2),
@@ -98,16 +100,43 @@ class _ActionButtonState extends State<ActionButton> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          widget.title,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -0.2,
-                            color: AppColors.textPrimary,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                widget.title,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -0.2,
+                                  color: AppColors.textPrimary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (widget.shortcutBadge != null && widget.shortcutBadge!.isNotEmpty) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 7,
+                                  vertical: 3.5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.background,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  widget.shortcutBadge!,
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                         const SizedBox(height: 4),
                         Text(

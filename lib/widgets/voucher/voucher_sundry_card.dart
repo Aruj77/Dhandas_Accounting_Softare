@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../constants/app_colors.dart';
 import '../../../services/storage_service.dart';
+import '../../../services/keyboard_shortcut_service.dart';
 import 'voucher_sundry_row.dart';
 import '../../../utils/smart_filter.dart';
 
@@ -42,9 +43,7 @@ class VoucherSundryCard extends StatelessWidget {
       canRequestFocus: false,
       skipTraversal: true,
       onKeyEvent: (node, event) {
-        if (event is KeyDownEvent &&
-            event.logicalKey == LogicalKeyboardKey.tab &&
-            !HardwareKeyboard.instance.isShiftPressed) {
+        if (KeyboardShortcutService.isTab(event, requireUnshifted: true)) {
           onTabToSave();
           return KeyEventResult.handled;
         }
@@ -165,9 +164,7 @@ class VoucherSundryCard extends StatelessWidget {
                                 canRequestFocus: false,
                                 skipTraversal: true,
                                 onKeyEvent: (node, event) {
-                                  if (event is KeyDownEvent &&
-                                      event.logicalKey == LogicalKeyboardKey.tab &&
-                                      !HardwareKeyboard.instance.isShiftPressed) {
+                                  if (KeyboardShortcutService.isTab(event, requireUnshifted: true)) {
                                     onTabToSave();
                                     return KeyEventResult.handled;
                                   }
@@ -209,9 +206,7 @@ class VoucherSundryCard extends StatelessWidget {
                             canRequestFocus: false,
                             skipTraversal: true,
                             onKeyEvent: (node, event) {
-                              if (event is KeyDownEvent &&
-                                  event.logicalKey == LogicalKeyboardKey.tab &&
-                                  !HardwareKeyboard.instance.isShiftPressed) {
+                              if (KeyboardShortcutService.isTab(event, requireUnshifted: true)) {
                                 onTabToSave();
                                 return KeyEventResult.handled;
                               }
@@ -252,9 +247,7 @@ class VoucherSundryCard extends StatelessWidget {
                             canRequestFocus: false,
                             skipTraversal: true,
                             onKeyEvent: (node, event) {
-                              if (event is KeyDownEvent &&
-                                  event.logicalKey == LogicalKeyboardKey.tab &&
-                                  !HardwareKeyboard.instance.isShiftPressed) {
+                              if (KeyboardShortcutService.isTab(event, requireUnshifted: true)) {
                                 onTabToSave();
                                 return KeyEventResult.handled;
                               }

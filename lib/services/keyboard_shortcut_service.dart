@@ -30,8 +30,7 @@ class KeyboardShortcutSettings {
     Map<String, String>? shortcuts,
   }) {
     return KeyboardShortcutSettings(
-      keyboardIntensiveMode:
-          keyboardIntensiveMode ?? this.keyboardIntensiveMode,
+      keyboardIntensiveMode: keyboardIntensiveMode ?? this.keyboardIntensiveMode,
       useNumpadNavigation: useNumpadNavigation ?? this.useNumpadNavigation,
       shortcuts: shortcuts ?? this.shortcuts,
     );
@@ -57,14 +56,12 @@ class KeyboardShortcutSettings {
     };
 
     return KeyboardShortcutSettings(
-      keyboardIntensiveMode:
-          json['keyboardIntensiveMode'] is bool
-              ? json['keyboardIntensiveMode'] as bool
-              : defaultSettings.keyboardIntensiveMode,
-      useNumpadNavigation:
-          json['useNumpadNavigation'] is bool
-              ? json['useNumpadNavigation'] as bool
-              : defaultSettings.useNumpadNavigation,
+      keyboardIntensiveMode: json['keyboardIntensiveMode'] is bool
+          ? json['keyboardIntensiveMode'] as bool
+          : defaultSettings.keyboardIntensiveMode,
+      useNumpadNavigation: json['useNumpadNavigation'] is bool
+          ? json['useNumpadNavigation'] as bool
+          : defaultSettings.useNumpadNavigation,
       shortcuts: parsedShortcuts,
     );
   }
@@ -97,7 +94,7 @@ class KeyboardShortcutDefinition {
 class KeyboardShortcutService {
   static const String _prefsKey = 'dhandas_keyboard_shortcut_settings';
 
-  // --- Reconfigurable Action Identifiers ---
+  // --- Dynamic Action Identifiers ---
   static const String goBackAction = 'goBack';
   static const String moveUpAction = 'moveUp';
   static const String moveDownAction = 'moveDown';
@@ -107,218 +104,281 @@ class KeyboardShortcutService {
   static const String changeDirectoryAction = 'changeDirectory';
   static const String openSettingsAction = 'openSettings';
   static const String switchWorkspaceAction = 'switchWorkspace';
+  
   static const String saveVoucherAction = 'saveVoucher';
+  static const String quickAddMasterAction = 'quickAddMaster';
+  static const String modifyMasterAction = 'modifyMaster';
+  static const String previousVoucherAction = 'previousVoucher';
+  static const String nextVoucherAction = 'nextVoucher';
+  static const String printInvoiceAction = 'printInvoice';
+  static const String calculatorAction = 'calculator';
+  static const String exportExcelAction = 'exportExcel';
+  static const String exportJsonAction = 'exportJson';
+  static const String columnsDialogAction = 'columnsDialog';
 
-  // --- Fixed Hardware Action Identifiers ---
-  static const String quickAddMasterAction = 'quickAddMaster';       // Ctrl + C
-  static const String modifyMasterAction = 'modifyMaster';           // Ctrl + E
-  static const String previousVoucherAction = 'previousVoucher';     // Ctrl + B
-  static const String nextVoucherAction = 'nextVoucher';             // Ctrl + N
-  static const String printInvoiceAction = 'printInvoice';           // Ctrl/Cmd + P
-  static const String calculatorAction = 'calculator';               // F4
-  static const String exportExcelAction = 'exportExcel';             // Ctrl + Shift + E
-  static const String exportJsonAction = 'exportJson';               // Ctrl + J
-  static const String columnsDialogAction = 'columnsDialog';         // Ctrl + Q
+  // Transaction Specific Actions
+  static const String addSalesInvoiceAction = 'addSalesInvoice';
+  static const String addSaleReturnAction = 'addSaleReturn';
+  static const String addPaymentInAction = 'addPaymentIn';
+  static const String addPurchaseBillAction = 'addPurchaseBill';
+  static const String addPurchaseReturnAction = 'addPurchaseReturn';
+  static const String addPaymentOutAction = 'addPaymentOut';
+  static const String addJournalVoucherAction = 'addJournalVoucher';
+  static const String addContraEntryAction = 'addContraEntry';
 
-  // --- Key Code Constants ---
-  static const String keyEscape = 'escape';
-  static const String keyArrowUp = 'arrowUp';
-  static const String keyArrowDown = 'arrowDown';
-  static const String keyArrowLeft = 'arrowLeft';
-  static const String keyArrowRight = 'arrowRight';
-  static const String keyEnter = 'enter';
-  static const String keyNumpad8 = 'numpad8';
-  static const String keyNumpad2 = 'numpad2';
-  static const String keyNumpad4 = 'numpad4';
-  static const String keyNumpad6 = 'numpad6';
-  static const String keyNumpadEnter = 'numpadEnter';
-  static const String keyF2 = 'f2';
-  static const String keyF3 = 'f3';
-  static const String keyF4 = 'f4';
-  static const String keyF5 = 'f5';
-  static const String keyF6 = 'f6';
-  static const String keyF7 = 'f7';
-  static const String keyF8 = 'f8';
-  static const String keyF9 = 'f9';
-  static const String keyF10 = 'f10';
-  static const String keyF12 = 'f12';
-  static const String keySpace = 'space';
+  // --- Default Key Mappings ---
+  static const Map<String, String> defaultShortcuts = {
+    goBackAction: 'Esc',
+    moveUpAction: 'ArrowUp',
+    moveDownAction: 'ArrowDown',
+    activateAction: 'Enter',
+    openCompanyAction: 'F3',
+    createCompanyAction: 'F4',
+    changeDirectoryAction: 'F6',
+    openSettingsAction: 'F12',
+    switchWorkspaceAction: 'F8',
+    
+    saveVoucherAction: 'F2',
+    quickAddMasterAction: 'Ctrl+C',
+    modifyMasterAction: 'Ctrl+E',
+    previousVoucherAction: 'Ctrl+B',
+    nextVoucherAction: 'Ctrl+N',
+    printInvoiceAction: 'Ctrl+P',
+    calculatorAction: 'F4',
+    exportExcelAction: 'Ctrl+E',
+    exportJsonAction: 'Ctrl+J',
+    columnsDialogAction: 'Ctrl+Q',
 
-  // --- Directional & Confirm Navigation Helpers ---
-  static bool isUp(LogicalKeyboardKey key) =>
-      key == LogicalKeyboardKey.arrowUp || key == LogicalKeyboardKey.numpad8;
+    addSalesInvoiceAction: 'F3',
+    addSaleReturnAction: 'Shift+F3',
+    addPaymentInAction: 'F6',
+    addPurchaseBillAction: 'F4',
+    addPurchaseReturnAction: 'Shift+F4',
+    addPaymentOutAction: 'F7',
+    addJournalVoucherAction: 'F8',
+    addContraEntryAction: 'F9',
+  };
 
-  static bool isDown(LogicalKeyboardKey key) =>
-      key == LogicalKeyboardKey.arrowDown || key == LogicalKeyboardKey.numpad2;
-
-  static bool isLeft(LogicalKeyboardKey key) =>
-      key == LogicalKeyboardKey.arrowLeft || key == LogicalKeyboardKey.numpad4;
-
-  static bool isRight(LogicalKeyboardKey key) =>
-      key == LogicalKeyboardKey.arrowRight || key == LogicalKeyboardKey.numpad6;
-
-  static bool isConfirm(LogicalKeyboardKey key) =>
-      key == LogicalKeyboardKey.enter ||
-      key == LogicalKeyboardKey.numpadEnter ||
-      key == LogicalKeyboardKey.space;
-
-  static bool isExit(LogicalKeyboardKey key) =>
-      key == LogicalKeyboardKey.escape;
-
-  // --- Universal Event-Level Matching Helpers (Ctrl & Cmd Focused) ---
-
-  /// General Ctrl/Cmd key matching helper
-  static bool isControlKey(KeyEvent event, LogicalKeyboardKey key) {
-    if (event is! KeyDownEvent) return false;
-    final hw = HardwareKeyboard.instance;
-    return (hw.isControlPressed || hw.isMetaPressed) && event.logicalKey == key;
+  // --- Universal Structural Navigation Helpers ---
+  static bool isUp(KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return false;
+    return event.logicalKey == LogicalKeyboardKey.arrowUp || event.logicalKey == LogicalKeyboardKey.numpad8;
   }
 
-  /// Ctrl + C / Cmd + C: Quick add master
-  static bool isQuickAdd(KeyEvent event) =>
-      isControlKey(event, LogicalKeyboardKey.keyC);
+  static bool isDown(KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return false;
+    return event.logicalKey == LogicalKeyboardKey.arrowDown || event.logicalKey == LogicalKeyboardKey.numpad2;
+  }
 
-  /// Ctrl + E / Cmd + E: Edit active master or tax details
-  static bool isModifyOrTaxDetails(KeyEvent event) =>
-      isControlKey(event, LogicalKeyboardKey.keyE);
+  static bool isLeft(KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return false;
+    return event.logicalKey == LogicalKeyboardKey.arrowLeft || event.logicalKey == LogicalKeyboardKey.numpad4;
+  }
 
-  /// Ctrl + B / Cmd + B: Previous voucher
-  static bool isPreviousVoucher(KeyEvent event) =>
-      isControlKey(event, LogicalKeyboardKey.keyB);
+  static bool isRight(KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return false;
+    return event.logicalKey == LogicalKeyboardKey.arrowRight || event.logicalKey == LogicalKeyboardKey.numpad6;
+  }
 
-  /// Ctrl + N / Cmd + N: Next voucher
-  static bool isNextVoucher(KeyEvent event) =>
-      isControlKey(event, LogicalKeyboardKey.keyN);
+  static bool isConfirm(KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return false;
+    return event.logicalKey == LogicalKeyboardKey.enter ||
+           event.logicalKey == LogicalKeyboardKey.numpadEnter ||
+           event.logicalKey == LogicalKeyboardKey.space;
+  }
 
-  /// Ctrl + P / Cmd + P: Print Preview Studio
-  static bool isPrint(KeyEvent event) =>
-      isControlKey(event, LogicalKeyboardKey.keyP);
+  static bool isExit(KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return false;
+    return event.logicalKey == LogicalKeyboardKey.escape;
+  }
 
-  /// Ctrl + Shift + E / Cmd + Shift + E: Export to Excel
+  static bool isBackspace(KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return false;
+    return event.logicalKey == LogicalKeyboardKey.backspace;
+  }
+
+  static bool isTab(KeyEvent event, {bool requireUnshifted = false}) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return false;
+    if (event.logicalKey != LogicalKeyboardKey.tab) return false;
+    if (requireUnshifted && HardwareKeyboard.instance.isShiftPressed) return false;
+    return true;
+  }
+
+  // --- Convenience Hardware Wrappers for UI Widgets ---
+  static bool isQuickAdd(KeyEvent event) {
+    if (event is! KeyDownEvent) return false;
+    final hw = HardwareKeyboard.instance;
+    return (hw.isControlPressed || hw.isMetaPressed) && event.logicalKey == LogicalKeyboardKey.keyC;
+  }
+
+  static bool isModifyOrTaxDetails(KeyEvent event) {
+    if (event is! KeyDownEvent) return false;
+    final hw = HardwareKeyboard.instance;
+    return (hw.isControlPressed || hw.isMetaPressed) && event.logicalKey == LogicalKeyboardKey.keyE;
+  }
+
+  static bool isPreviousVoucher(KeyEvent event) {
+    if (event is! KeyDownEvent) return false;
+    final hw = HardwareKeyboard.instance;
+    return (hw.isControlPressed || hw.isMetaPressed) && event.logicalKey == LogicalKeyboardKey.keyB;
+  }
+
+  static bool isNextVoucher(KeyEvent event) {
+    if (event is! KeyDownEvent) return false;
+    final hw = HardwareKeyboard.instance;
+    return (hw.isControlPressed || hw.isMetaPressed) && event.logicalKey == LogicalKeyboardKey.keyN;
+  }
+
+  static bool isPrint(KeyEvent event) {
+    if (event is! KeyDownEvent) return false;
+    final hw = HardwareKeyboard.instance;
+    return (hw.isControlPressed || hw.isMetaPressed) && event.logicalKey == LogicalKeyboardKey.keyP;
+  }
+
   static bool isExportExcel(KeyEvent event) {
     if (event is! KeyDownEvent) return false;
     final hw = HardwareKeyboard.instance;
-    return (hw.isControlPressed || hw.isMetaPressed) &&
-        hw.isShiftPressed &&
-        event.logicalKey == LogicalKeyboardKey.keyE;
+    return (hw.isControlPressed || hw.isMetaPressed) && hw.isShiftPressed && event.logicalKey == LogicalKeyboardKey.keyE;
   }
 
-  /// Ctrl + J / Cmd + J: Export to JSON
-  static bool isExportJson(KeyEvent event) =>
-      isControlKey(event, LogicalKeyboardKey.keyJ);
+  static bool isExportJson(KeyEvent event) {
+    if (event is! KeyDownEvent) return false;
+    final hw = HardwareKeyboard.instance;
+    return (hw.isControlPressed || hw.isMetaPressed) && event.logicalKey == LogicalKeyboardKey.keyJ;
+  }
 
-  /// Ctrl + Q / Cmd + Q: Customize Columns Dialog
-  static bool isColumnsDialog(KeyEvent event) =>
-      isControlKey(event, LogicalKeyboardKey.keyQ);
+  static bool isColumnsDialog(KeyEvent event) {
+    if (event is! KeyDownEvent) return false;
+    final hw = HardwareKeyboard.instance;
+    return (hw.isControlPressed || hw.isMetaPressed) && event.logicalKey == LogicalKeyboardKey.keyQ;
+  }
 
-  /// F4: Quick Calculator
   static bool isCalculator(KeyEvent event) {
-    return event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.f4;
+    if (event is! KeyDownEvent) return false;
+    return event.logicalKey == LogicalKeyboardKey.f4;
   }
 
-  /// F2 or Ctrl + S / Cmd + S: Save
   static bool isSave(KeyEvent event) {
     if (event is! KeyDownEvent) return false;
     final hw = HardwareKeyboard.instance;
-    final isCtrlS = (hw.isControlPressed || hw.isMetaPressed) &&
-        event.logicalKey == LogicalKeyboardKey.keyS;
+    final isCtrlS = (hw.isControlPressed || hw.isMetaPressed) && event.logicalKey == LogicalKeyboardKey.keyS;
     return event.logicalKey == LogicalKeyboardKey.f2 || isCtrlS;
   }
 
-  // --- Defaults & Settings ---
-  static const Map<String, String> defaultShortcuts = {
-    goBackAction: keyEscape,
-    moveUpAction: keyArrowUp,
-    moveDownAction: keyArrowDown,
-    activateAction: keyEnter,
-    openCompanyAction: keyF3,
-    createCompanyAction: keyF4,
-    changeDirectoryAction: keyF6,
-    openSettingsAction: keyF12,
-    switchWorkspaceAction: keyF8,
-    saveVoucherAction: keyF2,
-  };
+  static String? extractCharOrNumpad(KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return null;
+    if (event.character != null && event.character!.isNotEmpty) return event.character;
 
-  static const List<KeyboardShortcutOption> _navigationOptions = [
-    KeyboardShortcutOption(id: keyArrowUp, label: 'Arrow Up'),
-    KeyboardShortcutOption(id: keyArrowDown, label: 'Arrow Down'),
-    KeyboardShortcutOption(id: keyNumpad8, label: 'Numpad 8'),
-    KeyboardShortcutOption(id: keyNumpad2, label: 'Numpad 2'),
-    KeyboardShortcutOption(id: keyEnter, label: 'Enter'),
-    KeyboardShortcutOption(id: keyNumpadEnter, label: 'Numpad Enter'),
-    KeyboardShortcutOption(id: keyEscape, label: 'Esc'),
-    KeyboardShortcutOption(id: keySpace, label: 'Space'),
-    KeyboardShortcutOption(id: keyF2, label: 'F2'),
-    KeyboardShortcutOption(id: keyF3, label: 'F3'),
-    KeyboardShortcutOption(id: keyF4, label: 'F4'),
-    KeyboardShortcutOption(id: keyF6, label: 'F6'),
-    KeyboardShortcutOption(id: keyF8, label: 'F8'),
-    KeyboardShortcutOption(id: keyF10, label: 'F10'),
-    KeyboardShortcutOption(id: keyF12, label: 'F12'),
-  ];
+    final numpadMap = {
+      LogicalKeyboardKey.numpad0: '0',
+      LogicalKeyboardKey.numpad1: '1',
+      LogicalKeyboardKey.numpad2: '2',
+      LogicalKeyboardKey.numpad3: '3',
+      LogicalKeyboardKey.numpad4: '4',
+      LogicalKeyboardKey.numpad5: '5',
+      LogicalKeyboardKey.numpad6: '6',
+      LogicalKeyboardKey.numpad7: '7',
+      LogicalKeyboardKey.numpad8: '8',
+      LogicalKeyboardKey.numpad9: '9',
+      LogicalKeyboardKey.numpadAdd: '+',
+      LogicalKeyboardKey.numpadSubtract: '-',
+      LogicalKeyboardKey.numpadMultiply: '*',
+      LogicalKeyboardKey.numpadDivide: '/',
+      LogicalKeyboardKey.numpadDecimal: '.',
+    };
 
-  static final List<KeyboardShortcutDefinition> definitions = [
-    KeyboardShortcutDefinition(
-      actionId: moveUpAction,
-      title: 'Move Up',
-      description: 'Move to the previous menu item or keyboard target.',
-      options: _navigationOptions,
-    ),
-    KeyboardShortcutDefinition(
-      actionId: moveDownAction,
-      title: 'Move Down',
-      description: 'Move to the next menu item or keyboard target.',
-      options: _navigationOptions,
-    ),
-    KeyboardShortcutDefinition(
-      actionId: activateAction,
-      title: 'Activate Selection',
-      description: 'Open the selected action or confirm the highlighted target.',
-      options: _navigationOptions,
-    ),
-    KeyboardShortcutDefinition(
-      actionId: goBackAction,
-      title: 'Go Back',
-      description: 'Close the current view, dialog, or go to the previous layer.',
-      options: _navigationOptions,
-    ),
-    KeyboardShortcutDefinition(
-      actionId: openCompanyAction,
-      title: 'Open Company',
-      description: 'Open the company selection dialog from the home workspace.',
-      options: _navigationOptions,
-    ),
-    KeyboardShortcutDefinition(
-      actionId: createCompanyAction,
-      title: 'Create Company',
-      description: 'Start a new company setup quickly from the keyboard.',
-      options: _navigationOptions,
-    ),
-    KeyboardShortcutDefinition(
-      actionId: changeDirectoryAction,
-      title: 'Change Data Directory',
-      description: 'Open the storage directory chooser.',
-      options: _navigationOptions,
-    ),
-    KeyboardShortcutDefinition(
-      actionId: openSettingsAction,
-      title: 'Open Settings',
-      description: 'Jump straight into Settings and Preferences.',
-      options: _navigationOptions,
-    ),
-    KeyboardShortcutDefinition(
-      actionId: switchWorkspaceAction,
-      title: 'Switch Workspace',
-      description: 'Leave the active company and return to the workspace home.',
-      options: _navigationOptions,
-    ),
-    KeyboardShortcutDefinition(
-      actionId: saveVoucherAction,
-      title: 'Save Voucher',
-      description: 'Save the current voucher entry screen.',
-      options: _navigationOptions,
-    ),
-  ];
+    return numpadMap[event.logicalKey];
+  }
+
+  // --- Dynamic String Parsing for Shortcut Mapping ---
+  static String? keyIdFromEvent(KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return null;
+
+    final key = event.logicalKey;
+    final hw = HardwareKeyboard.instance;
+    final isShift = hw.isShiftPressed;
+    final isCtrl = hw.isControlPressed || hw.isMetaPressed;
+
+    String prefix = '';
+    if (isCtrl) prefix += 'Ctrl+';
+    if (isShift) prefix += 'Shift+';
+
+    // F-Keys
+    if (key == LogicalKeyboardKey.f2) return '${prefix}F2';
+    if (key == LogicalKeyboardKey.f3) return '${prefix}F3';
+    if (key == LogicalKeyboardKey.f4) return '${prefix}F4';
+    if (key == LogicalKeyboardKey.f5) return '${prefix}F5';
+    if (key == LogicalKeyboardKey.f6) return '${prefix}F6';
+    if (key == LogicalKeyboardKey.f7) return '${prefix}F7';
+    if (key == LogicalKeyboardKey.f8) return '${prefix}F8';
+    if (key == LogicalKeyboardKey.f9) return '${prefix}F9';
+    if (key == LogicalKeyboardKey.f10) return '${prefix}F10';
+    if (key == LogicalKeyboardKey.f12) return '${prefix}F12';
+
+    // System/Navigation Keys
+    if (key == LogicalKeyboardKey.escape) return '${prefix}Esc';
+    if (key == LogicalKeyboardKey.enter) return '${prefix}Enter';
+    if (key == LogicalKeyboardKey.numpadEnter) return '${prefix}NumpadEnter';
+    if (key == LogicalKeyboardKey.space) return '${prefix}Space';
+    if (key == LogicalKeyboardKey.arrowUp) return '${prefix}ArrowUp';
+    if (key == LogicalKeyboardKey.arrowDown) return '${prefix}ArrowDown';
+    if (key == LogicalKeyboardKey.arrowLeft) return '${prefix}ArrowLeft';
+    if (key == LogicalKeyboardKey.arrowRight) return '${prefix}ArrowRight';
+    if (key == LogicalKeyboardKey.numpad8) return '${prefix}Numpad8';
+    if (key == LogicalKeyboardKey.numpad2) return '${prefix}Numpad2';
+    if (key == LogicalKeyboardKey.numpad4) return '${prefix}Numpad4';
+    if (key == LogicalKeyboardKey.numpad6) return '${prefix}Numpad6';
+
+    // Alpha keys for combinations (Ctrl+C, Ctrl+P, etc.)
+    if (key == LogicalKeyboardKey.keyB) return '${prefix}B';
+    if (key == LogicalKeyboardKey.keyC) return '${prefix}C';
+    if (key == LogicalKeyboardKey.keyE) return '${prefix}E';
+    if (key == LogicalKeyboardKey.keyJ) return '${prefix}J';
+    if (key == LogicalKeyboardKey.keyN) return '${prefix}N';
+    if (key == LogicalKeyboardKey.keyP) return '${prefix}P';
+    if (key == LogicalKeyboardKey.keyQ) return '${prefix}Q';
+    if (key == LogicalKeyboardKey.keyS) return '${prefix}S';
+
+    return null;
+  }
+
+  static bool matchesAction(
+    KeyboardShortcutSettings settings,
+    String actionId,
+    KeyEvent event,
+  ) {
+    final eventKeyId = keyIdFromEvent(event);
+    if (eventKeyId == null) return false;
+
+    final configuredKey = shortcutFor(settings, actionId);
+    
+    if (actionId == saveVoucherAction && eventKeyId == 'Ctrl+S') return true;
+
+    if (configuredKey == eventKeyId) {
+      return true;
+    }
+
+    if (!settings.useNumpadNavigation) return false;
+
+    return switch (actionId) {
+      moveUpAction => eventKeyId == 'ArrowUp' || eventKeyId == 'Numpad8',
+      moveDownAction => eventKeyId == 'ArrowDown' || eventKeyId == 'Numpad2',
+      activateAction => eventKeyId == 'Enter' || eventKeyId == 'NumpadEnter',
+      _ => false,
+    };
+  }
+
+  static String shortcutFor(KeyboardShortcutSettings settings, String actionId) {
+    return settings.shortcuts[actionId] ?? defaultShortcuts[actionId] ?? 'Enter';
+  }
+
+  static String labelForKey(String keyId) {
+    return keyId; 
+  }
+
+  static String labelForAction(KeyboardShortcutSettings settings, String actionId) {
+    return labelForKey(shortcutFor(settings, actionId));
+  }
 
   static Future<KeyboardShortcutSettings> loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
@@ -352,85 +412,125 @@ class KeyboardShortcutService {
     await saveSettings(settings);
     return settings;
   }
+  
+  static const List<KeyboardShortcutOption> universalOptions = [
+    KeyboardShortcutOption(id: 'F2', label: 'F2'),
+    KeyboardShortcutOption(id: 'F3', label: 'F3'),
+    KeyboardShortcutOption(id: 'Shift+F3', label: 'Shift + F3'),
+    KeyboardShortcutOption(id: 'F4', label: 'F4'),
+    KeyboardShortcutOption(id: 'Shift+F4', label: 'Shift + F4'),
+    KeyboardShortcutOption(id: 'F5', label: 'F5'),
+    KeyboardShortcutOption(id: 'F6', label: 'F6'),
+    KeyboardShortcutOption(id: 'F7', label: 'F7'),
+    KeyboardShortcutOption(id: 'F8', label: 'F8'),
+    KeyboardShortcutOption(id: 'F9', label: 'F9'),
+    KeyboardShortcutOption(id: 'F10', label: 'F10'),
+    KeyboardShortcutOption(id: 'F12', label: 'F12'),
+    KeyboardShortcutOption(id: 'Ctrl+S', label: 'Ctrl + S'),
+    KeyboardShortcutOption(id: 'Ctrl+P', label: 'Ctrl + P'),
+    KeyboardShortcutOption(id: 'Ctrl+C', label: 'Ctrl + C'),
+    KeyboardShortcutOption(id: 'Ctrl+E', label: 'Ctrl + E'),
+    KeyboardShortcutOption(id: 'Ctrl+Q', label: 'Ctrl + Q'),
+    KeyboardShortcutOption(id: 'Enter', label: 'Enter'),
+    KeyboardShortcutOption(id: 'Esc', label: 'Esc'),
+  ];
 
-  static String shortcutFor(KeyboardShortcutSettings settings, String actionId) {
-    return settings.shortcuts[actionId] ?? defaultShortcuts[actionId] ?? keyEnter;
-  }
-
-  static String labelForKey(String keyId) {
-    for (final definition in definitions) {
-      for (final option in definition.options) {
-        if (option.id == keyId) {
-          return option.label;
-        }
-      }
-    }
-    return keyId;
-  }
-
-  static String labelForAction(
-    KeyboardShortcutSettings settings,
-    String actionId,
-  ) {
-    return labelForKey(shortcutFor(settings, actionId));
-  }
-
-  static String? keyIdFromEvent(KeyEvent event) {
-    final key = event.logicalKey;
-
-    if (key == LogicalKeyboardKey.escape) return keyEscape;
-    if (key == LogicalKeyboardKey.arrowUp) return keyArrowUp;
-    if (key == LogicalKeyboardKey.arrowDown) return keyArrowDown;
-    if (key == LogicalKeyboardKey.arrowLeft) return keyArrowLeft;
-    if (key == LogicalKeyboardKey.arrowRight) return keyArrowRight;
-    if (key == LogicalKeyboardKey.enter) return keyEnter;
-    if (key == LogicalKeyboardKey.numpadEnter) return keyNumpadEnter;
-    if (key == LogicalKeyboardKey.numpad8) return keyNumpad8;
-    if (key == LogicalKeyboardKey.numpad2) return keyNumpad2;
-    if (key == LogicalKeyboardKey.numpad4) return keyNumpad4;
-    if (key == LogicalKeyboardKey.numpad6) return keyNumpad6;
-    if (key == LogicalKeyboardKey.f2) return keyF2;
-    if (key == LogicalKeyboardKey.f3) return keyF3;
-    if (key == LogicalKeyboardKey.f4) return keyF4;
-    if (key == LogicalKeyboardKey.f5) return keyF5;
-    if (key == LogicalKeyboardKey.f6) return keyF6;
-    if (key == LogicalKeyboardKey.f7) return keyF7;
-    if (key == LogicalKeyboardKey.f8) return keyF8;
-    if (key == LogicalKeyboardKey.f9) return keyF9;
-    if (key == LogicalKeyboardKey.f10) return keyF10;
-    if (key == LogicalKeyboardKey.f12) return keyF12;
-    if (key == LogicalKeyboardKey.space) return keySpace;
-
-    return null;
-  }
-
-  static bool matchesAction(
-    KeyboardShortcutSettings settings,
-    String actionId,
-    KeyEvent event,
-  ) {
-    final eventKeyId = keyIdFromEvent(event);
-    if (eventKeyId == null) {
-      return false;
-    }
-
-    final configuredKey = shortcutFor(settings, actionId);
-    if (configuredKey == eventKeyId) {
-      return true;
-    }
-
-    if (!settings.useNumpadNavigation) {
-      return false;
-    }
-
-    return switch (actionId) {
-      moveUpAction =>
-        eventKeyId == keyArrowUp || eventKeyId == keyNumpad8,
-      moveDownAction =>
-        eventKeyId == keyArrowDown || eventKeyId == keyNumpad2,
-      activateAction =>
-        eventKeyId == keyEnter || eventKeyId == keyNumpadEnter,
-      _ => false,
-    };
-  }
+  static final List<KeyboardShortcutDefinition> definitions = [
+    KeyboardShortcutDefinition(
+      actionId: moveUpAction,
+      title: 'Move Up',
+      description: 'Move to the previous menu item or keyboard target.',
+      options: universalOptions,
+    ),
+    KeyboardShortcutDefinition(
+      actionId: moveDownAction,
+      title: 'Move Down',
+      description: 'Move to the next menu item or keyboard target.',
+      options: universalOptions,
+    ),
+    KeyboardShortcutDefinition(
+      actionId: activateAction,
+      title: 'Activate Selection',
+      description: 'Open the selected action or confirm the highlighted target.',
+      options: universalOptions,
+    ),
+    KeyboardShortcutDefinition(
+      actionId: goBackAction,
+      title: 'Go Back',
+      description: 'Close the current view, dialog, or go to the previous layer.',
+      options: universalOptions,
+    ),
+    KeyboardShortcutDefinition(
+      actionId: openCompanyAction,
+      title: 'Open Company',
+      description: 'Open the company selection dialog from the home workspace.',
+      options: universalOptions,
+    ),
+    KeyboardShortcutDefinition(
+      actionId: createCompanyAction,
+      title: 'Create Company',
+      description: 'Start a new company setup quickly from the keyboard.',
+      options: universalOptions,
+    ),
+    KeyboardShortcutDefinition(
+      actionId: changeDirectoryAction,
+      title: 'Change Data Directory',
+      description: 'Open the storage directory chooser.',
+      options: universalOptions,
+    ),
+    KeyboardShortcutDefinition(
+      actionId: saveVoucherAction,
+      title: 'Save Voucher',
+      description: 'Save the current voucher entry screen.',
+      options: universalOptions,
+    ),
+    KeyboardShortcutDefinition(
+      actionId: addSalesInvoiceAction,
+      title: 'Sales Invoice',
+      description: 'Shortcut to create a new Sales Invoice.',
+      options: universalOptions,
+    ),
+    KeyboardShortcutDefinition(
+      actionId: addSaleReturnAction,
+      title: 'Sale Return / Credit Note',
+      description: 'Shortcut to create a new Sale Return.',
+      options: universalOptions,
+    ),
+    KeyboardShortcutDefinition(
+      actionId: addPaymentInAction,
+      title: 'Payment In',
+      description: 'Shortcut to record a receipt.',
+      options: universalOptions,
+    ),
+    KeyboardShortcutDefinition(
+      actionId: addPurchaseBillAction,
+      title: 'Purchase Bill',
+      description: 'Shortcut to enter a Purchase Bill.',
+      options: universalOptions,
+    ),
+    KeyboardShortcutDefinition(
+      actionId: addPurchaseReturnAction,
+      title: 'Purchase Return / Debit Note',
+      description: 'Shortcut to enter a Purchase Return.',
+      options: universalOptions,
+    ),
+    KeyboardShortcutDefinition(
+      actionId: addPaymentOutAction,
+      title: 'Payment Out',
+      description: 'Shortcut to record a supplier payment.',
+      options: universalOptions,
+    ),
+    KeyboardShortcutDefinition(
+      actionId: addJournalVoucherAction,
+      title: 'Journal Voucher',
+      description: 'Shortcut to make an accounting adjustment.',
+      options: universalOptions,
+    ),
+    KeyboardShortcutDefinition(
+      actionId: addContraEntryAction,
+      title: 'Contra Entry',
+      description: 'Shortcut to transfer between cash & bank.',
+      options: universalOptions,
+    ),
+  ];
 }

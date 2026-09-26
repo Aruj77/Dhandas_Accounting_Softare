@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../../constants/app_colors.dart';
 import '../../../services/focus_policy_service.dart';
-
+import '../../../services/keyboard_shortcut_service.dart';
 class VoucherSaveConfirmDialog extends StatefulWidget {
   final Map<String, dynamic> summaryData;
   final VoidCallback onConfirm;
@@ -186,12 +185,8 @@ class _VoucherSaveConfirmDialogState extends State<VoucherSaveConfirmDialog> {
                     focusNode: _saveFocusNode,
                     autofocus: true,
                     onKeyEvent: (_, event) {
-                      if (event is KeyDownEvent &&
-                          (event.logicalKey == LogicalKeyboardKey.enter ||
-                           event.logicalKey == LogicalKeyboardKey.numpadEnter ||
-                           event.logicalKey == LogicalKeyboardKey.space)) {
-                        Navigator.of(context).pop();
-                        widget.onConfirm();
+                      if (KeyboardShortcutService.isConfirm(event)) {
+                        Navigator.pop(context, true);
                         return KeyEventResult.handled;
                       }
                       return KeyEventResult.ignored;

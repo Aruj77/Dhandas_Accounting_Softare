@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../constants/app_colors.dart';
 import '../../services/focus_policy_service.dart';
+import '../../services/keyboard_shortcut_service.dart';
 import '../../utils/app_action_bottom_sheet.dart';
 import '../../widgets/common/dashboard_action_chip.dart';
 import '../../widgets/common/interactive_dashboard_card.dart';
@@ -12,18 +14,19 @@ import '../../models/company_model.dart';
 enum TransactionAction { add, modify, list }
 
 class _TxItem {
-  final String title, subtitle, description, shortcut;
+  final String title, subtitle, description;
   final IconData icon;
   final Color color;
+  final String actionId;
 
   const _TxItem(
     this.title,
     this.subtitle,
     this.description,
     this.icon,
-    this.color, [
-    this.shortcut = '',
-  ]);
+    this.color,
+    this.actionId,
+  );
 }
 
 class TransactionsDashboard extends StatefulWidget {
@@ -52,15 +55,17 @@ class TransactionsDashboard extends StatefulWidget {
 }
 
 class TransactionsDashboardState extends State<TransactionsDashboard> {
+  KeyboardShortcutSettings _keyboardSettings = KeyboardShortcutSettings.defaults();
+
   static const List<_TxItem> _items = [
-    _TxItem('Sales Invoice', 'Create customer invoices', 'B2B, B2C and GST tax invoices', Icons.receipt_long_rounded, AppColors.primaryAccent, 'F4'),
-    _TxItem('Sale Return / Credit Note', 'Reverse customer sales', 'Returns, credit notes and adjustments', Icons.assignment_return_rounded, AppColors.warning),
-    _TxItem('Payment In', 'Record customer receipts', 'Cash, bank and customer collections', Icons.south_west_rounded, AppColors.success, 'F6'),
-    _TxItem('Purchase Bill', 'Enter supplier invoices', 'Purchase bills and input tax credit', Icons.inventory_2_rounded, AppColors.purple, 'F5'),
-    _TxItem('Purchase Return / Debit Note', 'Return goods to suppliers', 'Returns, debit notes and adjustments', Icons.keyboard_return_rounded, AppColors.error),
-    _TxItem('Payment Out', 'Record supplier payments', 'Vendor payments and expenses', Icons.north_east_rounded, AppColors.textSecondary, 'F7'),
-    _TxItem('Journal Voucher', 'Make accounting adjustments', 'Direct debit and credit adjustments', Icons.menu_book_rounded, AppColors.primary, 'F8'),
-    _TxItem('Contra Entry', 'Transfer between cash & bank', 'Cash deposit, withdrawal and transfers', Icons.swap_horiz_rounded, AppColors.primaryAccent, 'F9'),
+    _TxItem('Sales Invoice', 'Create customer invoices', 'B2B, B2C and GST tax invoices', Icons.receipt_long_rounded, AppColors.primaryAccent, KeyboardShortcutService.addSalesInvoiceAction),
+    _TxItem('Sale Return / Credit Note', 'Reverse customer sales', 'Returns, credit notes and adjustments', Icons.assignment_return_rounded, AppColors.warning, KeyboardShortcutService.addSaleReturnAction),
+    _TxItem('Payment In', 'Record customer receipts', 'Cash, bank and customer collections', Icons.south_west_rounded, AppColors.success, KeyboardShortcutService.addPaymentInAction),
+    _TxItem('Purchase Bill', 'Enter supplier invoices', 'Purchase bills and input tax credit', Icons.inventory_2_rounded, AppColors.purple, KeyboardShortcutService.addPurchaseBillAction),
+    _TxItem('Purchase Return / Debit Note', 'Return goods to suppliers', 'Returns, debit notes and adjustments', Icons.keyboard_return_rounded, AppColors.error, KeyboardShortcutService.addPurchaseReturnAction),
+    _TxItem('Payment Out', 'Record supplier payments', 'Vendor payments and expenses', Icons.north_east_rounded, AppColors.textSecondary, KeyboardShortcutService.addPaymentOutAction),
+    _TxItem('Journal Voucher', 'Make accounting adjustments', 'Direct debit and credit adjustments', Icons.menu_book_rounded, AppColors.primary, KeyboardShortcutService.addJournalVoucherAction),
+    _TxItem('Contra Entry', 'Transfer between cash & bank', 'Cash deposit, withdrawal and transfers', Icons.swap_horiz_rounded, AppColors.primaryAccent, KeyboardShortcutService.addContraEntryAction),
   ];
 
   static const List<List<int>> _sections = [
@@ -72,7 +77,40 @@ class TransactionsDashboardState extends State<TransactionsDashboard> {
   late final List<FocusNode> _focusNodes = List.generate(_items.length, (_) => FocusNode());
 
   @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+    HardwareKeyboard.instance.addHandler(_handleHardwareKey);
+  }
+
+  Future<void> _loadSettings() async {
+    var settings = await KeyboardShortcutService.loadSettings();
+    final normalized = <String, String>{};
+    settings.shortcuts.forEach((key, val) {
+      String clean = val;
+      if (val.toLowerCase() == 'escape') {
+        clean = 'Esc';
+      } else if (val.toLowerCase() == 'enter') {
+        clean = 'Enter';
+      } else if (val.toLowerCase().startsWith('f') && int.tryParse(val.substring(1)) != null) {
+        clean = val.toUpperCase();
+      } else if (val.toLowerCase().startsWith('shift+f')) {
+        clean = 'Shift+${val.substring(6).toUpperCase()}';
+      }
+      normalized[key] = clean;
+    });
+    settings = settings.copyWith(shortcuts: normalized);
+
+    if (mounted) {
+      setState(() {
+        _keyboardSettings = settings;
+      });
+    }
+  }
+
+  @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleHardwareKey);
     for (final node in _focusNodes) {
       node.dispose();
     }
@@ -81,6 +119,28 @@ class TransactionsDashboardState extends State<TransactionsDashboard> {
 
   void focusFirstTile() {
     if (_focusNodes.isNotEmpty) _focusNodes.first.requestFocus();
+  }
+
+  bool _handleHardwareKey(KeyEvent event) {
+    if (!mounted || event is! KeyDownEvent) return false;
+
+    // Allow modal dialogs or sub-routes to capture their own keys
+    final route = ModalRoute.of(context);
+    if (route != null && !route.isCurrent) return false;
+
+    for (final item in _items) {
+      if (KeyboardShortcutService.matchesAction(_keyboardSettings, item.actionId, event)) {
+        _handleAction(
+          context: context,
+          voucherType: item.title,
+          action: TransactionAction.add,
+        );
+        return true;
+      }
+    }
+
+    // Return false for unhandled keys (e.g. Esc) so HomeScreen handles workspace navigation
+    return false;
   }
 
   Future<void> _handleAction({
@@ -216,6 +276,8 @@ class TransactionsDashboardState extends State<TransactionsDashboard> {
             itemBuilder: (_, i) {
               final idx = indexes[i];
               final item = _items[idx];
+              final dynamicShortcutLabel = KeyboardShortcutService.labelForAction(_keyboardSettings, item.actionId);
+
               return InteractiveDashboardCard(
                 index: idx,
                 cols: cols,
@@ -227,7 +289,7 @@ class TransactionsDashboardState extends State<TransactionsDashboard> {
                 description: item.description,
                 icon: item.icon,
                 color: item.color,
-                shortcut: item.shortcut,
+                shortcut: dynamicShortcutLabel,
                 onPrimaryAction: () => _showTransactionActions(context, item.title),
                 actionChips: [
                   DashboardActionChip(

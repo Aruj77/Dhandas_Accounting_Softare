@@ -34,16 +34,39 @@ class _CompanyActionCardState extends State<CompanyActionCard> {
   late FocusNode _createNode;
   bool _isOpenFocused = false;
   bool _isCreateFocused = false;
+  KeyboardShortcutSettings _keyboardSettings = KeyboardShortcutSettings.defaults();
 
   @override
   void initState() {
     super.initState();
     _openNode = widget.openCompanyFocusNode ?? FocusNode();
     _createNode = widget.createCompanyFocusNode ?? FocusNode();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    var settings = await KeyboardShortcutService.loadSettings();
+    final normalized = <String, String>{};
+    settings.shortcuts.forEach((key, val) {
+      String clean = val;
+      if (val.toLowerCase() == 'escape') clean = 'Esc';
+      else if (val.toLowerCase().startsWith('f') && int.tryParse(val.substring(1)) != null) clean = val.toUpperCase();
+      normalized[key] = clean;
+    });
+    settings = settings.copyWith(shortcuts: normalized);
+
+    if (mounted) {
+      setState(() {
+        _keyboardSettings = settings;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final openLabel = KeyboardShortcutService.labelForAction(_keyboardSettings, KeyboardShortcutService.openCompanyAction);
+    final createLabel = KeyboardShortcutService.labelForAction(_keyboardSettings, KeyboardShortcutService.createCompanyAction);
+
     return ModernGlassCard(
       gradientColors: AppColors.companyGlassGradient.colors,
       borderColor: AppColors.borderSubtle,
@@ -67,18 +90,16 @@ class _CompanyActionCardState extends State<CompanyActionCard> {
                   focusNode: _openNode,
                   onFocusChange: (val) => setState(() => _isOpenFocused = val),
                   onKeyEvent: (node, event) {
-                    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return KeyEventResult.ignored;
-                    final key = event.logicalKey;
-                    if (KeyboardShortcutService.isRight(key)) {
+                    if (KeyboardShortcutService.isRight(event)) {
                       _createNode.requestFocus();
                       return KeyEventResult.handled;
-                    } else if (KeyboardShortcutService.isLeft(key)) {
+                    } else if (KeyboardShortcutService.isLeft(event)) {
                       widget.onMoveToSidebar?.call();
                       return KeyEventResult.handled;
-                    } else if (KeyboardShortcutService.isDown(key)) {
+                    } else if (KeyboardShortcutService.isDown(event)) {
                       widget.onMoveDown?.call();
                       return KeyEventResult.handled;
-                    } else if (KeyboardShortcutService.isConfirm(key)) {
+                    } else if (KeyboardShortcutService.isConfirm(event)) {
                       widget.onOpenCompany();
                       return KeyEventResult.handled;
                     }
@@ -110,8 +131,9 @@ class _CompanyActionCardState extends State<CompanyActionCard> {
                       iconColor: AppColors.primary,
                       iconBackground: AppColors.primaryLight,
                       onTap: widget.onOpenCompany,
+                      shortcutBadge: openLabel,
                     ),
-                  ),
+                  ),  
                 ),
               ),
               const SizedBox(width: 12),
@@ -120,18 +142,16 @@ class _CompanyActionCardState extends State<CompanyActionCard> {
                   focusNode: _createNode,
                   onFocusChange: (val) => setState(() => _isCreateFocused = val),
                   onKeyEvent: (node, event) {
-                    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return KeyEventResult.ignored;
-                    final key = event.logicalKey;
-                    if (KeyboardShortcutService.isLeft(key)) {
+                    if (KeyboardShortcutService.isLeft(event)) {
                       _openNode.requestFocus();
                       return KeyEventResult.handled;
-                    } else if (KeyboardShortcutService.isRight(key)) {
+                    } else if (KeyboardShortcutService.isRight(event)) {
                       widget.onMoveRight?.call();
                       return KeyEventResult.handled;
-                    } else if (KeyboardShortcutService.isDown(key)) {
+                    } else if (KeyboardShortcutService.isDown(event)) {
                       widget.onMoveDown?.call();
                       return KeyEventResult.handled;
-                    } else if (KeyboardShortcutService.isConfirm(key)) {
+                    } else if (KeyboardShortcutService.isConfirm(event)) {
                       widget.onCreateCompany();
                       return KeyEventResult.handled;
                     }
@@ -163,6 +183,7 @@ class _CompanyActionCardState extends State<CompanyActionCard> {
                       iconColor: AppColors.success,
                       iconBackground: AppColors.successLight,
                       onTap: widget.onCreateCompany,
+                      shortcutBadge: createLabel,
                     ),
                   ),
                 ),

@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../constants/app_colors.dart';
+import '../../services/keyboard_shortcut_service.dart';
 import '../../services/voucher_calculation_service.dart';
 
 class VoucherSummaryCard extends StatelessWidget {
@@ -179,9 +179,7 @@ class VoucherSummaryCard extends StatelessWidget {
             Focus(
               focusNode: saveButtonFocusNode,
               onKeyEvent: (node, event) {
-                if (event is KeyDownEvent &&
-                    (event.logicalKey == LogicalKeyboardKey.enter ||
-                        event.logicalKey == LogicalKeyboardKey.numpadEnter)) {
+                if (KeyboardShortcutService.isConfirm(event)) {
                   onSave();
                   return KeyEventResult.handled;
                 }

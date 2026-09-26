@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../constants/app_colors.dart';
 import '../../services/keyboard_shortcut_service.dart';
 import '../../models/party_master_model.dart';
@@ -272,9 +271,7 @@ class VoucherHeaderCard extends StatelessWidget {
                   canRequestFocus: false,
                   skipTraversal: true,
                   onKeyEvent: (node, event) {
-                    if (event is KeyDownEvent &&
-                        event.logicalKey == LogicalKeyboardKey.tab &&
-                        !HardwareKeyboard.instance.isShiftPressed) {
+                    if (KeyboardShortcutService.isTab(event, requireUnshifted: true)) {
                       onNarrationSubmitted();
                       return KeyEventResult.handled;
                     }

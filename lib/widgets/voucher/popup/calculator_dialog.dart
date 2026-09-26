@@ -1,6 +1,8 @@
+// desktop/lib/widgets/voucher/popup/calculator_dialog.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../constants/app_colors.dart';
+import '../../../../services/keyboard_shortcut_service.dart';
 
 class CalculatorDialog extends StatefulWidget {
   final String initialValue;
@@ -124,7 +126,7 @@ class _CalculatorDialogState extends State<CalculatorDialog> {
   KeyEventResult _handleKeyboardInput(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
 
-    if (event.logicalKey == LogicalKeyboardKey.enter || event.logicalKey == LogicalKeyboardKey.numpadEnter) {
+    if (KeyboardShortcutService.isConfirm(event)) {
       final result = _evaluateExpression(_displayCtrl.text);
       final finalVal = result == result.toInt() ? result.toInt().toString() : result.toStringAsFixed(2);
       widget.onSubmitted(finalVal);
@@ -132,42 +134,19 @@ class _CalculatorDialogState extends State<CalculatorDialog> {
       return KeyEventResult.handled;
     }
 
-    if (event.logicalKey == LogicalKeyboardKey.backspace) {
+    if (KeyboardShortcutService.isBackspace(event)) {
       _onKeyTapped('⌫');
       return KeyEventResult.handled;
     }
 
-    if (event.logicalKey == LogicalKeyboardKey.escape) {
+    if (KeyboardShortcutService.isExit(event)) {
       Navigator.pop(context);
       return KeyEventResult.handled;
     }
 
-    final character = event.character;
+    final character = KeyboardShortcutService.extractCharOrNumpad(event);
     if (character != null && '0123456789+-*/.%×÷'.contains(character)) {
       _onKeyTapped(character);
-      return KeyEventResult.handled;
-    }
-
-    final numpadMap = {
-      LogicalKeyboardKey.numpad0: '0',
-      LogicalKeyboardKey.numpad1: '1',
-      LogicalKeyboardKey.numpad2: '2',
-      LogicalKeyboardKey.numpad3: '3',
-      LogicalKeyboardKey.numpad4: '4',
-      LogicalKeyboardKey.numpad5: '5',
-      LogicalKeyboardKey.numpad6: '6',
-      LogicalKeyboardKey.numpad7: '7',
-      LogicalKeyboardKey.numpad8: '8',
-      LogicalKeyboardKey.numpad9: '9',
-      LogicalKeyboardKey.numpadAdd: '+',
-      LogicalKeyboardKey.numpadSubtract: '-',
-      LogicalKeyboardKey.numpadMultiply: '*',
-      LogicalKeyboardKey.numpadDivide: '/',
-      LogicalKeyboardKey.numpadDecimal: '.',
-    };
-
-    if (numpadMap.containsKey(event.logicalKey)) {
-      _onKeyTapped(numpadMap[event.logicalKey]!);
       return KeyEventResult.handled;
     }
 

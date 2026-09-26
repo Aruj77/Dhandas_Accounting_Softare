@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_colors.dart';
 import '../../provider/company_provider.dart';
 import '../../widgets/common/app_confirm_dialog.dart';
 import '../../services/loading_service.dart';
+import '../../services/keyboard_shortcut_service.dart';
 
 class OpenCompanyDialog extends ConsumerStatefulWidget {
   final String directoryPath;
@@ -84,26 +84,23 @@ class _OpenCompanyDialogState extends ConsumerState<OpenCompanyDialog> {
   }
 
   void _handleKey(KeyEvent event) {
-    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return;
-
-    final key = event.logicalKey;
-    if (key == LogicalKeyboardKey.arrowDown || key == LogicalKeyboardKey.numpad2) {
+    if (KeyboardShortcutService.isDown(event)) {
       if (_filteredCompanies.isNotEmpty) {
         setState(() {
           final current = _selectedIndex ?? -1;
           _selectedIndex = (current + 1).clamp(0, _filteredCompanies.length - 1);
         });
       }
-    } else if (key == LogicalKeyboardKey.arrowUp || key == LogicalKeyboardKey.numpad8) {
+    } else if (KeyboardShortcutService.isUp(event)) {
       if (_filteredCompanies.isNotEmpty) {
         setState(() {
           final current = _selectedIndex ?? 1;
           _selectedIndex = (current - 1).clamp(0, _filteredCompanies.length - 1);
         });
       }
-    } else if (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.numpadEnter) {
+    } else if (KeyboardShortcutService.isConfirm(event)) {
       _confirmSelection();
-    } else if (key == LogicalKeyboardKey.escape) {
+    } else if (KeyboardShortcutService.isExit(event)) {
       Navigator.of(context).pop();
     }
   }
@@ -358,14 +355,10 @@ class _OpenCompanyDialogState extends ConsumerState<OpenCompanyDialog> {
       autofocus: true,
       onKeyEvent: (node, event) {
         _handleKey(event);
-        if (event is KeyDownEvent &&
-            (event.logicalKey == LogicalKeyboardKey.arrowDown ||
-                event.logicalKey == LogicalKeyboardKey.arrowUp ||
-                event.logicalKey == LogicalKeyboardKey.numpad2 ||
-                event.logicalKey == LogicalKeyboardKey.numpad8 ||
-                event.logicalKey == LogicalKeyboardKey.enter ||
-                event.logicalKey == LogicalKeyboardKey.numpadEnter ||
-                event.logicalKey == LogicalKeyboardKey.escape)) {
+        if (KeyboardShortcutService.isDown(event) ||
+            KeyboardShortcutService.isUp(event) ||
+            KeyboardShortcutService.isConfirm(event) ||
+            KeyboardShortcutService.isExit(event)) {
           return KeyEventResult.handled;
         }
         return KeyEventResult.ignored;

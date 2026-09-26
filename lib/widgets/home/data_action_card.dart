@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../constants/app_colors.dart';
 import '../../services/keyboard_shortcut_service.dart';
 import '../action_button.dart';
@@ -67,18 +66,16 @@ class _DataActionCardState extends State<DataActionCard> {
                   focusNode: _backupNode,
                   onFocusChange: (val) => setState(() => _isBackupFocused = val),
                   onKeyEvent: (node, event) {
-                    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return KeyEventResult.ignored;
-                    final key = event.logicalKey;
-                    if (KeyboardShortcutService.isRight(key)) {
+                    if (KeyboardShortcutService.isRight(event)) {
                       _restoreNode.requestFocus();
                       return KeyEventResult.handled;
-                    } else if (KeyboardShortcutService.isLeft(key)) {
+                    } else if (KeyboardShortcutService.isLeft(event)) {
                       widget.onMoveLeft?.call();
                       return KeyEventResult.handled;
-                    } else if (KeyboardShortcutService.isDown(key)) {
+                    } else if (KeyboardShortcutService.isDown(event)) {
                       widget.onMoveDown?.call();
                       return KeyEventResult.handled;
-                    } else if (KeyboardShortcutService.isConfirm(key)) {
+                    } else if (KeyboardShortcutService.isConfirm(event)) {
                       widget.onBackup?.call();
                       return KeyEventResult.handled;
                     }
@@ -120,18 +117,16 @@ class _DataActionCardState extends State<DataActionCard> {
                   focusNode: _restoreNode,
                   onFocusChange: (val) => setState(() => _isRestoreFocused = val),
                   onKeyEvent: (node, event) {
-                    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return KeyEventResult.ignored;
-                    final key = event.logicalKey;
-                    if (KeyboardShortcutService.isLeft(key)) {
+                    if (KeyboardShortcutService.isLeft(event)) {
                       _backupNode.requestFocus();
                       return KeyEventResult.handled;
-                    } else if (KeyboardShortcutService.isRight(key)) {
+                    } else if (KeyboardShortcutService.isRight(event)) {
                       widget.onMoveRight?.call();
                       return KeyEventResult.handled;
-                    } else if (KeyboardShortcutService.isDown(key)) {
+                    } else if (KeyboardShortcutService.isDown(event)) {
                       widget.onMoveDown?.call();
                       return KeyEventResult.handled;
-                    } else if (KeyboardShortcutService.isConfirm(key)) {
+                    } else if (KeyboardShortcutService.isConfirm(event)) {
                       widget.onRestore?.call();
                       return KeyEventResult.handled;
                     }

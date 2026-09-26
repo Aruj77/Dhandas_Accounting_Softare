@@ -1,7 +1,7 @@
 // lib/widgets/common/app_action_bottom_sheet.dart
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../constants/app_colors.dart';
+import '../../services/keyboard_shortcut_service.dart';
 
 class AppActionItem {
   final String title;
@@ -98,19 +98,16 @@ class _AppActionBottomSheetState extends State<AppActionBottomSheet> {
                     if (has) setState(() => _focusedIdx = i);
                   },
                   onKeyEvent: (node, event) {
-                    if (event is! KeyDownEvent) return KeyEventResult.ignored;
-                    final k = event.logicalKey;
-
-                    if (k == LogicalKeyboardKey.enter || k == LogicalKeyboardKey.space || k == LogicalKeyboardKey.numpadEnter) {
+                    if (KeyboardShortcutService.isConfirm(event)) {
                       item.onTap();
                       return KeyEventResult.handled;
                     }
-                    if (k == LogicalKeyboardKey.arrowDown || k == LogicalKeyboardKey.numpad2) {
+                    if (KeyboardShortcutService.isDown(event)) {
                       final next = (i + 1) % widget.actions.length;
                       _focusNodes[next].requestFocus();
                       return KeyEventResult.handled;
                     }
-                    if (k == LogicalKeyboardKey.arrowUp || k == LogicalKeyboardKey.numpad8) {
+                    if (KeyboardShortcutService.isUp(event)) {
                       final prev = (i - 1 + widget.actions.length) % widget.actions.length;
                       _focusNodes[prev].requestFocus();
                       return KeyEventResult.handled;

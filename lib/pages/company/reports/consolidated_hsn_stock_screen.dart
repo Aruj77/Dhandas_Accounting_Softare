@@ -1,3 +1,5 @@
+// lib/pages/company/reports/consolidated_hsn_stock_screen.dart
+
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
@@ -44,7 +46,10 @@ class _ConsolidatedHsnStockScreenState extends State<ConsolidatedHsnStockScreen>
 
   bool _isLoading = true;
   String _stockBy = 'HSN'; // 'HSN' or 'Tax Rate'
+  KeyboardShortcutSettings _keyboardSettings = KeyboardShortcutSettings.defaults();
+
   List<Map<String, dynamic>> _rawVouchersData = [];
+  List<Map<String, dynamic>> _prevRawVouchersData = [];
   List<dynamic> _masterItemsData = [];
   List<Map<String, dynamic>> _allRows = [];
   List<Map<String, dynamic>> _filteredRows = [];
@@ -97,6 +102,7 @@ class _ConsolidatedHsnStockScreenState extends State<ConsolidatedHsnStockScreen>
   @override
   void initState() {
     super.initState();
+    _loadKeyboardSettings();
     _loadData();
     _searchCtrl.addListener(_onSearch);
 
@@ -107,6 +113,13 @@ class _ConsolidatedHsnStockScreenState extends State<ConsolidatedHsnStockScreen>
         }
       }
     });
+  }
+
+  Future<void> _loadKeyboardSettings() async {
+    final settings = await KeyboardShortcutService.loadSettings();
+    if (mounted) {
+      setState(() => _keyboardSettings = settings);
+    }
   }
 
   @override
@@ -120,14 +133,34 @@ class _ConsolidatedHsnStockScreenState extends State<ConsolidatedHsnStockScreen>
     super.dispose();
   }
 
+  String _getPreviousFinancialYear(String currentFy) {
+    try {
+      final parts = currentFy.split('-');
+      if (parts.length == 2) {
+        final startYear = int.parse(parts[0]) - 1;
+        final endYear = int.parse(parts[1]) - 1;
+        return '$startYear-$endYear';
+      }
+    } catch (_) {}
+    return currentFy;
+  }
+
   Future<void> _loadData() async {
     final folderPath = widget.company.folderPath;
     final fy = widget.company.activeFinancialYear;
 
     final rawVouchers = await StorageService.loadVouchers(folderPath: folderPath, financialYear: fy);
+    
+    // Dynamically load previous financial year data for accurate historical opening balance tracking
+    final prevFy = _getPreviousFinancialYear(fy);
+    final prevRawVouchers = prevFy != fy 
+        ? await StorageService.loadVouchers(folderPath: folderPath, financialYear: prevFy)
+        : <Map<String, dynamic>>[];
+
     final masters = await StorageService.loadCompanyMasters(folderPath: folderPath);
 
     _rawVouchersData = rawVouchers;
+    _prevRawVouchersData = prevRawVouchers;
     _masterItemsData = masters['items'] as List<dynamic>? ?? [];
 
     _aggregateStock();
@@ -154,46 +187,69 @@ class _ConsolidatedHsnStockScreenState extends State<ConsolidatedHsnStockScreen>
 
     final Map<String, Map<String, dynamic>> aggregates = {};
 
-    for (final vchJson in _rawVouchersData) {
-      final v = VoucherModel.fromJson(vchJson);
-      final itemsList = vchJson['items'] as List<dynamic>? ?? [];
+    void processVouchers(List<Map<String, dynamic>> vouchers, bool isFromPreviousFy) {
+      for (final vchJson in vouchers) {
+        final v = VoucherModel.fromJson(vchJson);
+        final vDate = v.parsedDate ?? DateTime.now();
+        final itemsList = vchJson['items'] as List<dynamic>? ?? [];
 
-      for (final rawItem in itemsList) {
-        final itemMap = rawItem is Map<String, dynamic> ? rawItem : <String, dynamic>{};
-        final itemName = itemMap['itemName']?.toString() ?? itemMap['name']?.toString() ?? itemMap['item']?.toString() ?? '';
-        final qty = NumberParsing.toDouble(itemMap['qty'] ?? itemMap['quantity'] ?? 1.0);
-        final taxableAmt = NumberParsing.toDouble(itemMap['taxable'] ?? itemMap['amount'] ?? itemMap['total'] ?? 0.0);
+        for (final rawItem in itemsList) {
+          final itemMap = rawItem is Map<String, dynamic> ? rawItem : <String, dynamic>{};
+          final itemName = itemMap['itemName']?.toString() ?? itemMap['name']?.toString() ?? itemMap['item']?.toString() ?? '';
+          final qty = NumberParsing.toDouble(itemMap['qty'] ?? itemMap['quantity'] ?? 1.0);
+          final taxableAmt = NumberParsing.toDouble(itemMap['taxable'] ?? itemMap['amount'] ?? itemMap['total'] ?? 0.0);
 
-        final hsn = itemMap['hsn']?.toString().isNotEmpty == true 
-            ? itemMap['hsn'].toString() 
-            : (itemHsnMap[itemName] ?? '9988');
-        final taxRate = NumberParsing.toDouble(itemMap['gstRate'] ?? itemMap['taxRate'] ?? itemTaxMap[hsn] ?? 18.0);
-        final unit = itemMap['unit']?.toString() ?? itemUnitMap[hsn] ?? 'Pcs';
+          final hsn = itemMap['hsn']?.toString().isNotEmpty == true 
+              ? itemMap['hsn'].toString() 
+              : (itemHsnMap[itemName] ?? '9988');
+          final taxRate = NumberParsing.toDouble(itemMap['gstRate'] ?? itemMap['taxRate'] ?? itemTaxMap[hsn] ?? 18.0);
+          final unit = itemMap['unit']?.toString() ?? itemUnitMap[hsn] ?? 'Pcs';
 
-        final String groupKey = _stockBy == 'HSN' ? hsn : '${taxRate.toStringAsFixed(1)}%';
+          final String groupKey = _stockBy == 'HSN' ? hsn : '${taxRate.toStringAsFixed(1)}%';
 
-        aggregates.putIfAbsent(groupKey, () => {
-          'groupKey': groupKey,
-          'taxRate': taxRate,
-          'unit': unit,
-          'openingQty': 10.0,
-          'openingAmt': 1000.0,
-          'qtyAdded': 0.0,
-          'amtAdded': 0.0,
-          'qtyWithdraw': 0.0,
-          'amtWithdraw': 0.0,
-        });
+          aggregates.putIfAbsent(groupKey, () => {
+            'groupKey': groupKey,
+            'taxRate': taxRate,
+            'unit': unit,
+            'openingQty': 0.0,
+            'openingAmt': 0.0,
+            'qtyAdded': 0.0,
+            'amtAdded': 0.0,
+            'qtyWithdraw': 0.0,
+            'amtWithdraw': 0.0,
+          });
 
-        final row = aggregates[groupKey]!;
-        if (v.isPurchase) {
-          row['qtyAdded'] = (row['qtyAdded'] as double) + qty;
-          row['amtAdded'] = (row['amtAdded'] as double) + taxableAmt;
-        } else if (v.isSale) {
-          row['qtyWithdraw'] = (row['qtyWithdraw'] as double) + qty;
-          row['amtWithdraw'] = (row['amtWithdraw'] as double) + taxableAmt;
+          final row = aggregates[groupKey]!;
+          
+          final isOpeningBalance = isFromPreviousFy || vDate.isBefore(widget.fromDate);
+          
+          final isWithinPeriod = !isFromPreviousFy && 
+              (vDate.isAtSameMomentAs(widget.fromDate) || vDate.isAfter(widget.fromDate)) && 
+              (vDate.isAtSameMomentAs(widget.toDate) || vDate.isBefore(widget.toDate));
+
+          if (v.isPurchase) {
+            if (isOpeningBalance) {
+              row['openingQty'] = (row['openingQty'] as double) + qty;
+              row['openingAmt'] = (row['openingAmt'] as double) + taxableAmt;
+            } else if (isWithinPeriod) {
+              row['qtyAdded'] = (row['qtyAdded'] as double) + qty;
+              row['amtAdded'] = (row['amtAdded'] as double) + taxableAmt;
+            }
+          } else if (v.isSale) {
+            if (isOpeningBalance) {
+              row['openingQty'] = (row['openingQty'] as double) - qty;
+              row['openingAmt'] = (row['openingAmt'] as double) - taxableAmt;
+            } else if (isWithinPeriod) {
+              row['qtyWithdraw'] = (row['qtyWithdraw'] as double) + qty;
+              row['amtWithdraw'] = (row['amtWithdraw'] as double) + taxableAmt;
+            }
+          }
         }
       }
     }
+
+    processVouchers(_prevRawVouchersData, true);
+    processVouchers(_rawVouchersData, false);
 
     final List<Map<String, dynamic>> processedRows = [];
     aggregates.forEach((k, data) {
@@ -204,6 +260,7 @@ class _ConsolidatedHsnStockScreenState extends State<ConsolidatedHsnStockScreen>
       final qtyWithdraw = data['qtyWithdraw'] as double;
       final amtWithdraw = data['amtWithdraw'] as double;
 
+      // True Accounting Calculation Formula
       final closingQty = (openingQty + qtyAdded) - qtyWithdraw;
       final closingAmt = (openingAmt + amtAdded) - amtWithdraw;
 
@@ -366,6 +423,7 @@ class _ConsolidatedHsnStockScreenState extends State<ConsolidatedHsnStockScreen>
       }
     }, message: 'Generating JSON File...');
   }
+  
   void _triggerPrint() {
     final activeKeys = _columnLabels.keys.where(_isColVisible).toList();
 
@@ -420,23 +478,24 @@ class _ConsolidatedHsnStockScreenState extends State<ConsolidatedHsnStockScreen>
 
   KeyEventResult _handleGlobalKeyEvent(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) return KeyEventResult.ignored;
-    if (KeyboardShortcutService.isExit(event.logicalKey)) {
+    
+    if (KeyboardShortcutService.isExit(event)) {
       Navigator.pop(context);
       return KeyEventResult.handled;
     }
-    if (KeyboardShortcutService.isPrint(event)) {
+    if (KeyboardShortcutService.matchesAction(_keyboardSettings, KeyboardShortcutService.printInvoiceAction, event)) {
       _triggerPrint();
       return KeyEventResult.handled;
     }
-    if (KeyboardShortcutService.isExportExcel(event)) {
+    if (KeyboardShortcutService.matchesAction(_keyboardSettings, KeyboardShortcutService.exportExcelAction, event)) {
       _handleExcelExport();
       return KeyEventResult.handled;
     }
-    if (KeyboardShortcutService.isExportJson(event)) {
+    if (KeyboardShortcutService.matchesAction(_keyboardSettings, KeyboardShortcutService.exportJsonAction, event)) {
       _exportToJson();
       return KeyEventResult.handled;
     }
-    if (KeyboardShortcutService.isColumnsDialog(event)) {
+    if (KeyboardShortcutService.matchesAction(_keyboardSettings, KeyboardShortcutService.columnsDialogAction, event)) {
       _openColumnSettingsDialog();
       return KeyEventResult.handled;
     }
@@ -545,22 +604,22 @@ class _ConsolidatedHsnStockScreenState extends State<ConsolidatedHsnStockScreen>
                   TextButton.icon(
                     onPressed: _openColumnSettingsDialog,
                     icon: const Icon(Icons.view_column_rounded, size: 16, color: AppColors.info),
-                    label: const Text('Columns (Ctrl+Q)', style: TextStyle(color: AppColors.info, fontWeight: FontWeight.bold)),
+                    label: Text('Columns (${KeyboardShortcutService.labelForAction(_keyboardSettings, KeyboardShortcutService.columnsDialogAction)})', style: const TextStyle(color: AppColors.info, fontWeight: FontWeight.bold)),
                   ),
                   TextButton.icon(
                     onPressed: _handleExcelExport,
                     icon: const Icon(Icons.table_view_rounded, size: 16, color: AppColors.success),
-                    label: const Text('Excel (Ctrl+E)', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold)),
+                    label: Text('Excel (${KeyboardShortcutService.labelForAction(_keyboardSettings, KeyboardShortcutService.exportExcelAction)})', style: const TextStyle(color: AppColors.success, fontWeight: FontWeight.bold)),
                   ),
                   TextButton.icon(
                     onPressed: _exportToJson,
                     icon: const Icon(Icons.data_object_rounded, size: 16, color: AppColors.purple),
-                    label: const Text('JSON (Ctrl+J)', style: TextStyle(color: AppColors.purple, fontWeight: FontWeight.bold)),
+                    label: Text('JSON (${KeyboardShortcutService.labelForAction(_keyboardSettings, KeyboardShortcutService.exportJsonAction)})', style: const TextStyle(color: AppColors.purple, fontWeight: FontWeight.bold)),
                   ),
                   TextButton.icon(
                     onPressed: _triggerPrint,
                     icon: const Icon(Icons.print_rounded, size: 16, color: AppColors.primary),
-                    label: const Text('Print (Ctrl+P)', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                    label: Text('Print (${KeyboardShortcutService.labelForAction(_keyboardSettings, KeyboardShortcutService.printInvoiceAction)})', style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
                   ),
                   const SizedBox(width: 8),
                   IconButton(
@@ -570,7 +629,7 @@ class _ConsolidatedHsnStockScreenState extends State<ConsolidatedHsnStockScreen>
                 ],
               ),
             ),
-            // Custom Stock Header Metrics Bar (replacing generic invoice register bar)
+            // Custom Stock Header Metrics Bar
             Container(
               height: 52,
               padding: const EdgeInsets.symmetric(horizontal: 20),

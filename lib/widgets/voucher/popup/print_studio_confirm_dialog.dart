@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../../constants/app_colors.dart';
+import '../../../services/keyboard_shortcut_service.dart';
 
 class PrintStudioConfirmDialog extends StatefulWidget {
   final String vchNo;
@@ -64,10 +64,7 @@ class _PrintStudioConfirmDialogState extends State<PrintStudioConfirmDialog> {
           focusNode: _focusNode,
           autofocus: true,
           onKeyEvent: (_, event) {
-            if (event is KeyDownEvent &&
-                (event.logicalKey == LogicalKeyboardKey.enter ||
-                 event.logicalKey == LogicalKeyboardKey.numpadEnter ||
-                 event.logicalKey == LogicalKeyboardKey.space)) {
+            if (KeyboardShortcutService.isConfirm(event)) {
               Navigator.pop(context, true);
               return KeyEventResult.handled;
             }

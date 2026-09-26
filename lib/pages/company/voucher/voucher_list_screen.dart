@@ -1,3 +1,4 @@
+// desktop/lib/pages/company/voucher/voucher_list_screen.dart
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
@@ -26,6 +27,7 @@ import '../../../widgets/common/app_confirm_dialog.dart';
 import '../../../widgets/common/data_table_cells.dart';
 import 'voucher_entry_screen.dart';
 import '../../../widgets/common/print_studio_dialog.dart';
+
 class VoucherListScreen extends ConsumerStatefulWidget {
   final CompanyModel company;
   final String voucherType;
@@ -71,6 +73,7 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
   late DateTime _effectiveFromDate;
   late DateTime _effectiveToDate;
 
+  KeyboardShortcutSettings _keyboardSettings = KeyboardShortcutSettings.defaults();
   SyncWorker? _cachedSyncWorker;
 
   final Map<String, String> _columnLabels = {
@@ -118,6 +121,7 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
     _effectiveFromDate = widget.fromDate ?? bounds.startDate;
     _effectiveToDate = widget.toDate ?? bounds.endDate;
 
+    _loadKeyboardSettings();
     _loadAvailableSeries();
     _loadVouchers();
     _searchCtrl.addListener(_onSearch);
@@ -137,6 +141,13 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
         if (mounted) _loadVouchers();
       };
     });
+  }
+
+  Future<void> _loadKeyboardSettings() async {
+    final settings = await KeyboardShortcutService.loadSettings();
+    if (mounted) {
+      setState(() => _keyboardSettings = settings);
+    }
   }
 
   Future<void> _loadAvailableSeries() async {
@@ -172,7 +183,6 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
     _bodyVerticalScrollCtrl.dispose();
     _horizontalFooterCtrl.dispose();
 
-    // Safely unfocus before batch disposing
     final primaryFocus = FocusManager.instance.primaryFocus;
     if (primaryFocus != null && _rowFocusNodes.contains(primaryFocus)) {
       primaryFocus.unfocus();
@@ -183,11 +193,9 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
     super.dispose();
   }
 
-  /// Synchronizes row focus nodes safely without crashing native accessibility trees.
   void _syncFocusNodes() {
     final primaryFocus = FocusManager.instance.primaryFocus;
     if (primaryFocus != null && _rowFocusNodes.contains(primaryFocus)) {
-      // Gracefully shift focus to search or unfocus before destroying node
       if (_searchFocusNode.canRequestFocus) {
         _searchFocusNode.requestFocus();
       } else {
@@ -522,7 +530,7 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
           voucherType: widget.voucherType,
           voucherToEdit: voucher,
           isEdit: true,
-          keyboardSettings: KeyboardShortcutSettings.defaults(),
+          keyboardSettings: _keyboardSettings,
           onClose: () => Navigator.of(context).pop(),
         ),
       ),
@@ -824,23 +832,23 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
       return KeyEventResult.ignored;
     }
 
-    if (KeyboardShortcutService.isExit(event.logicalKey)) {
+    if (KeyboardShortcutService.matchesAction(_keyboardSettings, KeyboardShortcutService.goBackAction, event)) {
       widget.onClose();
       return KeyEventResult.handled;
     }
-    if (KeyboardShortcutService.isPrint(event)) {
+    if (KeyboardShortcutService.matchesAction(_keyboardSettings, KeyboardShortcutService.printInvoiceAction, event)) {
       _triggerPrint();
       return KeyEventResult.handled;
     }
-    if (KeyboardShortcutService.isExportExcel(event)) {
+    if (KeyboardShortcutService.matchesAction(_keyboardSettings, KeyboardShortcutService.exportExcelAction, event)) {
       _handleExcelExport();
       return KeyEventResult.handled;
     }
-    if (KeyboardShortcutService.isExportJson(event)) {
+    if (KeyboardShortcutService.matchesAction(_keyboardSettings, KeyboardShortcutService.exportJsonAction, event)) {
       _exportToJson();
       return KeyEventResult.handled;
     }
-    if (KeyboardShortcutService.isColumnsDialog(event)) {
+    if (KeyboardShortcutService.matchesAction(_keyboardSettings, KeyboardShortcutService.columnsDialogAction, event)) {
       _openColumnSettingsDialog();
       return KeyEventResult.handled;
     }
@@ -1028,9 +1036,9 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
                       onPressed: _openColumnSettingsDialog,
                       icon: const Icon(Icons.view_column_rounded,
                           size: 16, color: AppColors.info),
-                      label: const Text(
-                        'Columns (Ctrl+Q)',
-                        style: TextStyle(
+                      label: Text(
+                        'Columns (${KeyboardShortcutService.labelForAction(_keyboardSettings, KeyboardShortcutService.columnsDialogAction)})',
+                        style: const TextStyle(
                           color: AppColors.info,
                           fontWeight: FontWeight.bold,
                         ),
@@ -1040,9 +1048,9 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
                       onPressed: _handleExcelExport,
                       icon: const Icon(Icons.table_view_rounded,
                           size: 16, color: AppColors.success),
-                      label: const Text(
-                        'Excel (Ctrl+E)',
-                        style: TextStyle(
+                      label: Text(
+                        'Excel (${KeyboardShortcutService.labelForAction(_keyboardSettings, KeyboardShortcutService.exportExcelAction)})',
+                        style: const TextStyle(
                           color: AppColors.success,
                           fontWeight: FontWeight.bold,
                         ),
@@ -1052,9 +1060,9 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
                       onPressed: _exportToJson,
                       icon: const Icon(Icons.data_object_rounded,
                           size: 16, color: AppColors.purple),
-                      label: const Text(
-                        'JSON (Ctrl+J)',
-                        style: TextStyle(
+                      label: Text(
+                        'JSON (${KeyboardShortcutService.labelForAction(_keyboardSettings, KeyboardShortcutService.exportJsonAction)})',
+                        style: const TextStyle(
                           color: AppColors.purple,
                           fontWeight: FontWeight.bold,
                         ),
@@ -1064,9 +1072,9 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
                       onPressed: _triggerPrint,
                       icon: const Icon(Icons.print_rounded,
                           size: 16, color: AppColors.primary),
-                      label: const Text(
-                        'Print (Ctrl+P)',
-                        style: TextStyle(
+                      label: Text(
+                        'Print (${KeyboardShortcutService.labelForAction(_keyboardSettings, KeyboardShortcutService.printInvoiceAction)})',
+                        style: const TextStyle(
                           color: AppColors.primary,
                           fontWeight: FontWeight.bold,
                         ),
@@ -1250,7 +1258,6 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
                                                           color: AppColors
                                                               .borderLight),
                                                   itemBuilder: (context, idx) {
-                                                    // Guard against race conditions during quick list changes
                                                     if (idx >= _rowFocusNodes.length) {
                                                       return const SizedBox.shrink();
                                                     }
@@ -1272,15 +1279,17 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
                                                       onKeyEvent: (_, e) {
                                                         if (e is KeyDownEvent || e is KeyRepeatEvent) {
                                                           if (KeyboardShortcutService
-                                                              .isConfirm(e
-                                                                  .logicalKey)) {
+                                                              .matchesAction(_keyboardSettings, KeyboardShortcutService.activateAction, e) ||
+                                                              KeyboardShortcutService
+                                                              .isConfirm(e)) {
                                                             _openEdit(v);
                                                             return KeyEventResult
                                                                 .handled;
                                                           }
                                                           if (KeyboardShortcutService
-                                                              .isDown(e
-                                                                  .logicalKey)) {
+                                                              .matchesAction(_keyboardSettings, KeyboardShortcutService.moveDownAction, e) ||
+                                                              KeyboardShortcutService
+                                                              .isDown(e)) {
                                                             if (idx + 1 <
                                                                 _rowFocusNodes
                                                                     .length) {
@@ -1296,8 +1305,9 @@ class _VoucherListScreenState extends ConsumerState<VoucherListScreen> {
                                                                 .handled;
                                                           }
                                                           if (KeyboardShortcutService
-                                                              .isUp(e
-                                                                  .logicalKey)) {
+                                                              .matchesAction(_keyboardSettings, KeyboardShortcutService.moveUpAction, e) ||
+                                                              KeyboardShortcutService
+                                                              .isUp(e)) {
                                                             if (idx - 1 >= 0) {
                                                               _rowFocusNodes[
                                                                       idx - 1]

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
-import '../../services/keyboard_shortcut_service.dart';
 import '../../utils/smart_filter.dart';
 import '../../constants/app_decoration.dart';
 
@@ -52,10 +51,11 @@ class AppAutocompleteField<T extends Object> extends StatelessWidget {
       canRequestFocus: false,
       skipTraversal: true,
       onKeyEvent: (node, event) {
-        if (onQuickAdd != null && KeyboardShortcutService.isQuickAdd(event)) {
+        if (onQuickAdd != null) {
           onQuickAdd!();
           return KeyEventResult.handled;
         }
+
         return KeyEventResult.ignored;
       },
       child: SizedBox(

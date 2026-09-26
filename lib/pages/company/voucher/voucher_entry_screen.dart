@@ -1,3 +1,4 @@
+// lib/pages/company/voucher/voucher_entry_screen.dart
 import 'dart:async';
 import 'package:collection/collection.dart';
 import 'package:file_picker/file_picker.dart';
@@ -298,30 +299,21 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
 
     final route = ModalRoute.of(context);
     if (route != null && !route.isCurrent) return false;
-
-    final hw = HardwareKeyboard.instance;
-    final isModifierPressed = hw.isControlPressed || hw.isMetaPressed;
-
-    if (isModifierPressed && event.logicalKey == LogicalKeyboardKey.keyC) {
-      if (_handleSmartCtrlC()) return true;
-    }
-    if (isModifierPressed && event.logicalKey == LogicalKeyboardKey.keyE) {
-      if (_handleCtrlE()) return true;
-    }
-    if (isModifierPressed && event.logicalKey == LogicalKeyboardKey.keyB) {
+    if (KeyboardShortcutService.matchesAction(widget.keyboardSettings, KeyboardShortcutService.quickAddMasterAction, event)) if (_handleSmartCtrlC()) return true;
+    if (KeyboardShortcutService.matchesAction(widget.keyboardSettings, KeyboardShortcutService.modifyMasterAction, event)) if (_handleCtrlE()) return true;
+    if (KeyboardShortcutService.matchesAction(widget.keyboardSettings, KeyboardShortcutService.previousVoucherAction, event)) {
       _navigateToPreviousVoucher();
       return true;
     }
-    if (isModifierPressed && event.logicalKey == LogicalKeyboardKey.keyN) {
+    if (KeyboardShortcutService.matchesAction(widget.keyboardSettings, KeyboardShortcutService.nextVoucherAction, event)) {
       _navigateToNextVoucher();
       return true;
     }
-    if (isModifierPressed && event.logicalKey == LogicalKeyboardKey.keyS) {
+    if (KeyboardShortcutService.matchesAction(widget.keyboardSettings, KeyboardShortcutService.saveVoucherAction, event)) {
       _saveVoucher();
       return true;
     }
-
-    if (event.logicalKey == LogicalKeyboardKey.tab && !hw.isShiftPressed) {
+    if (KeyboardShortcutService.isTab(event, requireUnshifted: true)) {
       if (_isAnyItemCellFocused()) {
         _sundries.firstOrNull?.nameFocus.requestFocus();
         return true;
@@ -332,15 +324,38 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
       }
     }
 
-    if (KeyboardShortcutService.matchesAction(
-      widget.keyboardSettings,
-      KeyboardShortcutService.goBackAction,
-      event,
-    )) {
+    if (KeyboardShortcutService.matchesAction(widget.keyboardSettings, KeyboardShortcutService.goBackAction, event)) {
       _requestExit();
       return true;
     }
     return false;
+  }
+
+  KeyEventResult _onGlobalKeyAction(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    if (KeyboardShortcutService.matchesAction(widget.keyboardSettings, KeyboardShortcutService.printInvoiceAction, event)) {
+      _openPrintPreview();
+      return KeyEventResult.handled;
+    }
+
+    if (KeyboardShortcutService.matchesAction(widget.keyboardSettings, KeyboardShortcutService.calculatorAction, event)) {
+      for (final r in _items) {
+        final targets = [
+          (r.qtyFocus, 'qty', r.qty),
+          (r.priceFocus, 'price', r.price),
+          (r.taxableFocus, 'taxable', r.taxable),
+          (r.amountFocus, 'amount', r.amount),
+        ];
+        for (final (focus, name, ctrl) in targets) {
+          if (focus.hasFocus) {
+            _openCalculatorForController(ctrl, r, name);
+            return KeyEventResult.handled;
+          }
+        }
+      }
+    }
+
+    return KeyEventResult.ignored;
   }
 
   Future<void> _requestExit() async {
@@ -1620,34 +1635,6 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
     }
   }
 
-  KeyEventResult _onGlobalKeyAction(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent) return KeyEventResult.ignored;
-
-    if (KeyboardShortcutService.isPrint(event)) {
-      _openPrintPreview();
-      return KeyEventResult.handled;
-    }
-
-    if (KeyboardShortcutService.isCalculator(event)) {
-      for (final r in _items) {
-        final targets = [
-          (r.qtyFocus, 'qty', r.qty),
-          (r.priceFocus, 'price', r.price),
-          (r.taxableFocus, 'taxable', r.taxable),
-          (r.amountFocus, 'amount', r.amount),
-        ];
-        for (final (focus, name, ctrl) in targets) {
-          if (focus.hasFocus) {
-            _openCalculatorForController(ctrl, r, name);
-            return KeyEventResult.handled;
-          }
-        }
-      }
-    }
-
-    return KeyEventResult.ignored;
-  }
-
   Future<void> _handleScanWithAiPro() async {
     _ScanDocumentSource? selectedSource;
 
@@ -1887,9 +1874,7 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
                             canRequestFocus: false,
                             skipTraversal: true,
                             onKeyEvent: (node, event) {
-                              if (event is KeyDownEvent &&
-                                  event.logicalKey == LogicalKeyboardKey.tab &&
-                                  !HardwareKeyboard.instance.isShiftPressed) {
+                              if (KeyboardShortcutService.isTab(event, requireUnshifted: true)) {
                                 _sundries.firstOrNull?.nameFocus.requestFocus();
                                 return KeyEventResult.handled;
                               }
@@ -2031,9 +2016,9 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
                 ),
               ),
               icon: const Icon(Icons.print_rounded, size: 15, color: AppColors.primary),
-              label: const Text(
-                'Print (Ctrl+P)',
-                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800),
+              label: Text(
+                'Print (${KeyboardShortcutService.labelForAction(widget.keyboardSettings, KeyboardShortcutService.printInvoiceAction)})',
+                style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800),
               ),
             ),
             const SizedBox(width: 8),
@@ -2043,9 +2028,9 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
           TextButton.icon(
             onPressed: () => _openCalculatorForController(TextEditingController()),
             icon: const Icon(Icons.calculate_outlined, size: 16, color: AppColors.textSecondary),
-            label: const Text(
-              'Calc (F4)',
-              style: TextStyle(
+            label: Text(
+              'Calc (${KeyboardShortcutService.labelForAction(widget.keyboardSettings, KeyboardShortcutService.calculatorAction)})',
+              style: const TextStyle(
                 fontSize: 11.5,
                 color: AppColors.textSecondary,
                 fontWeight: FontWeight.w700,
@@ -2112,6 +2097,8 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
   }
 
   Widget _buildFooterBar() {
+    String s(String action) => KeyboardShortcutService.labelForAction(widget.keyboardSettings, action);
+
     return Container(
       height: 30,
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -2129,15 +2116,15 @@ class _VoucherEntryScreenState extends ConsumerState<VoucherEntryScreen> {
               color: AppColors.textSecondary,
             ),
           ),
-          _buildShortcutHint('[F2 / Ctrl+S] Save'),
-          _buildShortcutHint('[Ctrl+B] Prev Vch'),
-          _buildShortcutHint('[Ctrl+N] Next Vch'),
-          if (_isEditingExisting) _buildShortcutHint('[Ctrl+P] Print'),
-          _buildShortcutHint('[F4] Calculator'),
-          _buildShortcutHint('[Ctrl+C] Quick Add Master'),
-          _buildShortcutHint('[Ctrl+E] Edit Master / Tax Details'),
-          _buildShortcutHint('[Tab / Enter] Next Field'),
-          _buildShortcutHint('[Esc] Exit'),
+          _buildShortcutHint('[${s(KeyboardShortcutService.saveVoucherAction)}] Save'),
+          _buildShortcutHint('[${s(KeyboardShortcutService.previousVoucherAction)}] Prev Vch'),
+          _buildShortcutHint('[${s(KeyboardShortcutService.nextVoucherAction)}] Next Vch'),
+          if (_isEditingExisting) _buildShortcutHint('[${s(KeyboardShortcutService.printInvoiceAction)}] Print'),
+          _buildShortcutHint('[${s(KeyboardShortcutService.calculatorAction)}] Calc'),
+          _buildShortcutHint('[${s(KeyboardShortcutService.quickAddMasterAction)}] Quick Add'),
+          _buildShortcutHint('[${s(KeyboardShortcutService.modifyMasterAction)}] Edit Master'),
+          _buildShortcutHint('[Tab] Next Field'),
+          _buildShortcutHint('[${s(KeyboardShortcutService.goBackAction)}] Exit'),
           const Spacer(),
           const Text(
             'Dhandas Modern Engine Active',
